@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { RateSearchForm } from "../components/rates/RateSearchForm";
-import { RatesGrid } from "../components/rates/RatesGrid";
+import { RatesTable } from "../components/rates/RatesGrid";
 import { HeavyCargoBanner } from "../components/rates/HeavyCargoBanner";
 import { AirlineCardSkeleton } from "../components/rates/AirlineCardSkeleton";
 import { EmptyRateState } from "../components/rates/EmptyRateState";
@@ -82,9 +82,9 @@ export default function RateDiscoveryPage() {
         />
       )}
 
-      {/* Ranked Rates Leaderboard (< 500 kg) */}
+      {/* High-Density Tariff Comparison Table (< 500 kg) */}
       {!loading && response && !response.is_heavy_cargo && response.rates.length > 0 && (
-        <RatesGrid rates={response.rates} />
+        <RatesTable rates={response.rates} />
       )}
     </div>
   );

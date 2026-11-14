@@ -5,51 +5,101 @@ import React from "react";
 export function AirlineCardSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading airline tariffs">
-      <div className="flex items-center justify-between pb-1">
-        <div className="h-5 w-48 rounded-md bg-slate-200 animate-pulse" />
-        <div className="h-4 w-32 rounded-md bg-slate-100 animate-pulse" />
+      {/* Top Header Filter Skeleton */}
+      <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+        <div className="space-y-1">
+          <div className="h-5 w-48 rounded-md bg-slate-200 animate-pulse" />
+          <div className="h-3 w-64 rounded-md bg-slate-100 animate-pulse" />
+        </div>
+        <div className="flex gap-2">
+          <div className="h-7 w-20 rounded-xl bg-slate-200 animate-pulse" />
+          <div className="h-7 w-20 rounded-xl bg-slate-200 animate-pulse" />
+        </div>
       </div>
 
-      {[1, 2, 3].map((n) => (
-        <div
-          key={n}
-          className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs animate-pulse space-y-4"
-        >
-          {/* Top row */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-slate-200" />
-              <div className="space-y-1.5">
-                <div className="h-4 w-36 rounded bg-slate-200" />
-                <div className="h-3 w-28 rounded bg-slate-100" />
-              </div>
-            </div>
-            <div className="h-8 w-28 rounded-lg bg-slate-200" />
-          </div>
+      {/* Table Skeleton Container */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/90 py-3 px-4">
+                <th className="py-3 px-4"><div className="h-4 w-24 rounded bg-slate-200 animate-pulse" /></th>
+                <th className="py-3 px-3.5"><div className="h-4 w-24 rounded bg-slate-200 animate-pulse" /></th>
+                <th className="py-3 px-3"><div className="h-4 w-16 rounded bg-slate-200 animate-pulse" /></th>
+                <th className="py-3 px-3"><div className="h-4 w-20 rounded bg-slate-200 animate-pulse" /></th>
+                <th className="py-3 px-3.5 text-right"><div className="h-4 w-20 rounded bg-slate-200 animate-pulse ml-auto" /></th>
+                <th className="py-3 px-4 text-right"><div className="h-4 w-28 rounded bg-slate-200 animate-pulse ml-auto" /></th>
+                <th className="py-3 px-4 text-center"><div className="h-4 w-16 rounded bg-slate-200 animate-pulse mx-auto" /></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {[1, 2, 3, 4, 5].map((idx) => (
+                <tr key={idx} className={idx % 2 === 1 ? "bg-slate-50/40" : "bg-white"}>
+                  {/* Airline & Flight */}
+                  <td className="py-3.5 px-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-slate-200 animate-pulse shrink-0" />
+                      <div className="space-y-1.5">
+                        <div className="h-3.5 w-28 rounded bg-slate-200 animate-pulse" />
+                        <div className="h-2.5 w-20 rounded bg-slate-100 animate-pulse" />
+                      </div>
+                    </div>
+                  </td>
 
-          {/* Center Timetable line */}
-          <div className="grid grid-cols-3 gap-4 py-3 border-y border-slate-100">
-            <div className="space-y-1">
-              <div className="h-3 w-16 rounded bg-slate-100" />
-              <div className="h-5 w-20 rounded bg-slate-200" />
-            </div>
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="h-3 w-20 rounded bg-slate-100" />
-              <div className="h-0.5 w-full bg-slate-200" />
-            </div>
-            <div className="space-y-1 text-right flex flex-col items-end">
-              <div className="h-3 w-16 rounded bg-slate-100" />
-              <div className="h-5 w-20 rounded bg-slate-200" />
-            </div>
-          </div>
+                  {/* Schedule */}
+                  <td className="py-3.5 px-3.5 whitespace-nowrap">
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-24 rounded bg-slate-200 animate-pulse" />
+                      <div className="h-2.5 w-20 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </td>
 
-          {/* Bottom row */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="h-3 w-48 rounded bg-slate-100" />
-            <div className="h-8 w-32 rounded-lg bg-slate-200" />
-          </div>
+                  {/* Cutoff */}
+                  <td className="py-3.5 px-3 whitespace-nowrap">
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-16 rounded bg-slate-200 animate-pulse" />
+                      <div className="h-2.5 w-20 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </td>
+
+                  {/* Slab */}
+                  <td className="py-3.5 px-3 whitespace-nowrap">
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-16 rounded bg-slate-200 animate-pulse" />
+                      <div className="h-2.5 w-12 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </td>
+
+                  {/* Net Buy */}
+                  <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
+                    <div className="space-y-1.5 ml-auto flex flex-col items-end">
+                      <div className="h-3.5 w-20 rounded bg-slate-200 animate-pulse" />
+                      <div className="h-2.5 w-16 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </td>
+
+                  {/* Sell Price */}
+                  <td className="py-3.5 px-4 text-right whitespace-nowrap bg-amber-50/20">
+                    <div className="space-y-1.5 ml-auto flex flex-col items-end">
+                      <div className="h-4 w-24 rounded bg-slate-200 animate-pulse" />
+                      <div className="h-2.5 w-16 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="h-7 w-16 rounded-lg bg-slate-200 animate-pulse" />
+                      <div className="h-7 w-7 rounded-lg bg-slate-200 animate-pulse" />
+                      <div className="h-7 w-7 rounded-lg bg-slate-200 animate-pulse" />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
