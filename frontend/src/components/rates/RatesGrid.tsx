@@ -28,23 +28,35 @@ export function RatesGrid({ rates }: RatesGridProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
 
-  const directCount = useMemo(() => {
-    return rates.filter((r) => r.routing_type.toLowerCase().includes("direct")).length;
+  // DSA Optimization: Pre-indexed views for O(1) filter tab switching
+  // Avoids repeated O(M log M) re-sorting and array re-allocation on user clicks
+  const precomputedViews = useMemo(() => {
+    const direct: RateQuoteItem[] = [];
+    for (let i = 0; i < rates.length; i++) {
+      if (rates[i].routing_type.toLowerCase().includes("direct")) {
+        direct.push(rates[i]);
+      }
+    }
+
+    const cheapest = [...rates].sort(
+      (a, b) => a.breakdown.total_landed_buy - b.breakdown.total_landed_buy
+    );
+
+    const fastest = [...rates].sort(
+      (a, b) => (a.transit_minutes ?? 9999) - (b.transit_minutes ?? 9999)
+    );
+
+    return {
+      all: rates,
+      cheapest,
+      fastest,
+      direct,
+      directCount: direct.length,
+    };
   }, [rates]);
 
-  const displayedRates = useMemo(() => {
-    let result = [...rates];
-    if (activeFilter === "direct") {
-      result = result.filter((r) => r.routing_type.toLowerCase().includes("direct"));
-    } else if (activeFilter === "fastest") {
-      // DSA Optimization: O(1) integer comparison using precomputed transit_minutes
-      result.sort((a, b) => (a.transit_minutes ?? 9999) - (b.transit_minutes ?? 9999));
-    } else if (activeFilter === "cheapest") {
-      // DSA Optimization: O(1) integer subtraction
-      result.sort((a, b) => a.breakdown.total_landed_buy - b.breakdown.total_landed_buy);
-    }
-    return result;
-  }, [rates, activeFilter]);
+  const displayedRates = precomputedViews[activeFilter] ?? rates;
+  const directCount = precomputedViews.directCount;
 
   const handleCopyQuote = (quote: RateQuoteItem) => {
     const text = [

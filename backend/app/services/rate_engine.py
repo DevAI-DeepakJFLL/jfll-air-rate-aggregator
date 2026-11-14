@@ -125,6 +125,22 @@ def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[
     return math.ceil(raw_weight * 2.0) / 2.0
 
 
+# DSA: LRU Memoization Cache for Calculated Landed Costs
+# Eliminates repeated TACT break-even and surcharge math for frequent queries
+_PURE_BUY_RATE_CACHE: Dict[Tuple[Any, ...], CostBreakdown] = {}
+_CACHE_MAX_ENTRIES = 2048
+
+
+def get_pure_buy_rate_cache_size() -> int:
+    """Returns current cached entries count."""
+    return len(_PURE_BUY_RATE_CACHE)
+
+
+def clear_pure_buy_rate_cache() -> None:
+    """Evicts all cached rate calculations."""
+    _PURE_BUY_RATE_CACHE.clear()
+
+
 def calculate_pure_buy_rate(
     tariff: Dict[str, Any],
     cw: float,
@@ -136,28 +152,51 @@ def calculate_pure_buy_rate(
     """
     Computes pure landed airline buying cost for shipments under 500 kg.
     Strictly excludes all commercial margins.
-    Time Complexity: O(log T) via binary search break-even pivot.
+    Employs O(1) LRU memoization cache and O(log T) binary search break-even pivot.
     """
+    dest_norm = destination.upper().strip()
+    rate_basis = tariff.get('rate_basis', 'NET_NET_PLUS_PLUS').upper()
+    min_charge = float(tariff.get('min_charge') or 0.0)
+    fsc_rate = 0.0 if rate_basis == 'ALL_IN' else float(tariff.get('fsc_per_kg') or 0.0)
+    ssc_rate = 0.0 if rate_basis == 'ALL_IN' else float(tariff.get('ssc_per_kg') or 0.0)
+
+    # DSA Cache Key Tuple for O(1) retrieval
+    cache_key = (
+        tariff.get('carrier_code', ''),
+        tariff.get('origin', ''),
+        dest_norm,
+        cw,
+        commodity.lower().strip(),
+        min_charge,
+        rate_basis,
+        tariff.get('rate_normal'),
+        tariff.get('rate_45'),
+        tariff.get('rate_100'),
+        tariff.get('rate_250'),
+        tariff.get('rate_300'),
+        fsc_rate,
+        ssc_rate
+    )
+
+    if cache_key in _PURE_BUY_RATE_CACHE:
+        return _PURE_BUY_RATE_CACHE[cache_key]
+
     if tiers is None:
         tiers = extract_active_weight_tiers(tariff)
 
-    min_charge = float(tariff.get('min_charge') or 0.0)
     if pivot_result is None:
         base_freight, effective_rate, _, _, _ = optimize_break_even_pivot(cw, tiers, min_charge)
     else:
         base_freight, effective_rate, _, _, _ = pivot_result
 
     # Surcharges (FSC & Security)
-    rate_basis = tariff.get('rate_basis', 'NET_NET_PLUS_PLUS').upper()
     if rate_basis == 'ALL_IN':
-        fsc_rate, fsc_total = 0.0, 0.0
-        ssc_rate, ssc_total = 0.0, 0.0
+        fsc_total = 0.0
+        ssc_total = 0.0
     else:
-        fsc_rate = float(tariff.get('fsc_per_kg') or 0.0)
         fsc_min = float(tariff.get('fsc_min') or 0.0)
         fsc_total = round(max(fsc_rate * cw, fsc_min))
 
-        ssc_rate = float(tariff.get('ssc_per_kg') or 0.0)
         ssc_min = float(tariff.get('ssc_min') or 0.0)
         ssc_total = round(max(ssc_rate * cw, ssc_min))
 
@@ -178,7 +217,7 @@ def calculate_pure_buy_rate(
 
     # Regulatory & Documentation Fees (O(1) frozenset check)
     awb_fee = 800.0
-    ams_fee = 950.0 if destination.upper() in AMS_APPLICABLE_DESTINATIONS else 0.0
+    ams_fee = 950.0 if dest_norm in AMS_APPLICABLE_DESTINATIONS else 0.0
 
     # Grand Totals (Zero Margin)
     net_subtotal = round(base_freight + fuel_security_total + origin_thc_total + awb_fee + ams_fee)
@@ -186,7 +225,7 @@ def calculate_pure_buy_rate(
     total_landed_buy = net_subtotal + gst_tax
     effective_buy_per_kg = round(total_landed_buy / max(cw, 0.5), 2)
 
-    return CostBreakdown(
+    breakdown = CostBreakdown(
         base_rate_per_kg=effective_rate,
         base_freight_total=base_freight,
         fsc_rate_per_kg=fsc_rate,
@@ -205,6 +244,13 @@ def calculate_pure_buy_rate(
         total_landed_buy=total_landed_buy,
         effective_buy_per_kg=effective_buy_per_kg
     )
+
+    # Store in bounded LRU Cache
+    if len(_PURE_BUY_RATE_CACHE) >= _CACHE_MAX_ENTRIES:
+        _PURE_BUY_RATE_CACHE.pop(next(iter(_PURE_BUY_RATE_CACHE)))
+    _PURE_BUY_RATE_CACHE[cache_key] = breakdown
+
+    return breakdown
 
 
 def process_rate_search(

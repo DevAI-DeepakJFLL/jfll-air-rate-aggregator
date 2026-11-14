@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Plane, Box, Search, AlertCircle } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
+import { airportTrie } from "../../lib/airport-trie";
 
 interface RateSearchFormProps {
   onSearch: (payload: RateSearchRequest) => void;
@@ -37,6 +38,11 @@ export function RateSearchForm({
   const pcsNum = parseInt(pieces, 10) || 1;
   const volWeight = useDims ? Math.round(((lNum * wNum * hNum * pcsNum) / 6000) * 10) / 10 : 0;
   const estimatedCW = Math.max(wtNum, volWeight);
+
+  const destSuggestions = useMemo(() => {
+    if (!destination || destination.length >= 3) return [];
+    return airportTrie.searchPrefix(destination, 4);
+  }, [destination]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +123,21 @@ export function RateSearchForm({
             placeholder="DXB"
             required
           />
+          {destSuggestions.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1" role="listbox" aria-label="Airport suggestions">
+              {destSuggestions.map((item) => (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => setDestination(item.code)}
+                  className="rounded-md bg-slate-100 hover:bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:text-amber-900 border border-slate-200 transition-colors cursor-pointer"
+                  title={`${item.name}, ${item.country}`}
+                >
+                  {item.code} ({item.city})
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actual Gross Weight */}

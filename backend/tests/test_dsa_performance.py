@@ -98,3 +98,53 @@ def test_dsa_parse_transit_minutes():
     assert parse_transit_minutes("Connecting via AUH (5h 10m)") == 310
     assert parse_transit_minutes("Freighter via GYD (16h 05m)") == 965
     assert parse_transit_minutes("Unknown transit") == 9999
+
+
+def test_dsa_dijkstra_shortest_routing():
+    from app.services.routing_graph import GLOBAL_CARGO_GRAPH
+
+    # 1. Direct Route: BOM -> DXB
+    route_dxb = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "DXB", criterion="fastest")
+    assert route_dxb is not None
+    assert route_dxb.is_direct is True
+    assert route_dxb.stops == 0
+    assert route_dxb.origin == "BOM"
+    assert route_dxb.destination == "DXB"
+
+    # 2. Multi-Hop Transshipment Route: BOM -> ORD (via AUH, DXB, or DOH)
+    route_ord = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "ORD", criterion="fastest")
+    assert route_ord is not None
+    assert route_ord.stops == 1  # 1 transshipment stop
+    assert route_ord.legs[0].origin == "BOM"
+    assert route_ord.legs[-1].destination == "ORD"
+    assert route_ord.total_transit_minutes > 0
+
+    # 3. Disconnected / Unknown corridor
+    route_unknown = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "XYZ_UNKNOWN")
+    assert route_unknown is None
+
+
+def test_dsa_pure_buy_rate_lru_cache_hit(sample_tariffs):
+    from app.services.rate_engine import (
+        calculate_pure_buy_rate,
+        clear_pure_buy_rate_cache,
+        get_pure_buy_rate_cache_size
+    )
+
+    clear_pure_buy_rate_cache()
+    assert get_pure_buy_rate_cache_size() == 0
+
+    tariff = sample_tariffs[0]
+    # 1st call: Computes and inserts into LRU cache
+    breakdown_1 = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert get_pure_buy_rate_cache_size() == 1
+
+    # 2nd call: O(1) Cache Hit (identical reference returned)
+    start = time.perf_counter()
+    breakdown_2 = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    cache_hit_latency = time.perf_counter() - start
+
+    assert breakdown_1 is breakdown_2  # Exact object identity from LRU cache
+    assert cache_hit_latency < 0.00005  # Sub-50 microseconds retrieval
+    assert get_pure_buy_rate_cache_size() == 1
+
