@@ -2,7 +2,7 @@ import math
 import heapq
 import re
 from typing import List, Dict, Any, Optional, Tuple
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown
 from app.services.break_even import optimize_break_even_pivot
 
@@ -45,6 +45,9 @@ class CorridorRateIndex:
             orig = (t.get('origin') or '').upper().strip()
             dest = (t.get('destination') or '').upper().strip()
             if orig and dest:
+                # Pre-cache extracted weight tiers in O(1) amortized setup
+                if '_cached_tiers' not in t:
+                    t['_cached_tiers'] = extract_active_weight_tiers(t)
                 self._index[(orig, dest)].append(t)
 
     def get_corridor_tariffs(self, origin: str, destination: str) -> List[Dict[str, Any]]:
@@ -127,7 +130,7 @@ def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[
 
 # DSA: LRU Memoization Cache for Calculated Landed Costs
 # Eliminates repeated TACT break-even and surcharge math for frequent queries
-_PURE_BUY_RATE_CACHE: Dict[Tuple[Any, ...], CostBreakdown] = {}
+_PURE_BUY_RATE_CACHE: OrderedDict[Tuple[Any, ...], CostBreakdown] = OrderedDict()
 _CACHE_MAX_ENTRIES = 2048
 
 
@@ -152,7 +155,7 @@ def calculate_pure_buy_rate(
     """
     Computes pure landed airline buying cost for shipments under 500 kg.
     Strictly excludes all commercial margins.
-    Employs O(1) LRU memoization cache and O(log T) binary search break-even pivot.
+    Employs true O(1) OrderedDict LRU memoization cache and O(log T) binary search break-even pivot.
     """
     dest_norm = destination.upper().strip()
     rate_basis = tariff.get('rate_basis', 'NET_NET_PLUS_PLUS').upper()
@@ -179,10 +182,12 @@ def calculate_pure_buy_rate(
     )
 
     if cache_key in _PURE_BUY_RATE_CACHE:
+        # Move accessed entry to end of OrderedDict to maintain true LRU order
+        _PURE_BUY_RATE_CACHE.move_to_end(cache_key)
         return _PURE_BUY_RATE_CACHE[cache_key]
 
     if tiers is None:
-        tiers = extract_active_weight_tiers(tariff)
+        tiers = tariff.get('_cached_tiers') or extract_active_weight_tiers(tariff)
 
     if pivot_result is None:
         base_freight, effective_rate, _, _, _ = optimize_break_even_pivot(cw, tiers, min_charge)
@@ -245,9 +250,9 @@ def calculate_pure_buy_rate(
         effective_buy_per_kg=effective_buy_per_kg
     )
 
-    # Store in bounded LRU Cache
+    # Store in bounded true LRU Cache (evicts least recently accessed entry from front in O(1))
     if len(_PURE_BUY_RATE_CACHE) >= _CACHE_MAX_ENTRIES:
-        _PURE_BUY_RATE_CACHE.pop(next(iter(_PURE_BUY_RATE_CACHE)))
+        _PURE_BUY_RATE_CACHE.popitem(last=False)
     _PURE_BUY_RATE_CACHE[cache_key] = breakdown
 
     return breakdown
@@ -360,7 +365,7 @@ def process_rate_search(
 
     matched_quotes: List[RateQuoteItem] = []
     for idx, tariff in enumerate(candidate_tariffs):
-        tiers = extract_active_weight_tiers(tariff)
+        tiers = tariff.get('_cached_tiers') or extract_active_weight_tiers(tariff)
         min_charge = float(tariff.get('min_charge') or 0.0)
         pivot_res = optimize_break_even_pivot(cw, tiers, min_charge)
 

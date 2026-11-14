@@ -7,22 +7,22 @@
 export type DimensionUnit = "cm" | "in" | "m" | "mm";
 export type DimensionMode = "dimensions" | "cbm";
 
+// DSA: O(1) Precomputed Linear Conversion Factor Table
+const LINEAR_UNIT_CONVERSION_FACTORS: Record<DimensionUnit, number> = {
+  cm: 1.0,
+  in: 2.54,
+  m: 100.0,
+  mm: 0.1,
+};
+
 /**
  * Converts linear dimensions from supported unit to centimeters (cm).
+ * Time Complexity: O(1) branchless lookup
  */
 export function convertToCm(value: number, unit: DimensionUnit = "cm"): number {
   if (!value || isNaN(value) || value <= 0) return 0;
-  switch (unit) {
-    case "in":
-      return Math.round(value * 2.54 * 10) / 10;
-    case "m":
-      return Math.round(value * 100 * 10) / 10;
-    case "mm":
-      return Math.round((value / 10) * 10) / 10;
-    case "cm":
-    default:
-      return Math.round(value * 10) / 10;
-  }
+  const factor = LINEAR_UNIT_CONVERSION_FACTORS[unit] ?? 1.0;
+  return Math.round(value * factor * 10) / 10;
 }
 
 /**

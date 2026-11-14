@@ -18,10 +18,12 @@ export interface AirportRecord {
 class TrieNode {
   children: Map<string, TrieNode>;
   airports: AirportRecord[];
+  airportCodes: Set<string>;
 
   constructor() {
     this.children = new Map();
     this.airports = [];
+    this.airportCodes = new Set();
   }
 }
 
@@ -35,6 +37,7 @@ export class AirportPrefixTrie {
   /**
    * Inserts a key string into the Trie, associating it with an airport record.
    * Time Complexity: O(L)
+   * Space Complexity: O(L)
    */
   insert(key: string, airport: AirportRecord): void {
     let current = this.root;
@@ -47,8 +50,9 @@ export class AirportPrefixTrie {
       }
       current = current.children.get(char)!;
 
-      // Deduplicate before attaching record to node
-      if (!current.airports.some((a) => a.code === airport.code)) {
+      // DSA: O(1) Set membership check eliminates O(K) linear array scan
+      if (!current.airportCodes.has(airport.code)) {
+        current.airportCodes.add(airport.code);
         current.airports.push(airport);
       }
     }

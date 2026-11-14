@@ -74,44 +74,49 @@ export function RatesGrid({ rates }: RatesGridProps) {
 
   const globalMarginNum = parseFloat(marginInputStr) || 0;
 
-  // Compute reactive margin and sell price for a specific quote
+  // DSA Optimization: Precomputed Margin Map (O(M) single-pass)
+  // Provides O(1) margin and sell price lookups per card, eliminating redundant recalculations
+  const marginMap = useMemo(() => {
+    const map = new Map<string, MarginInfo>();
+    for (let i = 0; i < rates.length; i++) {
+      const q = rates[i];
+      const cw = q.chargeable_weight;
+      const buyTotal = q.breakdown.total_landed_buy;
+      const override = cardOverrides[q.id];
+      const mode = override ? override.mode : marginMode;
+      const val = override ? override.value : globalMarginNum;
+
+      if (!isNaN(val) && val > 0) {
+        let totalMargin = 0;
+        let marginPerKg = 0;
+        if (mode === "per_kg") {
+          marginPerKg = val;
+          totalMargin = Math.round(val * cw);
+        } else if (mode === "percent") {
+          totalMargin = Math.round(buyTotal * (val / 100));
+          marginPerKg = totalMargin / Math.max(cw, 0.5);
+        } else if (mode === "flat") {
+          totalMargin = Math.round(val);
+          marginPerKg = totalMargin / Math.max(cw, 0.5);
+        }
+        const sellTotal = buyTotal + totalMargin;
+        const sellPerKg = sellTotal / Math.max(cw, 0.5);
+        map.set(q.id, {
+          mode,
+          value: val,
+          totalMargin,
+          sellTotal,
+          sellPerKg,
+          marginPerKg,
+        });
+      }
+    }
+    return map;
+  }, [rates, marginMode, globalMarginNum, cardOverrides]);
+
+  // O(1) retrieval from memoized Map
   const getQuoteMargin = (quote: RateQuoteItem): MarginInfo | null => {
-    const cw = quote.chargeable_weight;
-    const buyTotal = quote.breakdown.total_landed_buy;
-
-    const override = cardOverrides[quote.id];
-    const mode = override ? override.mode : marginMode;
-    const val = override ? override.value : globalMarginNum;
-
-    if (val <= 0 || isNaN(val)) {
-      return null;
-    }
-
-    let totalMargin = 0;
-    let marginPerKg = 0;
-
-    if (mode === "per_kg") {
-      marginPerKg = val;
-      totalMargin = Math.round(val * cw);
-    } else if (mode === "percent") {
-      totalMargin = Math.round(buyTotal * (val / 100));
-      marginPerKg = totalMargin / Math.max(cw, 0.5);
-    } else if (mode === "flat") {
-      totalMargin = Math.round(val);
-      marginPerKg = totalMargin / Math.max(cw, 0.5);
-    }
-
-    const sellTotal = buyTotal + totalMargin;
-    const sellPerKg = sellTotal / Math.max(cw, 0.5);
-
-    return {
-      mode,
-      value: val,
-      totalMargin,
-      sellTotal,
-      sellPerKg,
-      marginPerKg,
-    };
+    return marginMap.get(quote.id) ?? null;
   };
 
   const handleResetMargins = () => {
@@ -236,8 +241,13 @@ export function RatesGrid({ rates }: RatesGridProps) {
       }
     }
 
+    const getEffectivePrice = (item: RateQuoteItem) => {
+      const m = marginMap.get(item.id);
+      return m ? m.sellTotal : item.breakdown.total_landed_buy;
+    };
+
     const cheapest = [...rates].sort(
-      (a, b) => a.breakdown.total_landed_buy - b.breakdown.total_landed_buy
+      (a, b) => getEffectivePrice(a) - getEffectivePrice(b)
     );
 
     const fastest = [...rates].sort(
@@ -251,7 +261,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
       direct,
       directCount: direct.length,
     };
-  }, [rates]);
+  }, [rates, marginMap]);
 
   const displayedRates = precomputedViews[activeFilter] ?? rates;
   const directCount = precomputedViews.directCount;

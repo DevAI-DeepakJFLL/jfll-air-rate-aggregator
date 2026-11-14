@@ -148,3 +148,59 @@ def test_dsa_pure_buy_rate_lru_cache_hit(sample_tariffs):
     assert cache_hit_latency < 0.00005  # Sub-50 microseconds retrieval
     assert get_pure_buy_rate_cache_size() == 1
 
+
+def test_dsa_lru_cache_ordered_dict_eviction(sample_tariffs):
+    from app.services import rate_engine
+    from app.services.rate_engine import (
+        calculate_pure_buy_rate,
+        clear_pure_buy_rate_cache,
+        get_pure_buy_rate_cache_size
+    )
+
+    clear_pure_buy_rate_cache()
+    original_max = rate_engine._CACHE_MAX_ENTRIES
+    rate_engine._CACHE_MAX_ENTRIES = 3  # Set small cache size to test eviction
+    try:
+        tariff = sample_tariffs[0]
+        # Insert 3 entries: cw=10, 20, 30
+        calculate_pure_buy_rate(tariff, 10.0, "DXB", "General Cargo")
+        calculate_pure_buy_rate(tariff, 20.0, "DXB", "General Cargo")
+        calculate_pure_buy_rate(tariff, 30.0, "DXB", "General Cargo")
+        assert get_pure_buy_rate_cache_size() == 3
+
+        # Access cw=10.0 again -> in true LRU, 10.0 is moved to end, making 20.0 the LRU element!
+        calculate_pure_buy_rate(tariff, 10.0, "DXB", "General Cargo")
+
+        # Now insert 4th entry: cw=40.0 -> must evict 20.0, NOT 10.0!
+        calculate_pure_buy_rate(tariff, 40.0, "DXB", "General Cargo")
+        assert get_pure_buy_rate_cache_size() == 3
+
+        # Check keys present
+        cache_cws = [k[3] for k in rate_engine._PURE_BUY_RATE_CACHE.keys()]
+        assert 10.0 in cache_cws  # Preserved because accessed
+        assert 20.0 not in cache_cws  # Evicted as least recently used
+        assert 30.0 in cache_cws
+        assert 40.0 in cache_cws
+    finally:
+        rate_engine._CACHE_MAX_ENTRIES = original_max
+        clear_pure_buy_rate_cache()
+
+
+def test_dsa_transshipment_routing_api(client):
+    # Test valid multi-leg corridor: BOM -> ORD
+    res = client.get("/api/v1/rates/routing/BOM/ORD?criterion=fastest")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["origin"] == "BOM"
+    assert data["destination"] == "ORD"
+    assert data["is_direct"] is False
+    assert data["stops"] == 1
+    assert len(data["legs"]) == 2
+    assert data["legs"][0]["origin"] == "BOM"
+    assert data["legs"][-1]["destination"] == "ORD"
+
+    # Test unknown corridor -> 404
+    res_unknown = client.get("/api/v1/rates/routing/BOM/ZZZ")
+    assert res_unknown.status_code == 404
+
+
