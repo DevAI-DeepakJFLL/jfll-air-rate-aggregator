@@ -3,22 +3,59 @@ from typing import List, Dict, Any, Tuple
 import pypdf
 
 
-def extract_text_from_pdf(pdf_path: str) -> Tuple[str, bool]:
+import os
+from typing import List, Dict, Any, Tuple
+import pypdf
+from pypdf.errors import PdfReadError
+
+
+def validate_pdf_file_signature(pdf_path: str) -> None:
     """
-    Extracts text from PDF.
+    Security Validation: Checks file magic bytes to verify genuine PDF signature.
+    Mitigates file type spoofing and executable execution attempts.
+    """
+    with open(pdf_path, "rb") as f:
+        header = f.read(1024)
+        if not header.startswith(b"%PDF-"):
+            raise ValueError("Invalid file format: File missing authentic %PDF- magic signature.")
+
+
+def extract_text_from_pdf(pdf_path: str, max_pages: int = 50) -> Tuple[str, bool]:
+    """
+    Extracts text from PDF with security bounds:
+    - Validates PDF magic bytes signature.
+    - Caps processing to max_pages to prevent PDF decompression bombs.
+    
     Returns:
         (extracted_text, is_scanned_image)
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
-    reader = pypdf.PdfReader(pdf_path)
-    total_pages = len(reader.pages)
-    combined_text = []
+    # Step 1: Magic byte validation
+    validate_pdf_file_signature(pdf_path)
 
+    # Step 2: Safe parsing with page boundary check
+    try:
+        reader = pypdf.PdfReader(pdf_path)
+    except PdfReadError as e:
+        raise ValueError(f"Corrupted or malformed PDF structure: {str(e)}")
+
+    total_pages = len(reader.pages)
+    if total_pages > max_pages:
+        raise ValueError(
+            f"PDF exceeds maximum allowable pages for rate circulars ({total_pages} > {max_pages}). "
+            "Exceeded threshold to mitigate decompression denial-of-service."
+        )
+
+    combined_text = []
     for page in reader.pages:
-        text = page.extract_text() or ""
-        combined_text.append(text.strip())
+        try:
+            text = page.extract_text() or ""
+            combined_text.append(text.strip())
+        except Exception:
+            # Degrade gracefully on difficult font streams
+            continue
 
     full_text = "\n".join(combined_text)
     # If text across all pages is under 20 characters, it's a flattened raster scan

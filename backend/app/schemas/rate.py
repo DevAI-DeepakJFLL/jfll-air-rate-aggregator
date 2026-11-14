@@ -19,11 +19,36 @@ class CargoDimension(BaseModel):
 
 
 class RateSearchRequest(BaseModel):
-    origin: str = Field(..., min_length=3, max_length=3, description="Origin 3-letter IATA code, e.g., BOM")
-    destination: str = Field(..., min_length=3, max_length=3, description="Destination 3-letter IATA code, e.g., DXB, ORD")
-    actual_weight_kg: float = Field(..., gt=0, description="Actual scale gross weight in kg")
-    dimensions: Optional[List[CargoDimension]] = Field(default=None, description="Package dimensions")
-    commodity: str = Field(default="General Cargo", description="Commodity type: General Cargo, DGR - PAX, Pharma CRT, Cold Chain")
+    origin: str = Field(
+        ...,
+        min_length=3,
+        max_length=3,
+        pattern=r"^[A-Za-z]{3}$",
+        description="Origin 3-letter IATA code, e.g., BOM"
+    )
+    destination: str = Field(
+        ...,
+        min_length=3,
+        max_length=3,
+        pattern=r"^[A-Za-z]{3}$",
+        description="Destination 3-letter IATA code, e.g., DXB, ORD"
+    )
+    actual_weight_kg: float = Field(
+        ...,
+        gt=0,
+        le=5000.0,
+        description="Actual scale gross weight in kg (max 5,000 kg)"
+    )
+    dimensions: Optional[List[CargoDimension]] = Field(
+        default=None,
+        max_length=100,
+        description="Package dimensions (bounded to max 100 entries to prevent DoS)"
+    )
+    commodity: str = Field(
+        default="General Cargo",
+        max_length=64,
+        description="Commodity type: General Cargo, DGR - PAX, Pharma CRT, Cold Chain"
+    )
 
 
 class CostBreakdown(BaseModel):

@@ -52,19 +52,21 @@ jobs:
 
       # Deployment to AWS Free Tier EC2 (Pull pre-built image to avoid 1GB RAM compile limits)
       - name: Deploy to AWS Free Tier EC2 via SSH
-        if: ${{ env.SSH_HOST != '' }}
+        if: ${{ secrets.AWS_EC2_HOST != '' }}
         env:
           SSH_HOST: ${{ secrets.AWS_EC2_HOST }}
           SSH_USER: ${{ secrets.AWS_EC2_USER || 'ubuntu' }}
           SSH_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          mkdir -p ~/.ssh
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" '
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "
             cd /opt/rate-aggregator &&
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin &&
+            echo \"$REGISTRY_TOKEN\" | docker login ghcr.io -u \"$ACTOR\" --password-stdin &&
             docker compose -f docker-compose.prod.yml pull &&
             docker compose -f docker-compose.prod.yml up -d --remove-orphans &&
             docker image prune -f
-          '
+          "
