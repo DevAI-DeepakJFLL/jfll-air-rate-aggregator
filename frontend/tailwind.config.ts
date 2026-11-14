@@ -10,15 +10,21 @@ const config: Config = {
     extend: {
       colors: {
         jfll: {
-          blue: "#144272",
           navy: "#0A2647",
-          teal: "#205295",
-          accent: "#2C74B3",
-          light: "#F5F7FA",
+          blue: "#144272",
+          teal: "#176579",
+          cyan: "#187E9C",
+          accent: "#D97706",
+          slate: "#F8FAFC",
         },
+      },
+      fontFamily: {
+        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
       },
     },
   },
   plugins: [],
 };
+
 export default config;
