@@ -6,12 +6,22 @@ import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
 import { AirlineLogo } from "./AirlineLogo";
 
+export interface MarginInfo {
+  mode: "per_kg" | "percent" | "flat";
+  value: number;
+  totalMargin: number;
+  sellTotal: number;
+  sellPerKg: number;
+  marginPerKg: number;
+}
+
 interface CostBreakdownModalProps {
   quote: RateQuoteItem | null;
+  marginInfo?: MarginInfo | null;
   onClose: () => void;
 }
 
-export function CostBreakdownModal({ quote, onClose }: CostBreakdownModalProps) {
+export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdownModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Keyboard accessibility: Escape key to dismiss & lock background scroll
@@ -190,6 +200,44 @@ export function CostBreakdownModal({ quote, onClose }: CostBreakdownModalProps) 
                 ₹{breakdown.effective_buy_per_kg.toFixed(2)} / kg
               </span>
             </div>
+
+            {/* Coordinator Commercial Margin Section */}
+            {marginInfo && marginInfo.totalMargin > 0 && (
+              <div className="mt-3 pt-3 border-t-2 border-dashed border-amber-300 bg-amber-50/80 -mx-6 px-6 py-3 space-y-2 rounded-b-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-600"></span>
+                    <span className="font-black text-xs text-amber-950 uppercase tracking-wider">
+                      Coordinator Margin
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-800">
+                      ({marginInfo.mode === "per_kg"
+                        ? `+₹${marginInfo.value.toFixed(2)}/kg`
+                        : marginInfo.mode === "percent"
+                        ? `+${marginInfo.value}% on buy`
+                        : `+Flat ₹${marginInfo.value}`})
+                    </span>
+                  </div>
+                  <span className="font-mono tabular-nums font-black text-amber-900 text-sm">
+                    +{formatINR(marginInfo.totalMargin)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-amber-200">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-obsidian-900 uppercase tracking-tight">
+                      Client Selling Price
+                    </span>
+                    <span className="text-[11px] font-extrabold text-emerald-800 font-mono">
+                      ₹{marginInfo.sellPerKg.toFixed(2)} / kg all-in
+                    </span>
+                  </div>
+                  <span className="font-mono tabular-nums text-2xl font-black text-obsidian-900">
+                    {formatINR(marginInfo.sellTotal)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
