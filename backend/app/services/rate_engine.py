@@ -88,6 +88,8 @@ def parse_transit_minutes(transit_str: str) -> int:
     Parses strings like '3h 15m' or 'Connecting via AUH (5h 10m)' into total integer minutes.
     DSA: Precomputed once in O(1) time to enable O(1) integer comparisons during sorting.
     """
+    if not transit_str:
+        return 9999
     h_match = RE_HOURS.search(transit_str)
     m_match = RE_MINUTES.search(transit_str)
     minutes = 0
@@ -182,7 +184,7 @@ def calculate_pure_buy_rate(
     net_subtotal = round(base_freight + fuel_security_total + origin_thc_total + awb_fee + ams_fee)
     gst_tax = round(net_subtotal * 0.05)  # 5% statutory Indian Air Export GST
     total_landed_buy = net_subtotal + gst_tax
-    effective_buy_per_kg = round(total_landed_buy / cw, 2)
+    effective_buy_per_kg = round(total_landed_buy / max(cw, 0.5), 2)
 
     return CostBreakdown(
         base_rate_per_kg=effective_rate,
@@ -265,7 +267,7 @@ def process_rate_search(
             pivot_result=pivot_res
         )
 
-        carrier_code = tariff.get('carrier_code', 'JF')
+        carrier_code = (tariff.get('carrier_code') or 'JF').upper().strip()
         sched = AIRLINE_SCHEDULES.get(carrier_code, {
             'flight': f"{carrier_code}-204",
             'departure': '04:30 IST',

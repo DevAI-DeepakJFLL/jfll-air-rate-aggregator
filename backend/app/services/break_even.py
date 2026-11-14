@@ -54,7 +54,6 @@ def optimize_break_even_pivot(
 
         higher_freight = round(higher_tier["min_weight"] * higher_tier["rate"])
         if higher_freight < effective_freight:
-            savings = effective_freight - higher_freight
             effective_freight = higher_freight
             effective_rate = higher_tier["rate"]
             applied_label = f"Pivoted to {higher_tier['label']} ({higher_tier['min_weight']:.0f} kg)"
@@ -63,5 +62,15 @@ def optimize_break_even_pivot(
     # Absolute minimum charge floor check
     if min_charge > 0 and min_charge > effective_freight:
         effective_freight = min_charge
+
+    # Compute true savings relative to natural weight invoice
+    if is_pivoted:
+        if effective_freight >= natural_freight:
+            is_pivoted = False
+            savings = 0.0
+            applied_label = natural_tier["label"]
+            effective_rate = natural_rate
+        else:
+            savings = natural_freight - effective_freight
 
     return (effective_freight, effective_rate, applied_label, is_pivoted, savings)
