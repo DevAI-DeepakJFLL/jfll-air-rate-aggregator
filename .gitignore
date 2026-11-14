@@ -1,0 +1,90 @@
+# ==============================================================================
+# Git Ignore - Air Cargo Rate Aggregator Platform
+# ==============================================================================
+
+# OS & Workspace Artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Proprietary Documents, Rate Sheets & Confidential Data (NEVER COMMIT)
+/rates/
+*.pdf
+*.xlsx
+*.xls
+*.csv
+
+# Internal Agent Files, Plan/Design MDs & AI Artifacts (NEVER COMMIT)
+AIR_CARGO_RATE_AGGREGATOR_PLAN.md
+*_PLAN.md
+*PLAN*.md
+*_AUDIT*.md
+*_REPORT*.md
+*.agent*
+.agent*
+.gemini/
+brain/
+docs/
+scratch/
+.system_generated/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Python & Backend Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/backend/lib/
+/backend/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js & Frontend Artifacts
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+.turbo/
+coverage/
+
+# Database files
+*.sqlite3
+*.db
+backend/data/*.db
+
+# IDE configuration
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace

@@ -1,0 +1,82 @@
+from typing import List, Optional
+from pydantic import BaseModel, Field, computed_field
+
+
+class CargoDimension(BaseModel):
+    length_cm: float = Field(..., gt=0, description="Length in centimeters")
+    width_cm: float = Field(..., gt=0, description="Width in centimeters")
+    height_cm: float = Field(..., gt=0, description="Height in centimeters")
+    pieces: int = Field(default=1, ge=1, description="Number of identical packages")
+
+    @property
+    def volumetric_weight_kg(self) -> float:
+        # IATA standard divisor: 6,000 cm³ per kg (1:6 ratio)
+        return round((self.length_cm * self.width_cm * self.height_cm * self.pieces) / 6000.0, 2)
+
+    @property
+    def cbm(self) -> float:
+        return round((self.length_cm * self.width_cm * self.height_cm * self.pieces) / 1_000_000.0, 3)
+
+
+class RateSearchRequest(BaseModel):
+    origin: str = Field(..., min_length=3, max_length=3, description="Origin 3-letter IATA code, e.g., BOM")
+    destination: str = Field(..., min_length=3, max_length=3, description="Destination 3-letter IATA code, e.g., DXB, ORD")
+    actual_weight_kg: float = Field(..., gt=0, description="Actual scale gross weight in kg")
+    dimensions: Optional[List[CargoDimension]] = Field(default=None, description="Package dimensions")
+    commodity: str = Field(default="General Cargo", description="Commodity type: General Cargo, DGR - PAX, Pharma CRT, Cold Chain")
+
+
+class CostBreakdown(BaseModel):
+    base_rate_per_kg: float = Field(..., description="Base tariff rate per kg (INR)")
+    base_freight_total: float = Field(..., description="Base freight cost (INR)")
+    fsc_rate_per_kg: float = Field(..., description="Fuel surcharge rate per kg (INR)")
+    fsc_total: float = Field(..., description="Total fuel surcharge (INR)")
+    ssc_rate_per_kg: float = Field(..., description="Security surcharge rate per kg (INR)")
+    ssc_total: float = Field(..., description="Total security surcharge (INR)")
+    fuel_security_total: float = Field(..., description="Sum of FSC and SSC (INR)")
+    xray_total: float = Field(..., description="Airport X-Ray screening charge (INR)")
+    misc_handling_total: float = Field(..., description="Terminal handling and CTG (INR)")
+    commodity_fee: float = Field(default=0.0, description="Statutory DGR or Cool Chain handling fee (INR)")
+    origin_thc_total: float = Field(..., description="Total origin terminal handling (INR)")
+    awb_fee: float = Field(default=800.0, description="e-AWB transmission and issuance fee (INR)")
+    ams_fee: float = Field(default=0.0, description="Customs AMS manifest fee for US/Canada (INR)")
+    net_subtotal: float = Field(..., description="Total net airline cost before tax (INR)")
+    gst_tax: float = Field(..., description="5% Indian Air Export GST (INR)")
+    total_landed_buy: float = Field(..., description="Grand Total Net Buying Cost (INR) - Zero Margin")
+    effective_buy_per_kg: float = Field(..., description="True landed buying rate per kg (INR/kg)")
+
+
+class RateQuoteItem(BaseModel):
+    id: str
+    carrier_name: str
+    carrier_code: str
+    airline_prefix: str
+    flight_number: str
+    routing_type: str
+    transit_time: str
+    departure_time: str
+    arrival_time: str
+    cargo_cutoff: str
+    origin: str
+    destination: str
+    cargo_category: str
+    chargeable_weight: float
+    weight_tier_applied: str
+    is_pivoted: bool = False
+    pivot_savings: Optional[str] = None
+    breakdown: CostBreakdown
+    rate_basis: str = "NET_NET_PLUS_PLUS"
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+    validity_status: str = "ACTIVE"
+    gauge_restriction: Optional[str] = None
+    recommended: bool = False
+
+
+class RateSearchResponse(BaseModel):
+    origin: str
+    destination: str
+    chargeable_weight: float
+    is_heavy_cargo: bool = False
+    message: Optional[str] = None
+    rates: List[RateQuoteItem] = []

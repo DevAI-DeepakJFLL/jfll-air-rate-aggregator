@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jfll-rate-aggregator-backend"
+version = "0.1.0"
+description = "Jet Freight Logistics In-House Air Cargo Rate Aggregator Engine (<500kg Smalls)"
+authors = [{ name = "Deepak", email = "deepak.naidu@jfll.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.36",
+    "aiosqlite>=0.20.0",
+    "pypdf>=5.1.0",
+    "pymupdf>=1.24.13",
+    "pillow>=11.0.0",
+    "google-genai>=0.1.1",
+    "httpx>=0.27.2",
+    "python-multipart>=0.0.17",
+    "python-dotenv>=1.0.1"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = "test_*.py"

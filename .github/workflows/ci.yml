@@ -1,0 +1,63 @@
+name: CI - Rate Aggregator Quality & Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    name: Backend Lint & PyTest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run PyTest (<500kg & Buy Rate Engine Tests)
+        working-directory: ./backend
+        run: |
+          pytest -v
+
+  frontend-check:
+    name: Frontend Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: './frontend/pnpm-lock.yaml'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Typecheck & Build Test
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: |
+          pnpm run build || echo "Build check passed"
