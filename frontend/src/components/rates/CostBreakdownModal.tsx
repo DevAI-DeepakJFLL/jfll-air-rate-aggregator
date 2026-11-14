@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { X, ShieldCheck } from "lucide-react";
 import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
+import { AirlineLogo } from "./AirlineLogo";
 
 interface CostBreakdownModalProps {
   quote: RateQuoteItem | null;
@@ -53,16 +54,29 @@ export function CostBreakdownModal({ quote, onClose }: CostBreakdownModalProps) 
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h3 id="breakdown-modal-title" className="text-lg font-bold text-slate-900">
-              {quote.carrier_name} ({quote.carrier_code})
-            </h3>
-            <p className="text-xs font-semibold text-slate-600">
-              {quote.origin} → {quote.destination} &bull; Flight {quote.flight_number} &bull; CW:{" "}
-              <span className="font-mono tabular-nums font-bold text-slate-800">
-                {quote.chargeable_weight} kg
-              </span>
-            </p>
+          <div className="flex items-center gap-3">
+            <AirlineLogo
+              carrierCode={quote.carrier_code}
+              carrierName={quote.carrier_name}
+              size="md"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 id="breakdown-modal-title" className="text-lg font-bold text-slate-900">
+                  {quote.carrier_name}
+                </h3>
+                <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                  API Verified
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-600 mt-0.5">
+                {quote.origin} → {quote.destination} &bull; Flight {quote.flight_number} &bull; AWB {quote.airline_prefix} &bull; CW:{" "}
+                <span className="font-mono tabular-nums font-bold text-slate-800">
+                  {quote.chargeable_weight} kg
+                </span>
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -156,9 +170,16 @@ export function CostBreakdownModal({ quote, onClose }: CostBreakdownModalProps) 
               <span className="font-mono tabular-nums">{formatINR(breakdown.gst_tax)}</span>
             </div>
 
-            <div className="flex justify-between pt-3 text-lg font-black text-slate-900">
-              <span>Total Landed Buy Cost</span>
-              <span className="font-mono tabular-nums text-emerald-700">
+            <div className="flex justify-between items-center pt-3 text-lg font-black text-slate-900 border-t border-slate-200">
+              <div className="flex items-center gap-2">
+                <AirlineLogo
+                  carrierCode={quote.carrier_code}
+                  carrierName={quote.carrier_name}
+                  size="xs"
+                />
+                <span>Total Landed Buy Cost</span>
+              </div>
+              <span className="font-mono tabular-nums text-emerald-700 text-xl">
                 {formatINR(breakdown.total_landed_buy)}
               </span>
             </div>

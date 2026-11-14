@@ -5,6 +5,7 @@ import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
 import { CostBreakdownModal } from "./CostBreakdownModal";
 import { CarrierBadge } from "./CarrierBadge";
+import { AirlineLogo } from "./AirlineLogo";
 import {
   Clock,
   CheckCircle2,
@@ -160,19 +161,54 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 </div>
               </div>
 
-              {/* Price Hero */}
-              <div className="flex sm:flex-col items-baseline sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 shrink-0">
-                <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  Net Landed Buy
+              {/* Direct Carrier API Feed & Price Hero */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:justify-end gap-3 sm:gap-4 pt-3 sm:pt-0 border-t sm:border-0 border-slate-100 shrink-0">
+                {/* Real-time Airline API Feed Connection Pill with Authorized Logo */}
+                <div
+                  className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-2 shadow-2xs hover:bg-slate-100/80 transition-colors"
+                  title={`Live tariff feed from ${quote.carrier_name} (${quote.carrier_code}) API`}
+                >
+                  <div className="relative shrink-0">
+                    <AirlineLogo
+                      carrierCode={quote.carrier_code}
+                      carrierName={quote.carrier_name}
+                      size="sm"
+                    />
+                    {/* Live ping beacon */}
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5" aria-hidden="true">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white"></span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-obsidian-900 leading-tight">
+                        Direct API Feed
+                      </span>
+                      <span className="inline-flex items-center rounded-sm bg-emerald-100 px-1 py-0.5 font-mono text-[9px] font-bold text-emerald-800 leading-none">
+                        LIVE
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-slate-500 font-mono mt-0.5 leading-tight">
+                      Prefix {quote.airline_prefix} &bull; Net Tariff
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-mono tabular-nums text-2xl font-black text-obsidian-900 tracking-tight">
-                    {formatINR(quote.breakdown.total_landed_buy)}
-                  </span>
-                  <span className="text-[11px] font-extrabold text-slate-500 uppercase">all-in</span>
-                </div>
-                <div className="text-xs font-bold text-emerald-700 font-mono tabular-nums">
-                  ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg
+
+                {/* Landed Buy Price Block */}
+                <div className="text-left sm:text-right shrink-0">
+                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    Net Landed Buy
+                  </div>
+                  <div className="flex items-baseline sm:justify-end gap-1.5">
+                    <span className="font-mono tabular-nums text-2xl font-black text-obsidian-900 tracking-tight">
+                      {formatINR(quote.breakdown.total_landed_buy)}
+                    </span>
+                    <span className="text-[11px] font-extrabold text-slate-500 uppercase">all-in</span>
+                  </div>
+                  <div className="text-xs font-bold text-emerald-700 font-mono tabular-nums">
+                    ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg
+                  </div>
                 </div>
               </div>
             </div>
