@@ -40,6 +40,8 @@ const config: Config = {
         mono: ["'JetBrains Mono'", "var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       boxShadow: {
+        "2xs": "0 1px 2px 0 rgba(8, 14, 21, 0.03)",
+        xs: "0 1px 2px 0 rgba(8, 14, 21, 0.05)",
         card: "0 1px 3px 0 rgba(8, 14, 21, 0.05), 0 1px 2px -1px rgba(8, 14, 21, 0.03)",
         elevated: "0 10px 25px -5px rgba(8, 14, 21, 0.08), 0 8px 10px -6px rgba(8, 14, 21, 0.04)",
       },

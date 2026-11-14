@@ -20,7 +20,7 @@ export function AirlineCardSkeleton() {
       {/* Table Skeleton Container */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full min-w-[980px] text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/90 py-3 px-4">
                 <th className="py-3 px-4"><div className="h-4 w-24 rounded bg-slate-200 animate-pulse" /></th>

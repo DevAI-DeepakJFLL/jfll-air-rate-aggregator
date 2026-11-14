@@ -386,13 +386,13 @@ export function RatesGrid({ rates }: RatesGridProps) {
       {/* 3. High-Density Tariff Comparison Table */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full min-w-[980px] text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/90 text-slate-600 font-extrabold text-[11px] uppercase tracking-wider select-none">
                 {/* Airline & Flight */}
                 <th
                   scope="col"
-                  className="py-3 px-4 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors"
+                  className="py-3 px-4 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors w-[22%]"
                   onClick={() => handleSort("carrier")}
                 >
                   <div className="flex items-center gap-1.5">
@@ -412,7 +412,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Schedule & Transit */}
                 <th
                   scope="col"
-                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors"
+                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors w-[18%]"
                   onClick={() => handleSort("transit")}
                 >
                   <div className="flex items-center gap-1.5">
@@ -432,7 +432,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Acceptance Cutoff */}
                 <th
                   scope="col"
-                  className="py-3 px-3 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors whitespace-nowrap"
+                  className="py-3 px-3 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors whitespace-nowrap w-[11%]"
                   onClick={() => handleSort("cutoff")}
                 >
                   <div className="flex items-center gap-1.5">
@@ -450,14 +450,14 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 </th>
 
                 {/* Rating Slab */}
-                <th scope="col" className="py-3 px-3 font-extrabold whitespace-nowrap">
+                <th scope="col" className="py-3 px-3 font-extrabold whitespace-nowrap w-[11%]">
                   Rating Tier
                 </th>
 
                 {/* Net Landed Buy Rate (Internal Baseline) */}
                 <th
                   scope="col"
-                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors text-right"
+                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors text-right w-[13%]"
                   onClick={() => handleSort("price")}
                 >
                   <div className="flex items-center justify-end gap-1.5">
@@ -477,7 +477,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Client Selling Price (Hero or Pure Buy Indicator) */}
                 <th
                   scope="col"
-                  className="py-3 px-4 font-extrabold text-right cursor-pointer hover:text-obsidian-900 transition-colors bg-amber-50/40"
+                  className="py-3 px-4 font-extrabold text-right cursor-pointer hover:text-obsidian-900 transition-colors bg-amber-50/40 w-[14%]"
                   onClick={() => handleSort("price")}
                 >
                   <div className="flex items-center justify-end gap-1.5">
@@ -495,7 +495,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 </th>
 
                 {/* Actions */}
-                <th scope="col" className="py-3 px-4 text-center font-extrabold whitespace-nowrap">
+                <th scope="col" className="py-3 px-4 text-center font-extrabold whitespace-nowrap w-[11%]">
                   Actions
                 </th>
               </tr>
@@ -535,7 +535,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                 {quote.carrier_name}
                               </span>
                               {quote.recommended && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.2 text-[9px] font-black text-amber-900 border border-amber-300">
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-900 border border-amber-300">
                                   <Sparkles className="h-2.5 w-2.5 text-amber-700" />
                                   Best Buy
                                 </span>
@@ -615,7 +615,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                 {formatINR(margin.sellTotal)}
                               </span>
                               {hasCardOverride && (
-                                <span className="rounded bg-amber-200/90 px-1 py-0.2 text-[9px] font-black text-amber-950">
+                                <span className="rounded bg-amber-200/90 px-1 py-0.5 text-[9px] font-black text-amber-950">
                                   Override
                                 </span>
                               )}
