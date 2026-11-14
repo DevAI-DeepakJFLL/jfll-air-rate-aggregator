@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plane, Box, Search, AlertCircle, ArrowRight } from "lucide-react";
+import { Plane, Box, Search, AlertCircle, Compass } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 
 interface RateSearchFormProps {
@@ -22,7 +22,6 @@ export function RateSearchForm({
   const [actualWeight, setActualWeight] = useState("120");
   const [commodity, setCommodity] = useState("General Cargo");
 
-  // Optional Dimensions
   const [useDims, setUseDims] = useState(false);
   const [length, setLength] = useState("80");
   const [width, setWidth] = useState("60");
@@ -32,7 +31,6 @@ export function RateSearchForm({
   const wtNum = parseFloat(actualWeight) || 0;
   const isOverThreshold = wtNum >= 500;
 
-  // Real-time volumetric weight calculation
   const lNum = parseFloat(length) || 0;
   const wNum = parseFloat(width) || 0;
   const hNum = parseFloat(height) || 0;
@@ -65,21 +63,23 @@ export function RateSearchForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200"
+      className="rounded-2xl bg-white p-6 shadow-card border border-slate-200/90 font-sans"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-jfll-blue">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-obsidian-900 text-amber-400 shadow-2xs">
             <Plane className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Air Cargo Rate Search</h2>
-            <p className="text-xs font-semibold text-slate-600">
-              Live buying tariffs &bull; BOM Export Hub
+            <h2 className="text-base font-extrabold text-obsidian-900 tracking-tight">
+              Air Cargo Tariff Search
+            </h2>
+            <p className="text-xs font-semibold text-slate-500">
+              Live buying tariffs &bull; Mumbai Chhatrapati Shivaji Hub (BOM)
             </p>
           </div>
         </div>
-        <span className="inline-flex items-center self-start sm:self-auto rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jfll-blue border border-blue-200">
+        <span className="inline-flex items-center self-start sm:self-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 border border-amber-200">
           Scope: &lt; 500 kg Smalls
         </span>
       </div>
@@ -87,7 +87,7 @@ export function RateSearchForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Origin */}
         <div>
-          <label htmlFor="origin-input" className="block text-xs font-bold text-slate-700 uppercase mb-1">
+          <label htmlFor="origin-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
             Origin Gateway
           </label>
           <input
@@ -96,7 +96,7 @@ export function RateSearchForm({
             maxLength={3}
             value={origin}
             onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring"
+            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring font-mono"
             placeholder="BOM"
             required
           />
@@ -104,7 +104,7 @@ export function RateSearchForm({
 
         {/* Destination */}
         <div>
-          <label htmlFor="dest-input" className="block text-xs font-bold text-slate-700 uppercase mb-1">
+          <label htmlFor="dest-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
             Destination Airport
           </label>
           <input
@@ -113,7 +113,7 @@ export function RateSearchForm({
             maxLength={3}
             value={destination}
             onChange={(e) => setDestination(e.target.value.toUpperCase())}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring"
+            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring font-mono"
             placeholder="DXB"
             required
           />
@@ -121,7 +121,7 @@ export function RateSearchForm({
 
         {/* Actual Gross Weight */}
         <div>
-          <label htmlFor="weight-input" className="block text-xs font-bold text-slate-700 uppercase mb-1">
+          <label htmlFor="weight-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
             Actual Weight (kg)
           </label>
           <input
@@ -138,7 +138,7 @@ export function RateSearchForm({
 
         {/* Commodity */}
         <div>
-          <label htmlFor="commodity-select" className="block text-xs font-bold text-slate-700 uppercase mb-1">
+          <label htmlFor="commodity-select" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
             Commodity Class
           </label>
           <select
@@ -166,21 +166,21 @@ export function RateSearchForm({
             type="checkbox"
             checked={useDims}
             onChange={(e) => setUseDims(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-jfll-blue focus:ring-jfll-blue cursor-pointer"
+            className="h-4 w-4 rounded border-slate-300 text-obsidian-900 focus:ring-obsidian-900 cursor-pointer"
           />
-          <Box className="h-4 w-4 text-slate-500" />
+          <Box className="h-4 w-4 text-slate-400" />
           <span>Add package dimensions (calculate volumetric weight @ 1:6 ratio)</span>
         </label>
 
         {useDims && (
-          <div className="text-xs font-semibold text-slate-600">
+          <div className="text-xs font-semibold text-slate-500">
             Volumetric: <strong className="font-mono tabular-nums text-slate-900">{volWeight} kg</strong> &bull;
-            Est. CW: <strong className="font-mono tabular-nums text-jfll-blue">{estimatedCW} kg</strong>
+            Est. CW: <strong className="font-mono tabular-nums text-aero-teal">{estimatedCW} kg</strong>
           </div>
         )}
       </div>
 
-      {/* Volumetric Inputs with explicit accessible labels and touch targets */}
+      {/* Volumetric Inputs */}
       {useDims && (
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
           <div>
@@ -254,10 +254,10 @@ export function RateSearchForm({
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl bg-jfll-blue px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-jfll-navy transition-all focus-ring disabled:opacity-50 cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-3 text-sm font-extrabold text-amber-300 shadow-sm hover:bg-aero-navy transition-all focus-ring disabled:opacity-50 cursor-pointer"
         >
-          <Search className="h-4 w-4" />
-          {loading ? "Discovering Carrier Tariffs..." : "Compare Airline Buying Rates"}
+          <Search className="h-4 w-4 text-amber-300" />
+          {loading ? "Searching Carrier Tariffs..." : "Compare Airline Buying Rates"}
         </button>
       </div>
     </form>

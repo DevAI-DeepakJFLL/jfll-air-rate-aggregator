@@ -9,18 +9,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        obsidian: {
+          950: "#04080D",
+          900: "#080E15",
+          850: "#0C141F",
+          800: "#101B29",
+        },
+        aero: {
+          navy: "#0C1A2B",
+          slate: "#1E293B",
+          teal: "#086F83",
+          tealLight: "#ECFEFF",
+          brass: "#B45309",
+          brassLight: "#FEF3C7",
+          brassBorder: "#FCD34D",
+          emerald: "#047857",
+          emeraldLight: "#ECFDF5",
+          canvas: "#F4F6F9",
+          card: "#FFFFFF",
+          border: "#E2E8F0",
+        },
         jfll: {
-          navy: "#0A2647",
-          blue: "#144272",
-          teal: "#176579",
-          cyan: "#187E9C",
-          accent: "#D97706",
-          slate: "#F8FAFC",
+          navy: "#080E15",
+          blue: "#086F83",
+          accent: "#B45309",
         },
       },
       fontFamily: {
-        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+        sans: ["'Plus Jakarta Sans'", "var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+        mono: ["'JetBrains Mono'", "var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
+      boxShadow: {
+        card: "0 1px 3px 0 rgba(8, 14, 21, 0.05), 0 1px 2px -1px rgba(8, 14, 21, 0.03)",
+        elevated: "0 10px 25px -5px rgba(8, 14, 21, 0.08), 0 8px 10px -6px rgba(8, 14, 21, 0.04)",
       },
     },
   },
