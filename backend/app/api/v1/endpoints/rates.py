@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter
 from app.schemas.rate import RateSearchRequest, RateSearchResponse
-from app.services.rate_engine import process_rate_search
+from app.services.rate_engine import process_rate_search, CorridorRateIndex
 
 router = APIRouter(prefix="/rates", tags=["Rate Discovery"])
 
@@ -109,11 +109,19 @@ SAMPLE_AIRLINE_TARIFFS: List[Dict[str, Any]] = [
     }
 ]
 
+# DSA: Pre-index all tariffs into an in-memory hash table for O(1) corridor lookups
+corridor_index = CorridorRateIndex(SAMPLE_AIRLINE_TARIFFS)
+
 
 @router.post("/quote", response_model=RateSearchResponse)
 async def get_air_cargo_quotes(request: RateSearchRequest):
     """
     Search live buying rates across all carriers for a corridor.
-    Applies pure buying rate formula and enforces < 500 kg Smalls ceiling.
+    Employs O(1) Corridor Hash Indexing and O(M log K) Min-Heap Top-K selection.
     """
-    return process_rate_search(request, SAMPLE_AIRLINE_TARIFFS)
+    return process_rate_search(
+        request=request,
+        available_tariffs=SAMPLE_AIRLINE_TARIFFS,
+        corridor_index=corridor_index,
+        limit=25
+    )

@@ -38,15 +38,10 @@ export function RatesGrid({ rates }: RatesGridProps) {
     if (activeFilter === "direct") {
       result = result.filter((r) => r.routing_type.toLowerCase().includes("direct"));
     } else if (activeFilter === "fastest") {
-      result.sort((a, b) => {
-        const getMinutes = (str: string) => {
-          const h = str.match(/(\d+)\s*h/i);
-          const m = str.match(/(\d+)\s*m/i);
-          return (h ? parseInt(h[1], 10) * 60 : 0) + (m ? parseInt(m[1], 10) : 0);
-        };
-        return getMinutes(a.transit_time) - getMinutes(b.transit_time);
-      });
+      // DSA Optimization: O(1) integer comparison using precomputed transit_minutes
+      result.sort((a, b) => (a.transit_minutes ?? 9999) - (b.transit_minutes ?? 9999));
     } else if (activeFilter === "cheapest") {
+      // DSA Optimization: O(1) integer subtraction
       result.sort((a, b) => a.breakdown.total_landed_buy - b.breakdown.total_landed_buy);
     }
     return result;

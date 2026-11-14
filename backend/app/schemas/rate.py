@@ -54,6 +54,7 @@ class RateQuoteItem(BaseModel):
     flight_number: str
     routing_type: str
     transit_time: str
+    transit_minutes: int = Field(default=0, description="Precomputed transit duration in minutes for O(1) sort")
     departure_time: str
     arrival_time: str
     cargo_cutoff: str

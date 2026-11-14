@@ -1,0 +1,100 @@
+import time
+import pytest
+from app.services.rate_engine import (
+    CorridorRateIndex,
+    parse_transit_minutes,
+    process_rate_search
+)
+from app.services.break_even import optimize_break_even_pivot
+from app.schemas.rate import RateSearchRequest
+
+
+def test_dsa_corridor_index_o1_lookup():
+    # Generate 1,500 synthetic tariff records across 50 corridors
+    synthetic_tariffs = []
+    destinations = [f"DST{i:02d}" for i in range(50)]
+    for i in range(1500):
+        dest = destinations[i % len(destinations)]
+        synthetic_tariffs.append({
+            "origin": "BOM",
+            "destination": dest,
+            "airline": f"Airline {i % 10}",
+            "carrier_code": f"A{i % 10}",
+            "prefix": f"{100 + i % 10}",
+            "rate_basis": "NET_NET_PLUS_PLUS",
+            "min_charge": 3000.0,
+            "rate_normal": 200.0 + (i % 20),
+            "rate_45": 180.0 + (i % 20),
+            "rate_100": 150.0 + (i % 20),
+            "rate_250": 130.0 + (i % 20),
+            "rate_300": 120.0 + (i % 20),
+            "fsc_per_kg": 20.0,
+            "ssc_per_kg": 3.5,
+        })
+
+    # Benchmark building index: O(N)
+    start_build = time.perf_counter()
+    index = CorridorRateIndex(synthetic_tariffs)
+    build_time = time.perf_counter() - start_build
+    assert build_time < 0.05  # Index build must be sub-50ms
+
+    # Benchmark O(1) hash table lookup vs O(N) linear search
+    start_lookup = time.perf_counter()
+    for _ in range(100):
+        results = index.get_corridor_tariffs("BOM", "DST05")
+    lookup_time = (time.perf_counter() - start_lookup) / 100
+
+    assert len(results) == 30  # 1500 / 50 = 30 records per corridor
+    assert lookup_time < 0.0001  # Sub-100 microseconds per query (O(1))
+
+
+def test_dsa_bisect_break_even_pivot_boundary_cases():
+    tiers = [
+        {"min_weight": 0.0, "rate": 300.0, "label": "Normal"},
+        {"min_weight": 45.0, "rate": 220.0, "label": "+45 kg"},
+        {"min_weight": 100.0, "rate": 180.0, "label": "+100 kg"},
+        {"min_weight": 250.0, "rate": 150.0, "label": "+250 kg"},
+        {"min_weight": 300.0, "rate": 115.0, "label": "+300 kg"},
+    ]
+
+    # Exact boundary 44.5 kg: Natural tier is Normal (<45kg)
+    # 44.5 * 300 = 13,350 vs Pivot to +45kg (45 * 220 = 9,900)
+    # Bumping 44.5kg to 45kg saves 3,450!
+    freight, rate, label, is_pivoted, savings = optimize_break_even_pivot(44.5, tiers)
+    assert is_pivoted is True
+    assert freight == 9900.0
+    assert savings == 3450.0
+
+    # Exact boundary 45.0 kg: Natural tier is +45kg
+    freight45, rate45, label45, is_pivoted45, _ = optimize_break_even_pivot(45.0, tiers)
+    assert freight45 == 45.0 * 220.0
+    assert label45 == "+45 kg"
+
+    # Exact boundary 299.5 kg: Bumping to 300kg saves money
+    # 299.5 * 150 = 44,925 vs 300 * 115 = 34,500
+    freight299, _, _, is_pivoted299, savings299 = optimize_break_even_pivot(299.5, tiers)
+    assert is_pivoted299 is True
+    assert freight299 == 34500.0
+    assert savings299 == 44925.0 - 34500.0
+
+
+def test_dsa_top_k_heap_selection(sample_tariffs):
+    req = RateSearchRequest(
+        origin="BOM",
+        destination="DXB",
+        actual_weight_kg=120.0,
+        commodity="General Cargo"
+    )
+    # Run process_rate_search with limit=1
+    res = process_rate_search(req, sample_tariffs, limit=1)
+    assert len(res.rates) == 1
+    # Ensure the returned single rate is indeed the absolute cheapest
+    assert res.rates[0].recommended is True
+
+
+def test_dsa_parse_transit_minutes():
+    assert parse_transit_minutes("3h 15m") == 195
+    assert parse_transit_minutes("Direct Flight (3h 25m)") == 205
+    assert parse_transit_minutes("Connecting via AUH (5h 10m)") == 310
+    assert parse_transit_minutes("Freighter via GYD (16h 05m)") == 965
+    assert parse_transit_minutes("Unknown transit") == 9999

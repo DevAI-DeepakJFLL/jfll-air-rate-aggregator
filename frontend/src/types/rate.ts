@@ -41,6 +41,7 @@ export interface RateQuoteItem {
   flight_number: string;
   routing_type: string;
   transit_time: string;
+  transit_minutes?: number;
   departure_time: string;
   arrival_time: string;
   cargo_cutoff: string;
