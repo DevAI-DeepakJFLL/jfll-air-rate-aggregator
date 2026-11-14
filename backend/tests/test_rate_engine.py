@@ -151,3 +151,16 @@ def test_build_rate_quote(sample_tariffs):
     assert quote.is_pivoted is False
     assert quote.breakdown.total_landed_buy == breakdown.total_landed_buy
 
+
+def test_volumetric_weight_multiple_pieces_and_cbm_equivalence():
+    # 2 pieces of 80cm x 60cm x 50cm = 480,000 cm³ = 0.48 CBM
+    # 480,000 / 6,000 = 80.0 kg volumetric weight
+    dims = [CargoDimension(length_cm=80.0, width_cm=60.0, height_cm=50.0, pieces=2)]
+    # Actual weight 50 kg vs Volumetric 80 kg -> CW must be 80.0 kg
+    cw = calculate_chargeable_weight(50.0, dims)
+    assert cw == 80.0
+    # Also verify cbm property on schema
+    assert dims[0].cbm == 0.48
+    assert dims[0].volumetric_weight_kg == 80.0
+
+
