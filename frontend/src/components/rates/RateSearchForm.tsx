@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Plane, Box, Search, AlertCircle, Scale, Boxes } from "lucide-react";
+import { Plane, Box, Search, AlertCircle, Scale } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 import { airportTrie } from "../../lib/airport-trie";
 import {

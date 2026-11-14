@@ -1,7 +1,11 @@
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-from app.schemas.rate import RateSearchRequest, RateSearchResponse
+from app.schemas.rate import (
+    RateSearchRequest,
+    RateSearchResponse,
+    FlightLegSchema,
+    RoutingPathResponse,
+)
 from app.services.rate_engine import process_rate_search, CorridorRateIndex
 from app.services.routing_graph import GLOBAL_CARGO_GRAPH
 
@@ -187,25 +191,6 @@ async def get_air_cargo_quotes(request: RateSearchRequest):
         corridor_index=corridor_index,
         limit=25
     )
-
-
-class FlightLegSchema(BaseModel):
-    origin: str
-    destination: str
-    carrier_code: str
-    flight_number: str
-    transit_minutes: int
-    base_rate_per_kg: float
-
-
-class RoutingPathResponse(BaseModel):
-    origin: str
-    destination: str
-    is_direct: bool
-    stops: int
-    total_transit_minutes: int
-    total_rate_per_kg: float
-    legs: List[FlightLegSchema]
 
 
 @router.get("/routing/{origin}/{destination}", response_model=RoutingPathResponse)
