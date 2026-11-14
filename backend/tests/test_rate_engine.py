@@ -2,7 +2,9 @@ import pytest
 from app.services.rate_engine import (
     calculate_chargeable_weight,
     calculate_pure_buy_rate,
-    process_rate_search
+    process_rate_search,
+    get_airline_schedule,
+    build_rate_quote
 )
 from app.schemas.rate import RateSearchRequest, CargoDimension
 from app.services.break_even import optimize_break_even_pivot
@@ -111,3 +113,41 @@ def test_dgr_inspection_statutory_fee(sample_tariffs):
     # General cargo has 0 commodity fee
     breakdown_gen = calculate_pure_buy_rate(sample_tariffs[0], 100.0, "DXB", "General Cargo")
     assert breakdown_gen.commodity_fee == 0.0
+
+
+def test_get_airline_schedule_known_and_fallback():
+    # Known carrier EK
+    ek_sched = get_airline_schedule("EK")
+    assert ek_sched["flight"] == "EK-505"
+    assert "Direct" in ek_sched["transit"]
+
+    # Unknown carrier XX fallback
+    fallback_sched = get_airline_schedule("XX")
+    assert fallback_sched["flight"] == "XX-204"
+    assert "Connecting" in fallback_sched["transit"]
+
+
+def test_build_rate_quote(sample_tariffs):
+    tariff = sample_tariffs[0]
+    pivot_res = (17000.0, 170.0, "+100 kg", False, 0.0)
+    breakdown = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    quote = build_rate_quote(
+        tariff=tariff,
+        cw=100.0,
+        orig="BOM",
+        dest="DXB",
+        commodity="General Cargo",
+        idx=0,
+        pivot_res=pivot_res,
+        breakdown=breakdown
+    )
+
+    assert quote.carrier_code == "AI"
+    assert quote.routing_type == "Direct"
+    assert quote.origin == "BOM"
+    assert quote.destination == "DXB"
+    assert quote.chargeable_weight == 100.0
+    assert quote.weight_tier_applied == "+100 kg"
+    assert quote.is_pivoted is False
+    assert quote.breakdown.total_landed_buy == breakdown.total_landed_buy
+

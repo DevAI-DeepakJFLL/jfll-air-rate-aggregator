@@ -22,8 +22,9 @@ export default function RateDiscoveryPage() {
     try {
       const data = await fetchLiveRates(payload);
       setResponse(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch rates from server.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to fetch rates from server.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

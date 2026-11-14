@@ -253,6 +253,67 @@ def calculate_pure_buy_rate(
     return breakdown
 
 
+def get_airline_schedule(carrier_code: str) -> Dict[str, str]:
+    """
+    Retrieve airline operational flight schedule, routing, and cargo cutoffs.
+    Falls back to a standard connecting flight template if carrier is not statically mapped.
+    """
+    return AIRLINE_SCHEDULES.get(carrier_code, {
+        'flight': f"{carrier_code}-204",
+        'departure': '04:30 IST',
+        'arrival': '10:00 Local',
+        'transit': 'Direct / Connecting Hub',
+        'cutoff': '22:00 IST (-1d)'
+    })
+
+
+def build_rate_quote(
+    tariff: Dict[str, Any],
+    cw: float,
+    orig: str,
+    dest: str,
+    commodity: str,
+    idx: int,
+    pivot_res: Tuple[float, float, str, bool, float],
+    breakdown: CostBreakdown
+) -> RateQuoteItem:
+    """
+    Constructs a validated RateQuoteItem from tariff data, schedule info, and calculated landed cost.
+    """
+    _, _, applied_label, is_pivoted, savings = pivot_res
+    carrier_code = (tariff.get('carrier_code') or 'JF').upper().strip()
+    sched = get_airline_schedule(carrier_code)
+    transit_str = sched['transit']
+
+    return RateQuoteItem(
+        id=f"quote-{carrier_code}-{idx}",
+        carrier_name=tariff.get('airline', 'Air Cargo Partner'),
+        carrier_code=carrier_code,
+        airline_prefix=tariff.get('prefix', '000'),
+        flight_number=sched['flight'],
+        routing_type='Direct' if 'Direct' in transit_str else 'Connecting Hub',
+        transit_time=transit_str,
+        transit_minutes=parse_transit_minutes(transit_str),  # Pre-computed for O(1) sorting
+        departure_time=sched['departure'],
+        arrival_time=sched['arrival'],
+        cargo_cutoff=sched['cutoff'],
+        origin=orig,
+        destination=dest,
+        cargo_category=commodity,
+        chargeable_weight=cw,
+        weight_tier_applied=applied_label,
+        is_pivoted=is_pivoted,
+        pivot_savings=f"₹{savings:,.0f} saved via pivot" if is_pivoted else None,
+        breakdown=breakdown,
+        rate_basis=tariff.get('rate_basis', 'NET_NET_PLUS_PLUS'),
+        valid_from=tariff.get('valid_from'),
+        valid_to=tariff.get('valid_to'),
+        validity_status='ACTIVE',
+        gauge_restriction=tariff.get('gauge_restriction'),
+        recommended=False
+    )
+
+
 def process_rate_search(
     request: RateSearchRequest,
     available_tariffs: List[Dict[str, Any]],
@@ -302,7 +363,6 @@ def process_rate_search(
         tiers = extract_active_weight_tiers(tariff)
         min_charge = float(tariff.get('min_charge') or 0.0)
         pivot_res = optimize_break_even_pivot(cw, tiers, min_charge)
-        _, _, applied_label, is_pivoted, savings = pivot_res
 
         breakdown = calculate_pure_buy_rate(
             tariff=tariff,
@@ -313,42 +373,15 @@ def process_rate_search(
             pivot_result=pivot_res
         )
 
-        carrier_code = (tariff.get('carrier_code') or 'JF').upper().strip()
-        sched = AIRLINE_SCHEDULES.get(carrier_code, {
-            'flight': f"{carrier_code}-204",
-            'departure': '04:30 IST',
-            'arrival': '10:00 Local',
-            'transit': 'Direct / Connecting Hub',
-            'cutoff': '22:00 IST (-1d)'
-        })
-
-        transit_str = sched['transit']
-        quote = RateQuoteItem(
-            id=f"quote-{carrier_code}-{idx}",
-            carrier_name=tariff.get('airline', 'Air Cargo Partner'),
-            carrier_code=carrier_code,
-            airline_prefix=tariff.get('prefix', '000'),
-            flight_number=sched['flight'],
-            routing_type='Direct' if 'Direct' in transit_str else 'Connecting Hub',
-            transit_time=transit_str,
-            transit_minutes=parse_transit_minutes(transit_str),  # Pre-computed for O(1) sorting
-            departure_time=sched['departure'],
-            arrival_time=sched['arrival'],
-            cargo_cutoff=sched['cutoff'],
-            origin=orig,
-            destination=dest,
-            cargo_category=request.commodity,
-            chargeable_weight=cw,
-            weight_tier_applied=applied_label,
-            is_pivoted=is_pivoted,
-            pivot_savings=f"₹{savings:,.0f} saved via pivot" if is_pivoted else None,
-            breakdown=breakdown,
-            rate_basis=tariff.get('rate_basis', 'NET_NET_PLUS_PLUS'),
-            valid_from=tariff.get('valid_from'),
-            valid_to=tariff.get('valid_to'),
-            validity_status='ACTIVE',
-            gauge_restriction=tariff.get('gauge_restriction'),
-            recommended=False
+        quote = build_rate_quote(
+            tariff=tariff,
+            cw=cw,
+            orig=orig,
+            dest=dest,
+            commodity=request.commodity,
+            idx=idx,
+            pivot_res=pivot_res,
+            breakdown=breakdown
         )
         matched_quotes.append(quote)
 

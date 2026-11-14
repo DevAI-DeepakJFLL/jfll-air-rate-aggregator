@@ -1,10 +1,10 @@
 import bisect
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 
 
 def optimize_break_even_pivot(
     chargeable_weight: float,
-    tiers: List[Dict[str, float]],
+    tiers: List[Dict[str, Any]],
     min_charge: float = 0.0
 ) -> Tuple[float, float, str, bool, float]:
     """
