@@ -1,7 +1,5 @@
 import os
-import shutil
 import tempfile
-from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
 from app.services.pdf_extractor import parse_airline_rate_sheet

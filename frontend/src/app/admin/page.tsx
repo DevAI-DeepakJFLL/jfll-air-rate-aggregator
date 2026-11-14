@@ -7,10 +7,6 @@ import {
   FileText,
   AlertTriangle,
   Eye,
-  Edit2,
-  Trash2,
-  ShieldAlert,
-  ArrowRight,
 } from "lucide-react";
 
 interface StagedRow {
@@ -57,10 +53,11 @@ export default function AdminIngestionPage() {
     }, 1200);
   };
 
-  const handleCellChange = (index: number, field: keyof StagedRow, value: any) => {
+  const handleCellChange = (index: number, field: keyof StagedRow, value: string | number) => {
     if (!stagedRows) return;
+    const numValue = typeof value === "number" ? value : parseFloat(value) || 0;
     const updated = [...stagedRows];
-    updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
+    updated[index] = { ...updated[index], [field]: numValue };
     setStagedRows(updated);
   };
 

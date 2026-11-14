@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plane, Box, Search, AlertCircle, Compass } from "lucide-react";
+import { Plane, Box, Search, AlertCircle } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 
 interface RateSearchFormProps {

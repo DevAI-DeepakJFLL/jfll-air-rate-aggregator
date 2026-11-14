@@ -52,13 +52,44 @@ class CorridorRateIndex:
         return self._index.get((origin.upper().strip(), destination.upper().strip()), [])
 
 
+RE_HOURS = re.compile(r'(\d+)\s*h', re.IGNORECASE)
+RE_MINUTES = re.compile(r'(\d+)\s*m', re.IGNORECASE)
+
+# Canonical IATA weight slab definitions (< 500kg Smalls Desk)
+SLAB_SPECS: Tuple[Tuple[str, float, str], ...] = (
+    ('rate_normal', 0.0, 'Normal'),
+    ('rate_45', 45.0, '+45 kg'),
+    ('rate_100', 100.0, '+100 kg'),
+    ('rate_250', 250.0, '+250 kg'),
+    ('rate_300', 300.0, '+300 kg'),
+)
+
+
+def extract_active_weight_tiers(tariff: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Extracts and validates sorted active rate slabs (< 500kg) from a tariff record.
+    Guarantees ascending order for binary search break-even pivot.
+    """
+    tiers = []
+    for key, min_wt, label in SLAB_SPECS:
+        val = tariff.get(key)
+        if val is not None:
+            try:
+                rate_val = float(val)
+                if rate_val > 0:
+                    tiers.append({'min_weight': min_wt, 'rate': rate_val, 'label': label})
+            except (ValueError, TypeError):
+                continue
+    return tiers
+
+
 def parse_transit_minutes(transit_str: str) -> int:
     """
     Parses strings like '3h 15m' or 'Connecting via AUH (5h 10m)' into total integer minutes.
     DSA: Precomputed once in O(1) time to enable O(1) integer comparisons during sorting.
     """
-    h_match = re.search(r'(\d+)\s*h', transit_str, re.IGNORECASE)
-    m_match = re.search(r'(\d+)\s*m', transit_str, re.IGNORECASE)
+    h_match = RE_HOURS.search(transit_str)
+    m_match = RE_MINUTES.search(transit_str)
     minutes = 0
     if h_match:
         minutes += int(h_match.group(1)) * 60
@@ -76,10 +107,16 @@ def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[
     vol_weight = 0.0
     if dimensions:
         for dim in dimensions:
-            l = getattr(dim, 'length_cm', dim.get('length_cm', 0.0) if isinstance(dim, dict) else 0.0)
-            w = getattr(dim, 'width_cm', dim.get('width_cm', 0.0) if isinstance(dim, dict) else 0.0)
-            h = getattr(dim, 'height_cm', dim.get('height_cm', 0.0) if isinstance(dim, dict) else 0.0)
-            pcs = getattr(dim, 'pieces', dim.get('pieces', 1) if isinstance(dim, dict) else 1)
+            if isinstance(dim, dict):
+                l = dim.get('length_cm', 0.0)
+                w = dim.get('width_cm', 0.0)
+                h = dim.get('height_cm', 0.0)
+                pcs = dim.get('pieces', 1)
+            else:
+                l = getattr(dim, 'length_cm', 0.0)
+                w = getattr(dim, 'width_cm', 0.0)
+                h = getattr(dim, 'height_cm', 0.0)
+                pcs = getattr(dim, 'pieces', 1)
             vol_weight += (l * w * h * pcs) / 6000.0
 
     raw_weight = max(actual_weight, vol_weight)
@@ -90,28 +127,23 @@ def calculate_pure_buy_rate(
     tariff: Dict[str, Any],
     cw: float,
     destination: str,
-    commodity: str = "General Cargo"
+    commodity: str = "General Cargo",
+    tiers: Optional[List[Dict[str, Any]]] = None,
+    pivot_result: Optional[Tuple[float, float, str, bool, float]] = None
 ) -> CostBreakdown:
     """
     Computes pure landed airline buying cost for shipments under 500 kg.
     Strictly excludes all commercial margins.
     Time Complexity: O(log T) via binary search break-even pivot.
     """
-    # Build sorted active slabs (<500kg only)
-    tiers = []
-    if tariff.get('rate_normal') and float(tariff['rate_normal']) > 0:
-        tiers.append({'min_weight': 0.0, 'rate': float(tariff['rate_normal']), 'label': 'Normal'})
-    if tariff.get('rate_45') and float(tariff['rate_45']) > 0:
-        tiers.append({'min_weight': 45.0, 'rate': float(tariff['rate_45']), 'label': '+45 kg'})
-    if tariff.get('rate_100') and float(tariff['rate_100']) > 0:
-        tiers.append({'min_weight': 100.0, 'rate': float(tariff['rate_100']), 'label': '+100 kg'})
-    if tariff.get('rate_250') and float(tariff['rate_250']) > 0:
-        tiers.append({'min_weight': 250.0, 'rate': float(tariff['rate_250']), 'label': '+250 kg'})
-    if tariff.get('rate_300') and float(tariff['rate_300']) > 0:
-        tiers.append({'min_weight': 300.0, 'rate': float(tariff['rate_300']), 'label': '+300 kg'})
+    if tiers is None:
+        tiers = extract_active_weight_tiers(tariff)
 
     min_charge = float(tariff.get('min_charge') or 0.0)
-    base_freight, effective_rate, _, _, _ = optimize_break_even_pivot(cw, tiers, min_charge)
+    if pivot_result is None:
+        base_freight, effective_rate, _, _, _ = optimize_break_even_pivot(cw, tiers, min_charge)
+    else:
+        base_freight, effective_rate, _, _, _ = pivot_result
 
     # Surcharges (FSC & Security)
     rate_basis = tariff.get('rate_basis', 'NET_NET_PLUS_PLUS').upper()
@@ -219,16 +251,18 @@ def process_rate_search(
 
     matched_quotes: List[RateQuoteItem] = []
     for idx, tariff in enumerate(candidate_tariffs):
-        breakdown = calculate_pure_buy_rate(tariff, cw, dest, request.commodity)
-        
-        # Build slabs list for break-even pivot details
-        tiers = []
-        for slab, wt in [('rate_normal', 0.0), ('rate_45', 45.0), ('rate_100', 100.0), ('rate_250', 250.0), ('rate_300', 300.0)]:
-            if tariff.get(slab) and float(tariff[slab]) > 0:
-                tiers.append({'min_weight': wt, 'rate': float(tariff[slab]), 'label': slab})
-        
-        _, _, applied_label, is_pivoted, savings = optimize_break_even_pivot(
-            cw, tiers, float(tariff.get('min_charge') or 0.0)
+        tiers = extract_active_weight_tiers(tariff)
+        min_charge = float(tariff.get('min_charge') or 0.0)
+        pivot_res = optimize_break_even_pivot(cw, tiers, min_charge)
+        _, _, applied_label, is_pivoted, savings = pivot_res
+
+        breakdown = calculate_pure_buy_rate(
+            tariff=tariff,
+            cw=cw,
+            destination=dest,
+            commodity=request.commodity,
+            tiers=tiers,
+            pivot_result=pivot_res
         )
 
         carrier_code = tariff.get('carrier_code', 'JF')

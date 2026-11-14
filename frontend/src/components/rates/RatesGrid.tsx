@@ -8,13 +8,11 @@ import { CarrierBadge } from "./CarrierBadge";
 import { AirlineLogo } from "./AirlineLogo";
 import {
   Clock,
-  CheckCircle2,
   TrendingDown,
   Info,
   Copy,
   Check,
   Plane,
-  ArrowRight,
   Sparkles,
 } from "lucide-react";
 

@@ -1,11 +1,6 @@
 import os
 from typing import List, Dict, Any, Tuple
 import pypdf
-
-
-import os
-from typing import List, Dict, Any, Tuple
-import pypdf
 from pypdf.errors import PdfReadError
 
 

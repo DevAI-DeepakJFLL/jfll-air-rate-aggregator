@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field
 
 
 class CargoDimension(BaseModel):
