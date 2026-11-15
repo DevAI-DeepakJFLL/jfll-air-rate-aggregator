@@ -150,7 +150,7 @@ export function TariffPreviewDrawer({
                   Validity Window
                 </span>
                 <span className="font-mono text-slate-900 block mt-0.5 text-[11px]">
-                  {circular?.valid_from || "Current"} &rarr; {circular?.valid_to || "Dec 2026"}
+                  {circular?.valid_from || "Current"} &rarr; {circular?.valid_to || "Active Schedule"}
                 </span>
               </div>
 
@@ -172,8 +172,18 @@ export function TariffPreviewDrawer({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search destination IATA (e.g. DXB, AUH, LHR, FRA)..."
-                className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-white"
+                className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-white"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                  aria-label="Clear destination search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -196,9 +206,9 @@ export function TariffPreviewDrawer({
                 <p className="text-[11px] text-slate-500">Try clearing the destination query.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs max-h-[60vh] overflow-y-auto">
                 <table className="w-full text-left text-xs font-semibold text-slate-700">
-                  <thead className="bg-slate-50 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider border-b border-slate-200 select-none">
+                  <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs text-[11px] font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200 select-none shadow-xs">
                     <tr>
                       <th className="px-3.5 py-2.5">Dest</th>
                       <th className="px-3 py-2.5">Commodity</th>
@@ -222,28 +232,28 @@ export function TariffPreviewDrawer({
                           {row.commodity || "General Cargo"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-900">
-                          ₹{row.min_charge?.toLocaleString("en-IN") || "—"}
+                          {row.min_charge ? `₹${row.min_charge.toLocaleString("en-IN")}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          ₹{row.rate_normal || "—"}
+                          {row.rate_normal ? `₹${row.rate_normal}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          ₹{row.rate_45 || "—"}
+                          {row.rate_45 ? `₹${row.rate_45}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          ₹{row.rate_100 || "—"}
+                          {row.rate_100 ? `₹${row.rate_100}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          ₹{row.rate_250 || "—"}
+                          {row.rate_250 ? `₹${row.rate_250}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          ₹{row.rate_300 || "—"}
+                          {row.rate_300 ? `₹${row.rate_300}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right font-medium text-amber-900 bg-amber-50/40">
-                          ₹{row.fsc_per_kg || 0}
+                          {row.fsc_per_kg ? `₹${row.fsc_per_kg}` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right font-medium text-slate-700">
-                          ₹{row.ssc_per_kg || 0}
+                          {row.ssc_per_kg ? `₹${row.ssc_per_kg}` : "—"}
                         </td>
                       </tr>
                     ))}

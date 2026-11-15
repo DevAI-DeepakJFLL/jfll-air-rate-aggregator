@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
 import { CarrierRegistryItem } from "@/types/tariff";
@@ -20,6 +20,17 @@ export function DeleteCircularModal({
   onConfirm,
   isDeleting,
 }: DeleteCircularModalProps) {
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isDeleting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isDeleting, onClose]);
+
   if (!isOpen || !carrier) return null;
 
   const circular = carrier.active_circular;
@@ -71,11 +82,11 @@ export function DeleteCircularModal({
               <span className="font-bold text-xs text-slate-900 truncate">
                 {carrier.carrier_name}
               </span>
-              <span className="font-mono text-[10px] font-bold text-slate-600 bg-slate-200 px-1.5 py-0.2 rounded">
+              <span className="font-mono text-xs font-bold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded">
                 {carrier.carrier_code}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+            <p className="text-xs text-slate-500 truncate mt-0.5">
               Active File: {circular?.filename || "Default Sheet"}
             </p>
           </div>

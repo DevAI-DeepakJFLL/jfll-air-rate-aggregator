@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ShieldAlert,
   Plane,
+  X,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 import { CarrierRegistryItem } from "@/types/tariff";
@@ -28,6 +29,7 @@ export default function AdminTariffsPage() {
   const [carriers, setCarriers] = useState<CarrierRegistryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<"ALL" | "ACTIVE" | "BASELINE">("ALL");
   const [uploadingCarrier, setUploadingCarrier] = useState<string | null>(null);
   const [activePreviewCarrier, setActivePreviewCarrier] = useState<CarrierRegistryItem | null>(null);
   const [carrierToDelete, setCarrierToDelete] = useState<CarrierRegistryItem | null>(null);
@@ -121,6 +123,11 @@ export default function AdminTariffsPage() {
 
   // Filtered carriers
   const filteredCarriers = carriers.filter((c) => {
+    // Mode filter
+    if (filterMode === "ACTIVE" && !c.has_active_circular) return false;
+    if (filterMode === "BASELINE" && c.has_active_circular) return false;
+
+    // Search query filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -203,34 +210,58 @@ export default function AdminTariffsPage() {
 
       {/* Operational Summary & Filter Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Metric Badges */}
-        <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
-          <div>
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+        {/* Interactive Metric Filter Buttons */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap" role="group" aria-label="Filter carriers by circular status">
+          <button
+            type="button"
+            onClick={() => setFilterMode("ALL")}
+            className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
+              filterMode === "ALL"
+                ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200"
+            }`}
+          >
+            <span className={`text-xs font-bold uppercase tracking-wider block ${filterMode === "ALL" ? "text-slate-300" : "text-slate-600"}`}>
               Tracked Fleet
             </span>
-            <span className="font-bold text-slate-900 text-sm">
+            <span className="font-bold text-xs">
               {carriers.length} Carriers ex-BOM
             </span>
-          </div>
-          <div className="h-8 w-px bg-slate-200 hidden sm:block" />
-          <div>
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilterMode("ACTIVE")}
+            className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
+              filterMode === "ACTIVE"
+                ? "bg-emerald-900 text-white border-emerald-900 shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border-emerald-300"
+            }`}
+          >
+            <span className={`text-xs font-bold uppercase tracking-wider block ${filterMode === "ACTIVE" ? "text-emerald-200" : "text-emerald-800"}`}>
               Active Circulars
             </span>
-            <span className="font-bold text-emerald-700 text-sm">
+            <span className="font-bold text-xs">
               {activeCount} Parsed & Live
             </span>
-          </div>
-          <div className="h-8 w-px bg-slate-200 hidden sm:block" />
-          <div>
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilterMode("BASELINE")}
+            className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
+              filterMode === "BASELINE"
+                ? "bg-slate-700 text-white border-slate-700 shadow-xs ring-2 ring-slate-400/30"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
+            }`}
+          >
+            <span className={`text-xs font-bold uppercase tracking-wider block ${filterMode === "BASELINE" ? "text-slate-300" : "text-slate-700"}`}>
               Fallback Baseline
             </span>
-            <span className="font-bold text-slate-600 text-sm">
+            <span className="font-bold text-xs">
               {fallbackCount} Benchmark Rates
             </span>
-          </div>
+          </button>
         </div>
 
         {/* Carrier Search / Filter Input */}
@@ -241,8 +272,18 @@ export default function AdminTariffsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter by airline, code (e.g. EY, AI)..."
-            className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-slate-50/50"
+            className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-slate-50/50"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+              aria-label="Clear filter search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -255,10 +296,22 @@ export default function AdminTariffsPage() {
       ) : filteredCarriers.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <Plane className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-          <h3 className="text-sm font-bold text-slate-800">No airlines match your filter</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Try adjusting your search query or clear the filter.
+          <h2 className="text-base font-bold text-slate-800">No airlines match your filter</h2>
+          <p className="text-xs text-slate-500 mt-1 mb-4">
+            {filterMode !== "ALL"
+              ? `No airlines found matching the current "${filterMode.toLowerCase()}" filter.`
+              : "Try adjusting your search query or clear the filter."}
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setFilterMode("ALL");
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-jfll-blue bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer border border-blue-200"
+          >
+            Clear Search & Filters
+          </button>
         </div>
       ) : (
         <section aria-labelledby="fleet-circulars-heading">
