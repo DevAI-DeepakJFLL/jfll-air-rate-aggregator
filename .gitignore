@@ -29,6 +29,9 @@ brain/
 docs/
 scratch/
 .system_generated/
+.superpowers/
+.worktrees/
+worktrees/
 
 # Environment Variables & Secrets
 .env
