@@ -164,3 +164,18 @@ def test_volumetric_weight_multiple_pieces_and_cbm_equivalence():
     assert dims[0].volumetric_weight_kg == 80.0
 
 
+def test_rate_sheet_destinations_endpoint(client):
+    response = client.get("/api/v1/rates/destinations")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 80
+    codes = {item["code"] for item in data}
+    assert "DXB" in codes
+    assert "LHR" in codes
+    assert "FRA" in codes
+    assert "SIN" in codes
+    assert "KUL" in codes
+    assert "JFK" in codes
+
+
+

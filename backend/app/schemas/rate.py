@@ -126,3 +126,10 @@ class RoutingPathResponse(BaseModel):
     total_rate_per_kg: float
     legs: List[FlightLegSchema]
 
+
+class DestinationItemSchema(BaseModel):
+    code: str
+    city: str
+    country: str
+    region: str
+

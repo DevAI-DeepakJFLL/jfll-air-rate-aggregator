@@ -61,6 +61,13 @@ export interface RateQuoteItem {
   recommended: boolean;
 }
 
+export interface DestinationItem {
+  code: string;
+  city: string;
+  country: string;
+  region: string;
+}
+
 export interface RateSearchResponse {
   origin: string;
   destination: string;

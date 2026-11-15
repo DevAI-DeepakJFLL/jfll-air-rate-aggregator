@@ -1,9 +1,22 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Plane, Box, Search, AlertCircle, Scale } from "lucide-react";
+import {
+  Plane,
+  Box,
+  Search,
+  AlertCircle,
+  Scale,
+  Lock,
+  Globe,
+  Building2,
+} from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
-import { airportTrie } from "../../lib/airport-trie";
+import {
+  RATE_SHEET_DESTINATIONS,
+  POPULAR_DESTINATIONS,
+  getDestinationsByRegion,
+} from "../../lib/rate-destinations";
 import {
   DimensionUnit,
   DimensionMode,
@@ -24,10 +37,10 @@ interface RateSearchFormProps {
 export function RateSearchForm({
   onSearch,
   loading,
-  initialOrigin = "BOM",
   initialDestination = "DXB",
 }: RateSearchFormProps) {
-  const [origin, setOrigin] = useState(initialOrigin);
+  // Origin is strictly fixed at BOM (Mumbai Gateway Hub)
+  const origin = "BOM";
   const [destination, setDestination] = useState(initialDestination);
   const [actualWeight, setActualWeight] = useState("120");
   const [commodity, setCommodity] = useState("General Cargo");
@@ -49,6 +62,16 @@ export function RateSearchForm({
   const pcsNum = parseInt(pieces, 10) || 1;
   const cbmNum = parseFloat(cbmVolume) || 0;
 
+  // Group destinations by region for clean optgroup presentation
+  const destinationsByRegion = useMemo(() => {
+    return getDestinationsByRegion();
+  }, []);
+
+  // Currently selected destination details
+  const selectedDestInfo = useMemo(() => {
+    return RATE_SHEET_DESTINATIONS.find((d) => d.code === destination);
+  }, [destination]);
+
   // Compute Volumetric Weight and CBM volume
   const { volWeight, computedCbm } = useMemo(() => {
     if (!useDims) {
@@ -67,11 +90,6 @@ export function RateSearchForm({
   const derivation = useMemo(() => {
     return deriveChargeableWeight(wtNum, volWeight);
   }, [wtNum, volWeight]);
-
-  const destSuggestions = useMemo(() => {
-    if (!destination || destination.length >= 3) return [];
-    return airportTrie.searchPrefix(destination, 4);
-  }, [destination]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +127,7 @@ export function RateSearchForm({
     }
 
     onSearch({
-      origin: origin.toUpperCase().trim(),
+      origin: "BOM",
       destination: destination.toUpperCase().trim(),
       actual_weight_kg: wtNum,
       dimensions: dims.length > 0 ? dims : undefined,
@@ -144,58 +162,107 @@ export function RateSearchForm({
 
       {/* Main Form Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Origin */}
+        {/* Origin Gateway (Fixed strictly at BOM) */}
         <div>
-          <label htmlFor="origin-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
-            Origin Gateway (BOM Hub)
-          </label>
-          <input
-            id="origin-input"
-            type="text"
-            maxLength={3}
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring font-mono"
-            placeholder="BOM"
-            required
-          />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+              Origin Gateway (Fixed)
+            </label>
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+              <Lock className="h-2.5 w-2.5" />
+              Fixed Hub
+            </span>
+          </div>
+          <div className="flex items-center justify-between w-full h-11 rounded-xl border border-slate-200 bg-slate-100/80 px-3.5 py-2 select-none shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-black text-sm bg-amber-400/20 text-amber-950 px-2 py-0.5 rounded border border-amber-300/60">
+                BOM
+              </span>
+              <span className="text-xs font-bold text-slate-700 truncate">
+                Mumbai Hub (CSMIA)
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 hidden xl:inline">
+              Terminal 2 Cargo
+            </span>
+          </div>
+          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+            Chhatrapati Shivaji Maharaj Intl Airport
+          </div>
         </div>
 
-        {/* Destination */}
+        {/* Destination Dropdown Driven by Rate Sheets */}
         <div>
-          <label htmlFor="dest-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
-            Destination Airport (IATA)
-          </label>
-          <input
-            id="dest-input"
-            type="text"
-            maxLength={3}
+          <div className="flex items-center justify-between mb-1">
+            <label
+              htmlFor="dest-select"
+              className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider"
+            >
+              Destination Airport
+            </label>
+            <span className="text-[10px] font-bold text-aero-teal">
+              {RATE_SHEET_DESTINATIONS.length} Rate Sheet Ports
+            </span>
+          </div>
+          <select
+            id="dest-select"
             value={destination}
-            onChange={(e) => setDestination(e.target.value.toUpperCase())}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold uppercase focus-ring font-mono"
-            placeholder="DXB"
+            onChange={(e) => setDestination(e.target.value)}
+            className="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-obsidian-900 focus-ring cursor-pointer"
             required
-          />
-          {destSuggestions.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1" role="listbox" aria-label="Airport suggestions">
-              {destSuggestions.map((item) => (
+          >
+            {Object.entries(destinationsByRegion).map(([region, dests]) => (
+              <optgroup key={region} label={`── ${region.toUpperCase()} (${dests.length}) ──`}>
+                {dests.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code} — {item.city}, {item.country}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+
+          {/* Popular Rate Sheet Destination Shortcut Pills */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            <span className="text-[10px] font-semibold text-slate-400 mr-0.5">Top:</span>
+            {POPULAR_DESTINATIONS.map((code) => {
+              const d = RATE_SHEET_DESTINATIONS.find((item) => item.code === code);
+              return (
                 <button
-                  key={item.code}
+                  key={code}
                   type="button"
-                  onClick={() => setDestination(item.code)}
-                  className="rounded-md bg-slate-100 hover:bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:text-amber-900 border border-slate-200 transition-colors cursor-pointer"
-                  title={`${item.name}, ${item.country}`}
+                  onClick={() => setDestination(code)}
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition-colors cursor-pointer border ${
+                    destination === code
+                      ? "bg-obsidian-900 text-amber-300 border-obsidian-900"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200"
+                  }`}
+                  title={`${d?.city}, ${d?.country}`}
                 >
-                  {item.code} ({item.city})
+                  {code}
                 </button>
-              ))}
+              );
+            })}
+          </div>
+
+          {selectedDestInfo && (
+            <div className="text-[10px] font-semibold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
+              <Globe className="h-3 w-3 text-slate-400 shrink-0" />
+              <span>
+                {selectedDestInfo.city}, {selectedDestInfo.country}
+              </span>
+              <span className="text-slate-300">&bull;</span>
+              <span className="text-aero-teal font-bold">{selectedDestInfo.region}</span>
             </div>
           )}
         </div>
 
         {/* Actual Gross Weight */}
         <div>
-          <label htmlFor="weight-input" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
+          <label
+            htmlFor="weight-input"
+            className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1"
+          >
             Gross Scale Weight (kg)
           </label>
           <input
@@ -209,24 +276,35 @@ export function RateSearchForm({
             placeholder="e.g. 120"
             required
           />
+          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+            Physical scale weight measured at warehouse
+          </div>
         </div>
 
         {/* Commodity Class */}
         <div>
-          <label htmlFor="commodity-select" className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">
+          <label
+            htmlFor="commodity-select"
+            className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1"
+          >
             Commodity Class
           </label>
           <select
             id="commodity-select"
             value={commodity}
             onChange={(e) => setCommodity(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus-ring cursor-pointer"
+            className="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus-ring cursor-pointer"
           >
-            <option value="General Cargo">General Cargo (GCR)</option>
+            <option value="General Cargo">General Cargo (GCR / GEN)</option>
+            <option value="Pharma CRT">Pharma CRT (15°C to 25°C - PILA)</option>
+            <option value="Cold Chain">Cold Chain (2°C to 8°C - COL)</option>
             <option value="DGR - PAX">Dangerous Goods (DGR - PAX)</option>
-            <option value="Pharma CRT">Pharma CRT (15°C to 25°C)</option>
-            <option value="Cold Chain">Cold Chain (2°C to 8°C)</option>
+            <option value="Express Courier">Express Courier (XPS / COU)</option>
+            <option value="Valuable Cargo">Valuable Cargo (VAL)</option>
           </select>
+          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+            Airline handling &amp; surcharges vary by category
+          </div>
         </div>
       </div>
 
@@ -244,23 +322,59 @@ export function RateSearchForm({
               onChange={(e) => setUseDims(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-obsidian-900 focus:ring-obsidian-900 cursor-pointer"
             />
-            <Box className="h-4 w-4 text-aero-teal" />
-            <span>Enable Package Dimensions &amp; Volumetric Derivation</span>
+            <span className="flex items-center gap-1.5">
+              <Box className="h-3.5 w-3.5 text-aero-teal" />
+              Package Dimensions &amp; Volumetric Weight Derivation
+            </span>
           </label>
 
           {useDims && (
             <div className="flex items-center gap-2">
-              {/* Unit Switcher Pills (cm / in / m / mm) */}
+              {/* Dimension Mode Toggle (Linear vs Direct CBM) */}
+              <div
+                className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200"
+                role="radiogroup"
+                aria-label="Dimension entry mode"
+              >
+                <button
+                  type="button"
+                  onClick={() => setDimensionMode("dimensions")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                    dimensionMode === "dimensions"
+                      ? "bg-white text-obsidian-900 shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Dimensions (L×W×H)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDimensionMode("cbm")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                    dimensionMode === "cbm"
+                      ? "bg-white text-obsidian-900 shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Direct CBM (m³)
+                </button>
+              </div>
+
+              {/* Unit Switcher Pills (Only in Linear Dimensions Mode) */}
               {dimensionMode === "dimensions" && (
-                <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="group" aria-label="Dimension Unit">
-                  {(["cm", "in", "m", "mm"] as const).map((u) => (
+                <div
+                  className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200"
+                  role="radiogroup"
+                  aria-label="Unit of measurement"
+                >
+                  {(["cm", "in", "m", "mm"] as DimensionUnit[]).map((u) => (
                     <button
                       key={u}
                       type="button"
                       onClick={() => setDimensionUnit(u)}
-                      className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase transition-all cursor-pointer ${
+                      className={`rounded-md px-2 py-0.5 text-xs font-bold font-mono transition-all cursor-pointer ${
                         dimensionUnit === u
-                          ? "bg-obsidian-900 text-amber-300 shadow-xs"
+                          ? "bg-obsidian-900 text-amber-300 shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -269,238 +383,198 @@ export function RateSearchForm({
                   ))}
                 </div>
               )}
-
-              {/* Dimension Mode Switcher (Dimensions vs Direct CBM) */}
-              <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="group" aria-label="Sizing Input Mode">
-                <button
-                  type="button"
-                  onClick={() => setDimensionMode("dimensions")}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
-                    dimensionMode === "dimensions"
-                      ? "bg-white text-obsidian-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                >
-                  Dimensions
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDimensionMode("cbm")}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
-                    dimensionMode === "cbm"
-                      ? "bg-white text-obsidian-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                >
-                  Direct CBM
-                </button>
-              </div>
             </div>
           )}
         </div>
 
-        {/* Dynamic Inputs (Dimensions or Direct CBM) */}
-        {useDims && (
-          <div>
-            {dimensionMode === "dimensions" ? (
-              <div className="space-y-2 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label htmlFor="dim-length" className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                      Length ({dimensionUnit})
-                    </label>
-                    <input
-                      id="dim-length"
-                      type="number"
-                      step="any"
-                      min="0.1"
-                      value={length}
-                      onChange={(e) => setLength(e.target.value)}
-                      placeholder={dimensionUnit === "in" ? "e.g. 32" : "e.g. 80"}
-                      className="w-full h-10 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono tabular-nums focus-ring bg-white"
-                      required={useDims}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="dim-width" className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                      Width ({dimensionUnit})
-                    </label>
-                    <input
-                      id="dim-width"
-                      type="number"
-                      step="any"
-                      min="0.1"
-                      value={width}
-                      onChange={(e) => setWidth(e.target.value)}
-                      placeholder={dimensionUnit === "in" ? "e.g. 24" : "e.g. 60"}
-                      className="w-full h-10 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono tabular-nums focus-ring bg-white"
-                      required={useDims}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="dim-height" className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                      Height ({dimensionUnit})
-                    </label>
-                    <input
-                      id="dim-height"
-                      type="number"
-                      step="any"
-                      min="0.1"
-                      value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      placeholder={dimensionUnit === "in" ? "e.g. 20" : "e.g. 50"}
-                      className="w-full h-10 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono tabular-nums focus-ring bg-white"
-                      required={useDims}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="dim-pieces" className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                      Pieces
-                    </label>
-                    <input
-                      id="dim-pieces"
-                      type="number"
-                      min="1"
-                      value={pieces}
-                      onChange={(e) => setPieces(e.target.value)}
-                      placeholder="e.g. 2"
-                      className="w-full h-10 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono tabular-nums focus-ring bg-white"
-                      required={useDims}
-                    />
-                  </div>
-                </div>
+        {useDims && dimensionMode === "dimensions" && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label
+                htmlFor="dim-length"
+                className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1"
+              >
+                Length ({dimensionUnit})
+              </label>
+              <input
+                id="dim-length"
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={length}
+                onChange={(e) => setLength(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="dim-width"
+                className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1"
+              >
+                Width ({dimensionUnit})
+              </label>
+              <input
+                id="dim-width"
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="dim-height"
+                className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1"
+              >
+                Height ({dimensionUnit})
+              </label>
+              <input
+                id="dim-height"
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="dim-pieces"
+                className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1"
+              >
+                Pieces (Pcs)
+              </label>
+              <input
+                id="dim-pieces"
+                type="number"
+                min="1"
+                value={pieces}
+                onChange={(e) => setPieces(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
+                required
+              />
+            </div>
+          </div>
+        )}
 
-                <div className="flex flex-wrap items-center justify-between rounded-lg bg-sky-50/80 px-3 py-1.5 text-[11px] text-slate-600 border border-sky-100">
-                  <span>
-                    IATA Standard: (L × W × H × Pieces) ÷ 6,000{" "}
-                    {dimensionUnit !== "cm" ? `(auto-converted from ${dimensionUnit} to cm)` : ""}
-                  </span>
-                  {volWeight > 0 ? (
-                    <span className="font-extrabold text-aero-teal font-mono">
-                      = {volWeight.toFixed(1)} kg vol. ({computedCbm.toFixed(3)} CBM)
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 italic">
-                      Enter dimensions in {dimensionUnit}
-                    </span>
-                  )}
+        {useDims && dimensionMode === "cbm" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="cbm-volume-input"
+                className="block text-[11px] font-extrabold text-slate-500 uppercase mb-1"
+              >
+                Total Shipment Volume (CBM / m³)
+              </label>
+              <input
+                id="cbm-volume-input"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={cbmVolume}
+                onChange={(e) => setCbmVolume(e.target.value)}
+                placeholder="e.g. 0.48"
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
+                required
+              />
+            </div>
+            <div className="flex items-center text-xs text-slate-500 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span>
+                Standard IATA Conversion: <strong>1 CBM = 166.67 kg</strong> volumetric weight.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Real-time IATA Weight Derivation Card (TACT Rule 1.3.2) */}
+        {useDims && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-extrabold text-obsidian-900 flex items-center gap-1.5">
+                <Scale className="h-4 w-4 text-aero-teal" />
+                IATA TACT Weight Derivation
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                  derivation.isVolumetricBilled
+                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                    : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                }`}
+              >
+                {derivation.isVolumetricBilled
+                  ? "Billed on Volumetric Weight"
+                  : "Billed on Gross Scale Weight"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+              <div className="rounded-lg bg-white p-2 border border-slate-200">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Gross Scale Weight</div>
+                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
+                  {wtNum.toFixed(1)} kg
                 </div>
               </div>
-            ) : (
-              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 space-y-2">
-                <div className="max-w-xs">
-                  <label htmlFor="dim-cbm" className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                    Total Volume (CBM / m³)
-                  </label>
-                  <input
-                    id="dim-cbm"
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    value={cbmVolume}
-                    onChange={(e) => setCbmVolume(e.target.value)}
-                    placeholder="e.g. 0.48"
-                    className="w-full h-10 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono tabular-nums focus-ring bg-white"
-                    required={useDims}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-sky-50/80 px-3 py-1.5 text-[11px] text-slate-600 border border-sky-100">
-                  <span>1 CBM = 166.7 kg volumetric weight (IATA air cargo 1:6 ratio)</span>
-                  <span className="font-extrabold text-aero-teal font-mono">
-                    = {volWeight.toFixed(1)} kg vol.
-                  </span>
+
+              <div className="rounded-lg bg-white p-2 border border-slate-200">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Total Volume (CBM)</div>
+                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
+                  {computedCbm.toFixed(3)} m³
                 </div>
               </div>
-            )}
+
+              <div className="rounded-lg bg-white p-2 border border-slate-200">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Volumetric Weight</div>
+                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
+                  {volWeight.toFixed(1)} kg
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-obsidian-900 p-2 text-white shadow-2xs">
+                <div className="text-[10px] font-bold text-amber-300 uppercase">Billed Chargeable Wt</div>
+                <div className="font-mono font-black text-amber-300 text-sm mt-0.5">
+                  {derivation.chargeableWeight.toFixed(1)} kg
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* IATA Chargeable Weight Verification Banner (Ported from Cargo Booking Platform) */}
-      {derivation.chargeableWeight > 0 && (
-        <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3 font-sans">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="font-black text-obsidian-900 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-              <Scale className="h-4 w-4 text-aero-teal" />
-              IATA Chargeable Weight Verification (TACT Rule 1.3.2)
-            </span>
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-black ${
-                derivation.isVolumetricBilled
-                  ? "bg-amber-100 text-amber-900 border border-amber-300"
-                  : "bg-emerald-100 text-emerald-900 border border-emerald-300"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  derivation.isVolumetricBilled ? "bg-amber-600" : "bg-emerald-600"
-                }`}
-              />
-              {derivation.isVolumetricBilled
-                ? "Billed on Volumetric Weight (Bulky Cargo)"
-                : "Billed on Gross Scale Weight (Dense Cargo)"}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-white rounded-xl p-3 border border-slate-200">
-            <div>
-              <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">
-                Gross Scale Weight
-              </span>
-              <span className="text-base font-black text-obsidian-900 font-mono tabular-nums">
-                {derivation.actualWeight.toFixed(1)} kg
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">
-                Volumetric Weight (÷6,000)
-              </span>
-              <span className="text-base font-black text-obsidian-900 font-mono tabular-nums">
-                {derivation.volumetricWeight.toFixed(1)} kg{" "}
-                <span className="text-xs font-semibold text-slate-500">
-                  ({computedCbm.toFixed(3)} CBM)
-                </span>
-              </span>
-            </div>
-            <div className="col-span-2 sm:col-span-1 border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-3">
-              <span className="text-[10px] text-aero-teal block font-black uppercase tracking-wider">
-                Derived Chargeable Weight
-              </span>
-              <span className="text-lg font-black text-emerald-700 font-mono tabular-nums">
-                {derivation.chargeableWeight.toFixed(1)} kg
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-600 gap-1 pt-0.5">
-            <span className="text-[11px]">
-              <strong>Rule 1.3.2:</strong> Higher of Actual vs Volumetric Weight, rounded up to the nearest 0.5 kg.
-            </span>
-            <span className="font-mono text-[11px] font-bold text-slate-700">
-              Air Cargo Ratio: 1 m³ = 166.7 kg (1:6)
-            </span>
-          </div>
-
-          {derivation.chargeableWeight >= 500 && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" />
-              <span>
-                <strong>Heavy Shipment Notice (&ge; 500 kg):</strong> Chargeable weight exceeds the 500 kg Smalls threshold. Airline circular tariffs do not apply; ad-hoc spot rate negotiation is required.
-              </span>
-            </div>
-          )}
+      {/* Heavy Cargo Alert (> 500 kg) */}
+      {derivation.chargeableWeight >= 500 && (
+        <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-900">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" />
+          <span>
+            Chargeable weight exceeds 500 kg smalls desk limit. Automated published tariffs will
+            prompt referral to the heavy cargo desk.
+          </span>
         </div>
       )}
 
-      {/* CTA Button */}
+      {/* Submit Button */}
       <div className="mt-5 flex justify-end">
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-3 text-sm font-extrabold text-amber-300 shadow-sm hover:bg-aero-navy transition-all focus-ring disabled:opacity-50 cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-aero-navy focus-ring transition-all shadow-md cursor-pointer disabled:opacity-50"
         >
-          <Search className="h-4 w-4 text-amber-300" />
-          {loading ? "Searching Carrier Tariffs..." : "Compare Airline Buying Rates"}
+          {loading ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+              <span>Scanning Tariffs...</span>
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4 text-amber-400" />
+              <span>Discover Pure Buy Rates</span>
+            </>
+          )}
         </button>
       </div>
     </form>

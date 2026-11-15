@@ -10,9 +10,13 @@ interface EmptyRateStateProps {
 }
 
 const ACTIVE_CORRIDORS = [
-  { origin: "BOM", destination: "DXB", label: "Mumbai → Dubai (Middle East)" },
-  { origin: "BOM", destination: "KUL", label: "Mumbai → Kuala Lumpur (SE Asia)" },
-  { origin: "BOM", destination: "ORD", label: "Mumbai → Chicago (North America)" },
+  { origin: "BOM", destination: "DXB", label: "BOM → DXB (Dubai)" },
+  { origin: "BOM", destination: "LHR", label: "BOM → LHR (London)" },
+  { origin: "BOM", destination: "FRA", label: "BOM → FRA (Frankfurt)" },
+  { origin: "BOM", destination: "SIN", label: "BOM → SIN (Singapore)" },
+  { origin: "BOM", destination: "KUL", label: "BOM → KUL (Kuala Lumpur)" },
+  { origin: "BOM", destination: "JFK", label: "BOM → JFK (New York)" },
+  { origin: "BOM", destination: "MEX", label: "BOM → MEX (Mexico City)" },
 ];
 
 export function EmptyRateState({ origin, destination, onSelectRoute }: EmptyRateStateProps) {
