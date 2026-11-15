@@ -172,7 +172,7 @@ export function SearchableDestinationSelect({
             setIsOpen(true);
           }
         }}
-        className={`w-full h-11 px-3.5 py-2.5 bg-white border rounded-xl text-xs sm:text-sm cursor-pointer flex items-center justify-between gap-2 select-none transition-all duration-150 outline-none ${
+        className={`w-full h-11 px-3.5 py-2.5 bg-white border rounded-xl text-xs sm:text-sm cursor-pointer flex items-center justify-between gap-2 select-none transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 ${
           isOpen
             ? "border-obsidian-900 ring-2 ring-obsidian-900/10 shadow-sm"
             : "border-slate-300 hover:border-slate-400"

@@ -272,7 +272,7 @@ export default function AdminChargesPage() {
             <Receipt className="h-4 w-4 text-jfll-blue" />
           </div>
           <div className="text-2xl font-black text-slate-900 font-mono">
-            {isLoading ? "—" : totalCharges}
+            {isLoading ? "-" : totalCharges}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Registered MIAL &amp; gateway rules
@@ -285,7 +285,7 @@ export default function AdminChargesPage() {
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-emerald-700 font-mono">
-            {isLoading ? "—" : activeCharges}
+            {isLoading ? "-" : activeCharges}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Live on rate engine calculations
@@ -298,7 +298,7 @@ export default function AdminChargesPage() {
             <ShieldCheck className="h-4 w-4 text-amber-600" />
           </div>
           <div className="text-2xl font-black text-amber-700 font-mono">
-            {isLoading ? "—" : statutoryCharges}
+            {isLoading ? "-" : statutoryCharges}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Govt GST, XBC, AMS regulations
@@ -313,7 +313,7 @@ export default function AdminChargesPage() {
             </span>
           </div>
           <div className="text-2xl font-black text-teal-700 font-mono">
-            {isLoading ? "—" : customAncillaries}
+            {isLoading ? "-" : customAncillaries}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Custom rules added by Desk

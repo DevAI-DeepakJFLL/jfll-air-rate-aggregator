@@ -612,7 +612,7 @@ export default function AddChargeDrawer({
                 >
                   {CATEGORY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.label} — {opt.desc}
+                      {opt.label}: {opt.desc}
                     </option>
                   ))}
                 </select>
@@ -957,9 +957,12 @@ export default function AddChargeDrawer({
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={isActive}
+                  aria-label="Active Operational Status toggle"
                   disabled={!isPricingHead}
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
                     isActive ? "bg-emerald-600" : "bg-slate-300"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >

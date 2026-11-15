@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Jet Freight Logistics — In-House Air Cargo Rate Aggregator",
+  title: "Jet Freight Logistics | In-House Air Cargo Rate Aggregator",
   description: "Internal Air Cargo Buying Rate Comparison & Tariff Desk (<500kg Smalls)",
 };
 

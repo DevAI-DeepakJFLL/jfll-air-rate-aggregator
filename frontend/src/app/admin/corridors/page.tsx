@@ -168,49 +168,57 @@ export default function AdminCorridorsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {filtered.map((item) => (
-                <tr key={item.code} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="font-mono font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      {item.code}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-bold text-slate-900">{item.name}</div>
-                    <div className="text-[11px] text-slate-500">{item.country}</div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium">
-                      <Globe className="h-3 w-3 text-slate-400" />
-                      {item.region}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {item.typicalAirlines.map((airline) => (
-                        <span
-                          key={airline}
-                          className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700"
-                        >
-                          {airline}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        item.status === "ACTIVE"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-amber-50 text-amber-700 border border-amber-200"
-                      }`}
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      {item.status}
-                    </span>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-500 font-medium">
+                    No monitored corridors found matching &ldquo;{searchTerm}&rdquo;
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map((item) => (
+                  <tr key={item.code} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="font-mono font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-900">{item.name}</div>
+                      <div className="text-[11px] text-slate-500">{item.country}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium">
+                        <Globe className="h-3 w-3 text-slate-400" />
+                        {item.region}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {item.typicalAirlines.map((airline) => (
+                          <span
+                            key={airline}
+                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700"
+                          >
+                            {airline}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          item.status === "ACTIVE"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

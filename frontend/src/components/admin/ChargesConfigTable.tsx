@@ -150,7 +150,7 @@ export default function ChargesConfigTable({
           </div>
         );
       default:
-        return <span className="text-slate-500 font-mono text-xs">—</span>;
+        return <span className="text-slate-500 font-mono text-xs">N/A</span>;
     }
   };
 
@@ -213,7 +213,7 @@ export default function ChargesConfigTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by code, name, or keywords..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-sky-500 text-slate-900 placeholder-slate-400 font-medium"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1 text-slate-900 placeholder-slate-400 font-medium"
           />
         </div>
 
@@ -226,7 +226,7 @@ export default function ChargesConfigTable({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 outline-none focus:border-sky-500"
+              className="text-xs rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
             >
               <option value="ALL">All Categories</option>
               <option value="TERMINAL">Terminal Handling</option>
@@ -389,7 +389,7 @@ export default function ChargesConfigTable({
                                 : "Click to activate charge"
                               : "Read-only: Pricing Head required to toggle"
                           }
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
                             charge.is_active ? "bg-emerald-600" : "bg-slate-300"
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >

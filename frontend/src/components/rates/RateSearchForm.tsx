@@ -474,7 +474,7 @@ export function RateSearchForm({
         <button
           type="submit"
           disabled={loading || !destination || wtNum <= 0}
-          className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-aero-navy focus-ring transition-all shadow-md cursor-pointer disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-2.5 text-sm font-bold text-amber-300 hover:bg-aero-navy focus-ring transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -484,7 +484,7 @@ export function RateSearchForm({
           ) : (
             <>
               <Search className="h-4 w-4 text-amber-400" />
-              <span>Discover Pure Buy Rates</span>
+              <span>Search Airline Buy Rates</span>
             </>
           )}
         </button>

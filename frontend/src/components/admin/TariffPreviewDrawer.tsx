@@ -223,7 +223,7 @@ export function TariffPreviewDrawer({
                 aria-label="Extracted airline corridors rate matrix"
               >
                 <table className="w-full text-left text-xs font-semibold text-slate-700">
-                  <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs text-[11px] font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200 select-none shadow-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-100 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200 select-none shadow-xs">
                     <tr>
                       <th className="px-3.5 py-2.5">Dest</th>
                       <th className="px-3 py-2.5">Commodity</th>
@@ -247,28 +247,28 @@ export function TariffPreviewDrawer({
                           {row.commodity || "General Cargo"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-900">
-                          {row.min_charge ? `₹${row.min_charge.toLocaleString("en-IN")}` : "—"}
+                          {row.min_charge ? `₹${row.min_charge.toLocaleString("en-IN")}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          {row.rate_normal ? `₹${row.rate_normal}` : "—"}
+                          {row.rate_normal ? `₹${row.rate_normal}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          {row.rate_45 ? `₹${row.rate_45}` : "—"}
+                          {row.rate_45 ? `₹${row.rate_45}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          {row.rate_100 ? `₹${row.rate_100}` : "—"}
+                          {row.rate_100 ? `₹${row.rate_100}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          {row.rate_250 ? `₹${row.rate_250}` : "—"}
+                          {row.rate_250 ? `₹${row.rate_250}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-800">
-                          {row.rate_300 ? `₹${row.rate_300}` : "—"}
+                          {row.rate_300 ? `₹${row.rate_300}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right font-medium text-amber-900 bg-amber-50/40">
-                          {row.fsc_per_kg ? `₹${row.fsc_per_kg}` : "—"}
+                          {row.fsc_per_kg ? `₹${row.fsc_per_kg}` : "-"}
                         </td>
                         <td className="px-3 py-2.5 text-right font-medium text-slate-700">
-                          {row.ssc_per_kg ? `₹${row.ssc_per_kg}` : "—"}
+                          {row.ssc_per_kg ? `₹${row.ssc_per_kg}` : "-"}
                         </td>
                       </tr>
                     ))}

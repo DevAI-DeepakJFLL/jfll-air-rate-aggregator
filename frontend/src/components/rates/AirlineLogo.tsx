@@ -14,21 +14,29 @@ const SIZE_MAP = {
     container: "h-6 w-6 rounded-md p-0.5",
     img: "h-5 w-5",
     fallbackText: "text-[9px]",
+    width: 20,
+    height: 20,
   },
   sm: {
     container: "h-8 w-8 rounded-lg p-1",
     img: "h-6 w-6",
     fallbackText: "text-[10px]",
+    width: 24,
+    height: 24,
   },
   md: {
     container: "h-11 w-11 rounded-xl p-1.5",
     img: "h-8 w-8",
     fallbackText: "text-xs",
+    width: 32,
+    height: 32,
   },
   lg: {
     container: "h-14 w-14 rounded-2xl p-2",
     img: "h-10 w-10",
     fallbackText: "text-sm",
+    width: 40,
+    height: 40,
   },
 };
 
@@ -86,6 +94,8 @@ export function AirlineLogo({
       <img
         src={`/airlines/${code}.png`}
         alt={`${carrierName} authorized logo`}
+        width={config.width}
+        height={config.height}
         className={`${config.img} object-contain`}
         loading="eager"
         decoding="async"
