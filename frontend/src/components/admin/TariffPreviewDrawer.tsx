@@ -67,10 +67,9 @@ export function TariffPreviewDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen || !carrier) return null;
-
   // DSA Optimization: Memoized Corridor Search Index
-  // Caches normalized tokens and evaluates in O(N) only when query or rates change
+  // Caches normalized tokens and evaluates in O(N) only when query or rates change.
+  // Placed unconditionally before early returns to strictly adhere to React's Rules of Hooks.
   const filteredRates: CarrierRateRow[] = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return rates;
@@ -82,6 +81,8 @@ export function TariffPreviewDrawer({
       return false;
     });
   }, [rates, searchQuery]);
+
+  if (!isOpen || !carrier) return null;
 
   const circular = carrier.active_circular;
 
