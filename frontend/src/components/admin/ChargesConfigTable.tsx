@@ -279,7 +279,12 @@ export default function ChargesConfigTable({
 
       {/* High-Density Charges Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-sky-600"
+          tabIndex={0}
+          role="region"
+          aria-label="Statutory and gateway charges list"
+        >
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">

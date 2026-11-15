@@ -370,13 +370,19 @@ export function RatesGrid({ rates }: RatesGridProps) {
 
       {/* 3. High-Density Tariff Comparison Table */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-sky-600"
+          tabIndex={0}
+          role="region"
+          aria-label="Air cargo tariff quotes comparison"
+        >
           <table className="w-full min-w-[980px] text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/90 text-slate-600 font-extrabold text-[11px] uppercase tracking-wider select-none">
                 {/* Airline & Flight */}
                 <th
                   scope="col"
+                  aria-sort={sortField === "carrier" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                   className="py-3 px-4 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors w-[22%]"
                   onClick={() => handleSort("carrier")}
                 >
@@ -397,6 +403,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Schedule & Transit */}
                 <th
                   scope="col"
+                  aria-sort={sortField === "transit" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                   className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors w-[18%]"
                   onClick={() => handleSort("transit")}
                 >
@@ -417,6 +424,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Acceptance Cutoff */}
                 <th
                   scope="col"
+                  aria-sort={sortField === "cutoff" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                   className="py-3 px-3 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors whitespace-nowrap w-[11%]"
                   onClick={() => handleSort("cutoff")}
                 >
@@ -442,6 +450,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Net Landed Buy Rate (Internal Baseline) */}
                 <th
                   scope="col"
+                  aria-sort={sortField === "price" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                   className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors text-right w-[13%]"
                   onClick={() => handleSort("price")}
                 >
@@ -462,6 +471,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                 {/* Client Selling Price (Hero or Pure Buy Indicator) */}
                 <th
                   scope="col"
+                  aria-sort={sortField === "price" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                   className="py-3 px-4 font-extrabold text-right cursor-pointer hover:text-obsidian-900 transition-colors bg-amber-50/40 w-[14%]"
                   onClick={() => handleSort("price")}
                 >

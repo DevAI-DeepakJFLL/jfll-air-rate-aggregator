@@ -36,7 +36,12 @@ export function DeleteCircularModal({
   const circular = carrier.active_circular;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-circular-title"
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-obsidian-950/60 backdrop-blur-xs transition-opacity"
@@ -51,7 +56,7 @@ export function DeleteCircularModal({
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 id="delete-circular-title" className="text-sm font-bold text-slate-900">
                 Clear Active Rate Circular
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">

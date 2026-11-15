@@ -83,7 +83,12 @@ export function TariffPreviewDrawer({
   const circular = carrier.active_circular;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tariff-preview-carrier-name"
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-obsidian-950/60 backdrop-blur-xs transition-opacity"
@@ -104,7 +109,10 @@ export function TariffPreviewDrawer({
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base font-extrabold text-slate-900">
+                    <h2
+                      id="tariff-preview-carrier-name"
+                      className="text-base font-extrabold text-slate-900"
+                    >
                       {carrier.carrier_name}
                     </h2>
                     <span className="font-mono text-xs font-bold text-slate-600 bg-slate-200/80 px-1.5 py-0.5 rounded">
@@ -208,7 +216,12 @@ export function TariffPreviewDrawer({
                 <p className="text-[11px] text-slate-500">Try clearing the destination query.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs max-h-[60vh] overflow-y-auto">
+              <div
+                className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs max-h-[60vh] overflow-y-auto focus-visible:outline-2 focus-visible:outline-sky-600"
+                tabIndex={0}
+                role="region"
+                aria-label="Extracted airline corridors rate matrix"
+              >
                 <table className="w-full text-left text-xs font-semibold text-slate-700">
                   <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs text-[11px] font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200 select-none shadow-xs">
                     <tr>

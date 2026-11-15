@@ -24,7 +24,7 @@ interface CostBreakdownModalProps {
 export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdownModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard accessibility: Escape key to dismiss & lock background scroll
+  // Keyboard accessibility: Escape key to dismiss (scroll containment handled via CSS)
   useEffect(() => {
     if (!quote) return;
 
@@ -34,14 +34,8 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
       }
     };
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [quote, onClose]);
 
   if (!quote) return null;

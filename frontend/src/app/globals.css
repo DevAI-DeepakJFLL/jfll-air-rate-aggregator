@@ -48,23 +48,49 @@
   @apply outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2;
 }
 
-/* Data-dense operational micro-scrollbars */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+/* Standard scrollbar customization with legacy WebKit progressive enhancement */
+* {
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-track: #f1f5f9;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 9999px;
+/* Modal Dialog & Overlay Scroll Containment (Modern Web Guidance) */
+[role="dialog"],
+dialog:modal {
+  overscroll-behavior: contain;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Form inputs non-intrusive validation feedback */
+input:user-invalid,
+select:user-invalid {
+  border-color: #ef4444;
 }
 
 /* Mobile Slide-Over Drawer Animations & Backdrops */

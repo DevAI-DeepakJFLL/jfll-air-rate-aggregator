@@ -190,15 +190,18 @@ export function RateSearchForm({
           <input
             id="weight-input"
             type="number"
+            inputMode="decimal"
             step="0.5"
-            min="1"
+            min="0.5"
+            max="500"
             value={actualWeight}
             onChange={(e) => setActualWeight(e.target.value)}
             className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold focus-ring font-mono tabular-nums"
             placeholder="e.g. 120"
+            aria-describedby="weight-help"
             required
           />
-          <div className="text-[10px] font-medium text-slate-600 mt-1">
+          <div id="weight-help" className="text-[10px] font-medium text-slate-600 mt-1">
             Physical scale weight measured at warehouse
           </div>
         </div>
@@ -321,6 +324,7 @@ export function RateSearchForm({
               <input
                 id="dim-length"
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 min="0.1"
                 value={length}
@@ -340,6 +344,7 @@ export function RateSearchForm({
               <input
                 id="dim-width"
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 min="0.1"
                 value={width}
@@ -359,6 +364,7 @@ export function RateSearchForm({
               <input
                 id="dim-height"
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 min="0.1"
                 value={height}
@@ -378,6 +384,7 @@ export function RateSearchForm({
               <input
                 id="dim-pieces"
                 type="number"
+                inputMode="numeric"
                 min="1"
                 value={pieces}
                 onChange={(e) => setPieces(e.target.value)}
