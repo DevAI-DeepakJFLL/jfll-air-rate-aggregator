@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, ExternalLink, Plane, Building2 } from "lucide-react";
+import { ChevronRight, ExternalLink, Plane } from "lucide-react";
 import RoleSwitcher from "./RoleSwitcher";
 
 const ROUTE_LABELS: Record<string, string> = {

@@ -373,6 +373,25 @@ def test_header_case_insensitivity_and_whitespace(isolated_client):
     assert res_head.status_code == 201
 
 
+def test_unrecognized_role_falls_back_to_coordinator(isolated_client):
+    """
+    Security RBAC: If an unknown/unrecognized role is supplied (e.g., SUPER_ADMIN, GUEST),
+    it safely defaults to COORDINATOR (least privilege), blocking write operations.
+    """
+    client, _ = isolated_client
+    unrecognized_headers = {
+        "X-Admin-Key": settings.ADMIN_API_KEY,
+        "X-Admin-Role": "SUPER_ADMIN",
+    }
+    res = client.post(
+        "/api/v1/charges",
+        json={"code": "FOO", "name": "Foo", "category": "OTHER", "calculation_type": "FLAT"},
+        headers=unrecognized_headers,
+    )
+    assert res.status_code == 403
+    assert "Operation restricted to Pricing Team Head" in res.json()["detail"]
+
+
 # ============================================================================
 # 5. Error Handling: 404 Not Found & 422 Unprocessable Entity
 # ============================================================================

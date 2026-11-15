@@ -11,7 +11,6 @@ import {
   XCircle,
   Shield,
   Layers,
-  ArrowUpDown,
   Tag,
   MapPin,
   Lock,
@@ -189,7 +188,7 @@ export default function ChargesConfigTable({
       items.push(
         <span
           key="commodity"
-          className="inline-block bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded text-[10px] font-bold"
+          className="inline-block bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[10px] font-bold"
         >
           {kws.join(", ")}
         </span>
@@ -342,12 +341,12 @@ export default function ChargesConfigTable({
                             {charge.code}
                           </span>
                           {charge.is_statutory ? (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                               <Shield className="h-2.5 w-2.5 text-amber-600" />
                               Statutory
                             </span>
                           ) : (
-                            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                               Gateway
                             </span>
                           )}

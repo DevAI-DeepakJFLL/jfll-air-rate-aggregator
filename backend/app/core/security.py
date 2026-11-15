@@ -1,3 +1,4 @@
+import secrets
 from enum import Enum
 from typing import Dict, Optional
 from fastapi import Depends, HTTPException, Security, status
@@ -35,7 +36,7 @@ async def verify_admin_key(api_key: str = Security(api_key_header)) -> bool:
     Requires a valid 'X-Admin-Key' HTTP header.
     Preserved for backward compatibility with tariff ingestion endpoints.
     """
-    if not api_key or api_key != settings.ADMIN_API_KEY:
+    if not api_key or not secrets.compare_digest(api_key, settings.ADMIN_API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: Valid X-Admin-Key header required for tariff ingestion.",
@@ -53,14 +54,20 @@ async def get_current_user(
     Authenticates operator via X-Admin-Key and extracts role & user identity.
     Defaults role to PRICING_HEAD and user to deepak.naidu@jfll.com if not explicitly provided.
     """
-    if not api_key or api_key != settings.ADMIN_API_KEY:
+    if not api_key or not secrets.compare_digest(api_key, settings.ADMIN_API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: Valid X-Admin-Key header required.",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    assigned_role = role.strip().upper() if role and role.strip() else Role.PRICING_HEAD.value
+    valid_roles = {r.value for r in Role}
+    if role and role.strip():
+        raw_role = role.strip().upper()
+        assigned_role = raw_role if raw_role in valid_roles else Role.COORDINATOR.value
+    else:
+        assigned_role = Role.PRICING_HEAD.value
+
     assigned_user = user.strip() if user and user.strip() else "deepak.naidu@jfll.com"
 
     return UserSession({

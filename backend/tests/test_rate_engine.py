@@ -4,7 +4,8 @@ from app.services.rate_engine import (
     calculate_pure_buy_rate,
     process_rate_search,
     get_airline_schedule,
-    build_rate_quote
+    build_rate_quote,
+    is_charge_applicable,
 )
 from app.schemas.rate import RateSearchRequest, CargoDimension
 from app.services.break_even import optimize_break_even_pivot
@@ -375,6 +376,67 @@ def test_external_file_change_invalidates_pure_buy_rate_cache(sample_tariffs):
     # Next query must detect file mtime change and reflect ₹999.0 minimum
     bd2 = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
     assert bd2.xray_total == 999.0
+
+
+def test_corridor_scope_country_and_airport_matching(sample_tariffs):
+    """
+    CorridorScope.SPECIFIC_COUNTRIES:
+    Matches either by airport IATA code or mapped country code (e.g. US -> JFK, GB/UK -> LHR).
+    """
+    tariff_us = sample_tariffs[1]  # ORD
+    tariff_dxb = sample_tariffs[0]  # DXB
+
+    # Charge configured with country code "US" only
+    charge_us = ChargeRuleCreate(
+        code="USF",
+        name="US Entry Security",
+        category=ChargeCategory.CUSTOMS,
+        calculation_type=CalculationType.FLAT,
+        flat_amount=500.0,
+        applicability={
+            "corridor_scope": "SPECIFIC_COUNTRIES",
+            "destination_codes": ["US"]
+        },
+        is_statutory=True
+    )
+    rule_us = charges_service.create_charge(charge_us, user="pricing_head")
+
+    # JFK is in US -> must match
+    assert is_charge_applicable(rule_us, 100.0, "JFK", "General Cargo", "EK") is True
+    # ORD is in US -> must match
+    assert is_charge_applicable(rule_us, 100.0, "ORD", "General Cargo", "EK") is True
+    # DXB is in AE -> must NOT match
+    assert is_charge_applicable(rule_us, 100.0, "DXB", "General Cargo", "EK") is False
+    # LHR is in GB -> must NOT match
+    assert is_charge_applicable(rule_us, 100.0, "LHR", "General Cargo", "EK") is False
+
+    # Also verify calculate_pure_buy_rate includes USF for ORD/JFK and excludes for DXB
+    bd_ord = calculate_pure_buy_rate(tariff_us, 100.0, "ORD", "General Cargo")
+    assert any(c["code"] == "USF" for c in bd_ord.dynamic_charges)
+
+    bd_dxb = calculate_pure_buy_rate(tariff_dxb, 100.0, "DXB", "General Cargo")
+    assert not any(c["code"] == "USF" for c in bd_dxb.dynamic_charges)
+
+    # Charge configured with UK / GB alias
+    charge_gb = ChargeRuleCreate(
+        code="GBF",
+        name="UK Border Fee",
+        category=ChargeCategory.CUSTOMS,
+        calculation_type=CalculationType.FLAT,
+        flat_amount=400.0,
+        applicability={
+            "corridor_scope": "SPECIFIC_COUNTRIES",
+            "destination_codes": ["UK"]
+        },
+        is_statutory=True
+    )
+    rule_gb = charges_service.create_charge(charge_gb, user="pricing_head")
+
+    # LHR is in UK/GB -> matches
+    assert is_charge_applicable(rule_gb, 100.0, "LHR", "General Cargo", "EK") is True
+    # JFK -> does not match
+    assert is_charge_applicable(rule_gb, 100.0, "JFK", "General Cargo", "EK") is False
+
 
 
 

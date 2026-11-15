@@ -30,7 +30,7 @@ export default function RoleSwitcher() {
           <span className="hidden sm:inline">Pricing Team Head</span>
           <span className="sm:hidden">Head</span>
           <span
-            className={`hidden md:inline-block text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+            className={`hidden md:inline-block text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
               isPricingHead
                 ? "bg-amber-400/20 text-amber-300 border border-amber-400/30"
                 : "text-slate-400"
@@ -56,7 +56,7 @@ export default function RoleSwitcher() {
           <span className="hidden sm:inline">Pricing Coordinator</span>
           <span className="sm:hidden">Coord</span>
           <span
-            className={`hidden md:inline-block text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+            className={`hidden md:inline-block text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
               !isPricingHead
                 ? "bg-sky-400/20 text-sky-200 border border-sky-400/30"
                 : "text-slate-400"

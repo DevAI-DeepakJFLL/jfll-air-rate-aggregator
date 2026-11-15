@@ -208,19 +208,27 @@ export default function AddChargeDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Parse comma-separated inputs
-  const parseList = (str: string): string[] => {
+  // Parse comma/whitespace separated codes (e.g., airport IATA or carrier codes)
+  const parseCodesList = (str: string): string[] => {
     return str
       .split(/[,;\s]+/)
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);
   };
 
+  // Parse comma/semicolon separated keyword phrases (preserves multi-word phrases like "DGR - PAX" or "COLD CHAIN")
+  const parseKeywordsList = (str: string): string[] => {
+    return str
+      .split(/[,;]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+  };
+
   // Live Formula Simulator Evaluation
   const simulationResult = useMemo(() => {
-    const parsedDestCodes = parseList(destinationCodesInput);
-    const parsedCommodityKeywords = parseList(commodityKeywordsInput);
-    const parsedCarrierCodes = parseList(carrierCodesInput);
+    const parsedDestCodes = parseCodesList(destinationCodesInput);
+    const parsedCommodityKeywords = parseKeywordsList(commodityKeywordsInput);
+    const parsedCarrierCodes = parseCodesList(carrierCodesInput);
     const parsedMinCw = minCwThreshold !== "" ? parseFloat(minCwThreshold) : null;
 
     // 1. Check Corridor Scope Match
@@ -419,12 +427,12 @@ export default function AddChargeDrawer({
 
     const payloadApplicability = {
       corridor_scope: corridorScope,
-      destination_codes: corridorScope === "GLOBAL" ? [] : parseList(destinationCodesInput),
+      destination_codes: corridorScope === "GLOBAL" ? [] : parseCodesList(destinationCodesInput),
       commodity_scope: commodityScope,
       commodity_keywords:
-        commodityScope === "ALL" ? [] : parseList(commodityKeywordsInput),
+        commodityScope === "ALL" ? [] : parseKeywordsList(commodityKeywordsInput),
       carrier_scope: carrierScope,
-      carrier_codes: carrierScope === "ALL" ? [] : parseList(carrierCodesInput),
+      carrier_codes: carrierScope === "ALL" ? [] : parseCodesList(carrierCodesInput),
       min_chargeable_weight:
         minCwThreshold !== "" ? parseFloat(minCwThreshold) : null,
     };

@@ -1,7 +1,7 @@
 import math
 import heapq
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 from collections import defaultdict, OrderedDict
 from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown
 from app.schemas.charge import (
@@ -25,6 +25,91 @@ AMS_APPLICABLE_DESTINATIONS = frozenset({
     'ORD', 'JFK', 'LAX', 'ATL', 'DFW', 'SFO', 'MIA', 'BOS', 'SEA', 'IAD',
     'IAH', 'EWR', 'DTW', 'MSP', 'PHL', 'CLT', 'DEN', 'YYZ', 'YVR', 'YUL'
 })
+
+# Airport IATA Code to ISO Country Code Mapping for Corridor Evaluation
+AIRPORT_TO_COUNTRY: Dict[str, str] = {
+    # United States
+    "JFK": "US", "ORD": "US", "LAX": "US", "MIA": "US", "SFO": "US",
+    "ATL": "US", "DFW": "US", "BOS": "US", "IAD": "US", "IAH": "US",
+    "SEA": "US", "EWR": "US", "DTW": "US", "MSP": "US", "PHL": "US",
+    "CLT": "US", "DEN": "US", "LAS": "US", "MCO": "US", "PHX": "US",
+    # Canada
+    "YYZ": "CA", "YVR": "CA", "YUL": "CA", "YYC": "CA", "YEG": "CA", "YOW": "CA", "YHZ": "CA",
+    # United Kingdom
+    "LHR": "GB", "LGW": "GB", "MAN": "GB", "EDI": "GB", "BHX": "GB", "GLA": "GB", "STN": "GB", "LTN": "GB",
+    # United Arab Emirates
+    "DXB": "AE", "AUH": "AE", "SHJ": "AE", "DWC": "AE",
+    # Middle East
+    "DOH": "QA",
+    "MCT": "OM", "SLL": "OM",
+    "KWI": "KW",
+    "BAH": "BH",
+    "RUH": "SA", "JED": "SA", "DMM": "SA", "MED": "SA",
+    "AMM": "JO", "BEY": "LB",
+    # Europe
+    "FRA": "DE", "MUC": "DE", "BER": "DE", "HAM": "DE", "DUS": "DE",
+    "CDG": "FR", "ORY": "FR", "NCE": "FR", "LYS": "FR",
+    "AMS": "NL",
+    "BRU": "BE",
+    "MXP": "IT", "FCO": "IT",
+    "MAD": "ES", "BCN": "ES",
+    "ZRH": "CH", "GVA": "CH",
+    "VIE": "AT",
+    "DUB": "IE",
+    "CPH": "DK",
+    "WAW": "PL",
+    "IST": "TR",
+    "LIS": "PT",
+    "ATH": "GR",
+    # Asia-Pacific
+    "SIN": "SG",
+    "BKK": "TH", "HKT": "TH",
+    "KUL": "MY",
+    "NRT": "JP", "HND": "JP", "KIX": "JP",
+    "ICN": "KR",
+    "HKG": "HK",
+    "PVG": "CN", "PEK": "CN", "PKX": "CN", "CAN": "CN", "SZX": "CN",
+    "SYD": "AU", "MEL": "AU", "BNE": "AU", "PER": "AU",
+    "BOM": "IN", "DEL": "IN", "BLR": "IN", "MAA": "IN", "HYD": "IN", "CCU": "IN", "COK": "IN", "AMD": "IN",
+    "CMB": "LK", "MLE": "MV",
+    "CGK": "ID", "DPS": "ID", "KNO": "ID", "KTI": "ID",
+    "MNL": "PH",
+    # Africa
+    "JNB": "ZA", "CPT": "ZA",
+    "NBO": "KE",
+    "ADD": "ET",
+    "CAI": "EG",
+    "CMN": "MA",
+    "SEZ": "SC",
+}
+
+COUNTRY_ALIASES: Dict[str, Set[str]] = {
+    "US": {"US", "USA", "UNITED STATES"},
+    "CA": {"CA", "CAN", "CANADA"},
+    "GB": {"GB", "UK", "GBR", "UNITED KINGDOM"},
+    "AE": {"AE", "UAE", "ARE", "UNITED ARAB EMIRATES"},
+    "SA": {"SA", "KSA", "SAU", "SAUDI ARABIA"},
+    "DE": {"DE", "DEU", "GERMANY"},
+    "FR": {"FR", "FRA", "FRANCE"},
+    "NL": {"NL", "NLD", "NETHERLANDS"},
+    "IN": {"IN", "IND", "INDIA"},
+    "SG": {"SG", "SGP", "SINGAPORE"},
+    "MY": {"MY", "MYS", "MALAYSIA"},
+    "QA": {"QA", "QAT", "QATAR"},
+    "OM": {"OM", "OMN", "OMAN"},
+    "KW": {"KW", "KWT", "KUWAIT"},
+    "BH": {"BH", "BHR", "BAHRAIN"},
+    "JP": {"JP", "JPN", "JAPAN"},
+    "CN": {"CN", "CHN", "CHINA"},
+    "AU": {"AU", "AUS", "AUSTRALIA"},
+}
+
+
+def get_country_for_airport(airport_code: str) -> Optional[str]:
+    """Returns ISO country code for common airport IATA codes."""
+    if not airport_code:
+        return None
+    return AIRPORT_TO_COUNTRY.get(airport_code.upper().strip())
 
 AIRLINE_SCHEDULES: Dict[str, Dict[str, Any]] = {
     'EK': {'flight': 'EK-505', 'departure': '10:10 IST', 'arrival': '11:55 GST', 'transit': 'Direct Flight (3h 15m)', 'cutoff': '05:30 IST'},
@@ -185,10 +270,24 @@ def is_charge_applicable(
 
     # 2. Corridor Scope (SPECIFIC_PORTS or SPECIFIC_COUNTRIES)
     scope = app.corridor_scope
-    if scope in (CorridorScope.SPECIFIC_PORTS, CorridorScope.SPECIFIC_COUNTRIES, "SPECIFIC_PORTS", "SPECIFIC_COUNTRIES"):
+    if scope in (CorridorScope.SPECIFIC_PORTS, "SPECIFIC_PORTS"):
         dest_upper = (destination or '').upper().strip()
-        dest_codes = [c.upper().strip() for c in app.destination_codes]
+        dest_codes = {c.upper().strip() for c in app.destination_codes}
         if dest_upper not in dest_codes:
+            return False
+    elif scope in (CorridorScope.SPECIFIC_COUNTRIES, "SPECIFIC_COUNTRIES"):
+        dest_upper = (destination or '').upper().strip()
+        dest_codes = {c.upper().strip() for c in app.destination_codes}
+        matched = False
+        if dest_upper in dest_codes:
+            matched = True
+        else:
+            country = AIRPORT_TO_COUNTRY.get(dest_upper)
+            if country:
+                matched_aliases = {country} | COUNTRY_ALIASES.get(country, set())
+                if any(alias in dest_codes for alias in matched_aliases):
+                    matched = True
+        if not matched:
             return False
 
     # 3. Commodity Scope (SPECIFIC_COMMODITIES)

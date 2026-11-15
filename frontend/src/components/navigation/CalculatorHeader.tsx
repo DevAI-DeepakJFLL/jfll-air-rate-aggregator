@@ -35,7 +35,7 @@ export function CalculatorHeader() {
         <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Gateway Operational Hub badge with green operational beacon */}
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/80 px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs">
-            <span className="relative flex h-2 w-2">
+            <span className="relative flex h-2 w-2" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
             </span>

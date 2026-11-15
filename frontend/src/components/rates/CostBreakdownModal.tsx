@@ -140,11 +140,11 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
 
             {/* 2. Gateway & Handling Ancillaries (Dynamic or Fallback) */}
             {gatewayCharges.length > 0 ? (
-              gatewayCharges.map((charge) => (
-                <div key={charge.code} className="flex justify-between py-1 items-center">
+              gatewayCharges.map((charge, idx) => (
+                <div key={`${charge.code}-${idx}`} className="flex justify-between py-1 items-center">
                   <div className="flex items-center gap-1.5">
                     <span className="text-slate-700 font-medium">{charge.name}</span>
-                    <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500 font-mono">
+                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 font-mono">
                       {charge.code}
                     </span>
                     {charge.is_statutory && (
@@ -209,11 +209,11 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
 
             {/* 4. Statutory Taxes (Dynamic or Fallback) */}
             {taxCharges.length > 0 ? (
-              taxCharges.map((charge) => (
-                <div key={charge.code} className="flex justify-between py-1 text-xs font-semibold text-slate-500 items-center">
+              taxCharges.map((charge, idx) => (
+                <div key={`${charge.code}-${idx}`} className="flex justify-between py-1 text-xs font-semibold text-slate-500 items-center">
                   <div className="flex items-center gap-1.5">
                     <span>{charge.name}</span>
-                    <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500 font-mono">
+                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 font-mono">
                       {charge.code}
                     </span>
                     {charge.is_statutory && (

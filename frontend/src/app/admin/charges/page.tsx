@@ -10,8 +10,6 @@ import {
   Sliders,
   CheckCircle2,
   AlertCircle,
-  FileSpreadsheet,
-  Building2,
   Lock,
   Layers,
 } from "lucide-react";

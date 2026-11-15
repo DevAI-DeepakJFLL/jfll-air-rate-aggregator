@@ -8,12 +8,6 @@ import {
   Network,
   ShieldCheck,
   ArrowRight,
-  Plane,
-  TrendingUp,
-  Sliders,
-  CheckCircle2,
-  Clock,
-  Layers,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 
