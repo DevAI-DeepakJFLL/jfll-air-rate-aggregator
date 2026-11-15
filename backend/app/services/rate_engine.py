@@ -4,6 +4,19 @@ import re
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, OrderedDict
 from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown
+from app.schemas.charge import (
+    CalculationType,
+    ChargeCategory,
+    CommodityScope,
+    CorridorScope,
+    CarrierScope,
+    ChargeRule,
+)
+from app.services.charges_service import (
+    get_active_charges,
+    get_charges_generation,
+    register_charges_invalidation_callback,
+)
 from app.services.break_even import optimize_break_even_pivot
 
 
@@ -144,32 +157,127 @@ def clear_pure_buy_rate_cache() -> None:
     _PURE_BUY_RATE_CACHE.clear()
 
 
+# Wire cache invalidation hook from charges_service
+try:
+    register_charges_invalidation_callback(clear_pure_buy_rate_cache)
+except Exception:
+    pass
+
+
+def is_charge_applicable(
+    rule: ChargeRule,
+    cw: float,
+    destination: str,
+    commodity: str,
+    carrier_code: str
+) -> bool:
+    """
+    Evaluates whether a charge rule applies to a specific shipment.
+    Checks min chargeable weight, corridor, commodity keywords, and carrier airline.
+    """
+    app = rule.applicability
+    if not app:
+        return True
+
+    # 1. Minimum chargeable weight threshold
+    if app.min_chargeable_weight is not None and cw < app.min_chargeable_weight:
+        return False
+
+    # 2. Corridor Scope (SPECIFIC_PORTS or SPECIFIC_COUNTRIES)
+    scope = app.corridor_scope
+    if scope in (CorridorScope.SPECIFIC_PORTS, CorridorScope.SPECIFIC_COUNTRIES, "SPECIFIC_PORTS", "SPECIFIC_COUNTRIES"):
+        dest_upper = (destination or '').upper().strip()
+        dest_codes = [c.upper().strip() for c in app.destination_codes]
+        if dest_upper not in dest_codes:
+            return False
+
+    # 3. Commodity Scope (SPECIFIC_COMMODITIES)
+    comm_scope = app.commodity_scope
+    if comm_scope in (CommodityScope.SPECIFIC_COMMODITIES, "SPECIFIC_COMMODITIES"):
+        comm_lower = (commodity or '').lower().strip()
+        matched = any(kw.lower() in comm_lower for kw in app.commodity_keywords)
+        if not matched:
+            return False
+
+    # 4. Carrier Scope (SPECIFIC_CARRIERS)
+    carr_scope = app.carrier_scope
+    if carr_scope in (CarrierScope.SPECIFIC_CARRIERS, "SPECIFIC_CARRIERS"):
+        carrier_upper = (carrier_code or '').upper().strip()
+        carr_codes = [c.upper().strip() for c in app.carrier_codes]
+        if carrier_upper not in carr_codes:
+            return False
+
+    return True
+
+
+def calculate_charge_amount(
+    rule: ChargeRule,
+    cw: float,
+    pieces: int = 1,
+    net_subtotal: float = 0.0
+) -> float:
+    """
+    Evaluates charge fee amount based on calculation_type formula.
+    """
+    calc_type = rule.calculation_type
+    if calc_type in (CalculationType.PER_KG_WITH_MIN, "PER_KG_WITH_MIN"):
+        rate = rule.rate_per_kg or 0.0
+        minimum = rule.min_amount or 0.0
+        return float(round(max(rate * cw, minimum)))
+    elif calc_type in (CalculationType.FLAT, "FLAT"):
+        return float(round(rule.flat_amount or 0.0))
+    elif calc_type in (CalculationType.PER_PIECE, "PER_PIECE"):
+        rate = rule.rate_per_piece or 0.0
+        pcs = max(pieces, 1)
+        return float(round(rate * pcs))
+    elif calc_type in (CalculationType.PERCENTAGE, "PERCENTAGE"):
+        pct = rule.percentage_rate or 0.0
+        return float(round(net_subtotal * (pct / 100.0)))
+    return 0.0
+
+
 def calculate_pure_buy_rate(
     tariff: Dict[str, Any],
     cw: float,
     destination: str,
     commodity: str = "General Cargo",
     tiers: Optional[List[Dict[str, Any]]] = None,
-    pivot_result: Optional[Tuple[float, float, str, bool, float]] = None
+    pivot_result: Optional[Tuple[float, float, str, bool, float]] = None,
+    pieces: int = 1,
+    active_charges: Optional[List[ChargeRule]] = None,
 ) -> CostBreakdown:
     """
     Computes pure landed airline buying cost for shipments under 500 kg.
     Strictly excludes all commercial margins.
+    Dynamically evaluates statutory and gateway charges from active configuration.
     Employs true O(1) OrderedDict LRU memoization cache and O(log T) binary search break-even pivot.
     """
-    dest_norm = destination.upper().strip()
+    dest_norm = (destination or '').upper().strip()
     rate_basis = tariff.get('rate_basis', 'NET_NET_PLUS_PLUS').upper()
     min_charge = float(tariff.get('min_charge') or 0.0)
     fsc_rate = 0.0 if rate_basis == 'ALL_IN' else float(tariff.get('fsc_per_kg') or 0.0)
     ssc_rate = 0.0 if rate_basis == 'ALL_IN' else float(tariff.get('ssc_per_kg') or 0.0)
+    carrier_code = (tariff.get('carrier_code') or '').upper().strip()
+
+    # Determine charges generation/signature for cache key
+    if active_charges is not None:
+        charges_sig = hash(tuple(
+            (c.id, c.code, str(c.calculation_type), c.rate_per_kg, c.min_amount,
+             c.flat_amount, c.percentage_rate, c.rate_per_piece, c.is_active,
+             getattr(c, 'updated_at', ''))
+            for c in active_charges
+        ))
+    else:
+        charges_sig = get_charges_generation()
 
     # DSA Cache Key Tuple for O(1) retrieval
+    # Note: Index 3 MUST remain cw for LRU eviction test backward compatibility!
     cache_key = (
-        tariff.get('carrier_code', ''),
+        carrier_code,
         tariff.get('origin', ''),
         dest_norm,
         cw,
-        commodity.lower().strip(),
+        (commodity or '').lower().strip(),
         min_charge,
         rate_basis,
         tariff.get('rate_normal'),
@@ -178,7 +286,9 @@ def calculate_pure_buy_rate(
         tariff.get('rate_250'),
         tariff.get('rate_300'),
         fsc_rate,
-        ssc_rate
+        ssc_rate,
+        pieces,
+        charges_sig
     )
 
     if cache_key in _PURE_BUY_RATE_CACHE:
@@ -207,28 +317,93 @@ def calculate_pure_buy_rate(
 
     fuel_security_total = fsc_total + ssc_total
 
-    # Origin Terminal Handling Charges (BOM Gateway Standards)
-    xray_total = round(max(3.50 * cw, 550.0))
-    misc_handling = round(max(2.00 * cw, 200.0) + max(1.00 * cw, 300.0))
+    # Load active charges if not supplied
+    rules = active_charges if active_charges is not None else get_active_charges()
 
-    commodity_fee = 0.0
-    norm_comm = commodity.lower()
-    if 'dangerous' in norm_comm or 'dgr' in norm_comm:
-        commodity_fee = 3500.0  # MIAL statutory DGR acceptance inspection
-    elif 'pharma' in norm_comm or 'cold' in norm_comm or 'perishable' in norm_comm:
-        commodity_fee = round(max(cw * 2.50, 1500.0))
+    # Separate into non-tax charges (pre-tax charges: category != STATUTORY_TAX and calculation_type != PERCENTAGE)
+    # and percentage tax charges.
+    pre_tax_rules: List[ChargeRule] = []
+    tax_rules: List[ChargeRule] = []
+    for r in rules:
+        if not getattr(r, 'is_active', True):
+            continue
+        calc_type = r.calculation_type
+        cat = r.category
+        if calc_type in (CalculationType.PERCENTAGE, "PERCENTAGE") or cat in (ChargeCategory.STATUTORY_TAX, "STATUTORY_TAX"):
+            tax_rules.append(r)
+        else:
+            pre_tax_rules.append(r)
 
-    origin_thc_total = xray_total + misc_handling + commodity_fee
+    # Evaluate applicable pre-tax charges
+    dynamic_charges: List[Dict[str, Any]] = []
+    pre_tax_total = 0.0
 
-    # Regulatory & Documentation Fees (O(1) frozenset check)
-    awb_fee = 800.0
-    ams_fee = 950.0 if dest_norm in AMS_APPLICABLE_DESTINATIONS else 0.0
+    for rule in pre_tax_rules:
+        if is_charge_applicable(rule, cw, dest_norm, commodity, carrier_code):
+            amt = calculate_charge_amount(rule, cw, pieces=pieces)
+            pre_tax_total += amt
+            cat_str = rule.category.value if hasattr(rule.category, "value") else str(rule.category)
+            dynamic_charges.append({
+                "code": rule.code,
+                "name": rule.name,
+                "amount": float(amt),
+                "category": cat_str,
+                "is_statutory": bool(rule.is_statutory)
+            })
+
+    # Net subtotal before statutory percentage taxes
+    net_subtotal = round(base_freight + fuel_security_total + pre_tax_total)
+
+    # Evaluate applicable percentage tax charges (e.g. 5% GST on net_subtotal)
+    tax_total = 0.0
+    for rule in tax_rules:
+        if is_charge_applicable(rule, cw, dest_norm, commodity, carrier_code):
+            tax_amt = calculate_charge_amount(rule, cw, pieces=pieces, net_subtotal=net_subtotal)
+            tax_total += tax_amt
+            cat_str = rule.category.value if hasattr(rule.category, "value") else str(rule.category)
+            dynamic_charges.append({
+                "code": rule.code,
+                "name": rule.name,
+                "amount": float(tax_amt),
+                "category": cat_str,
+                "is_statutory": bool(rule.is_statutory)
+            })
 
     # Grand Totals (Zero Margin)
-    net_subtotal = round(base_freight + fuel_security_total + origin_thc_total + awb_fee + ams_fee)
-    gst_tax = round(net_subtotal * 0.05)  # 5% statutory Indian Air Export GST
-    total_landed_buy = net_subtotal + gst_tax
+    total_landed_buy = net_subtotal + round(tax_total)
     effective_buy_per_kg = round(total_landed_buy / max(cw, 0.5), 2)
+
+    # Map baseline legacy fields from dynamic charges for 100% backward compatibility
+    xray_total = 0.0
+    misc_handling = 0.0
+    commodity_fee = 0.0
+    terminal_charges_total = 0.0
+    awb_fee = 0.0
+    ams_fee = 0.0
+    gst_tax = 0.0
+
+    for chg in dynamic_charges:
+        code = chg["code"]
+        amt = chg["amount"]
+        cat = chg["category"]
+
+        if code == "XBC":
+            xray_total = amt
+        elif code == "CTG":
+            misc_handling = amt
+        elif code in ("RAC", "COL"):
+            commodity_fee += amt
+        elif code == "CGC":
+            awb_fee = amt
+        elif code == "CCC":
+            ams_fee = amt
+
+        if cat == "TERMINAL":
+            terminal_charges_total += amt
+        elif cat == "STATUTORY_TAX":
+            gst_tax += amt
+
+    origin_thc_total = terminal_charges_total + commodity_fee
 
     breakdown = CostBreakdown(
         base_rate_per_kg=effective_rate,
@@ -247,7 +422,8 @@ def calculate_pure_buy_rate(
         net_subtotal=net_subtotal,
         gst_tax=gst_tax,
         total_landed_buy=total_landed_buy,
-        effective_buy_per_kg=effective_buy_per_kg
+        effective_buy_per_kg=effective_buy_per_kg,
+        dynamic_charges=dynamic_charges
     )
 
     # Store in bounded true LRU Cache (evicts least recently accessed entry from front in O(1))
@@ -364,6 +540,9 @@ def process_rate_search(
         ]
 
     matched_quotes: List[RateQuoteItem] = []
+    active_charges = get_active_charges()
+    total_pieces = sum(d.pieces for d in request.dimensions) if request.dimensions else 1
+
     for idx, tariff in enumerate(candidate_tariffs):
         tiers = tariff.get('_cached_tiers') or extract_active_weight_tiers(tariff)
         min_charge = float(tariff.get('min_charge') or 0.0)
@@ -375,7 +554,9 @@ def process_rate_search(
             destination=dest,
             commodity=request.commodity,
             tiers=tiers,
-            pivot_result=pivot_res
+            pivot_result=pivot_res,
+            pieces=total_pieces,
+            active_charges=active_charges
         )
 
         quote = build_rate_quote(

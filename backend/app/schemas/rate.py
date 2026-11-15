@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -69,6 +69,10 @@ class CostBreakdown(BaseModel):
     gst_tax: float = Field(..., description="5% Indian Air Export GST (INR)")
     total_landed_buy: float = Field(..., description="Grand Total Net Buying Cost (INR) - Zero Margin")
     effective_buy_per_kg: float = Field(..., description="True landed buying rate per kg (INR/kg)")
+    dynamic_charges: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of all evaluated dynamic statutory, gateway, and customs charges"
+    )
 
 
 class RateQuoteItem(BaseModel):

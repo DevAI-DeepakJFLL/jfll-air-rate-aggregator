@@ -73,6 +73,7 @@
       "commodity_scope": "SPECIFIC_COMMODITIES",
       "commodity_keywords": [
         "DGR",
+        "DANGEROUS",
         "HAZARDOUS",
         "RADIOACTIVE"
       ],
@@ -179,7 +180,12 @@
         "YYZ",
         "YVR",
         "YUL",
-        "EWR"
+        "EWR",
+        "DTW",
+        "MSP",
+        "PHL",
+        "CLT",
+        "DEN"
       ],
       "commodity_scope": "ALL",
       "commodity_keywords": [],

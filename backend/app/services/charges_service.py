@@ -101,7 +101,7 @@ FALLBACK_BASELINE_CHARGES = [
             "corridor_scope": "GLOBAL",
             "destination_codes": [],
             "commodity_scope": "SPECIFIC_COMMODITIES",
-            "commodity_keywords": ["DGR", "HAZARDOUS", "RADIOACTIVE"],
+            "commodity_keywords": ["DGR", "DANGEROUS", "HAZARDOUS", "RADIOACTIVE"],
             "carrier_scope": "ALL",
             "carrier_codes": [],
             "min_chargeable_weight": None,
@@ -185,7 +185,8 @@ FALLBACK_BASELINE_CHARGES = [
             "corridor_scope": "SPECIFIC_COUNTRIES",
             "destination_codes": [
                 "US", "CA", "JFK", "ORD", "LAX", "SFO", "MIA", "ATL",
-                "DFW", "BOS", "IAD", "IAH", "SEA", "YYZ", "YVR", "YUL", "EWR"
+                "DFW", "BOS", "IAD", "IAH", "SEA", "YYZ", "YVR", "YUL", "EWR",
+                "DTW", "MSP", "PHL", "CLT", "DEN"
             ],
             "commodity_scope": "ALL",
             "commodity_keywords": [],
@@ -264,6 +265,29 @@ def _atomic_write_json(file_path: Path, data: Any) -> None:
         raise
 
 
+_invalidation_callbacks: List[Any] = []
+
+
+def register_charges_invalidation_callback(cb: Any) -> None:
+    """
+    Registers a callback invoked whenever charges configuration is mutated or reloaded.
+    """
+    if cb not in _invalidation_callbacks:
+        _invalidation_callbacks.append(cb)
+
+
+def _invalidate_rate_engine_cache() -> None:
+    """
+    Clears the pure buy rate LRU cache in rate_engine to ensure
+    pricing immediately reflects modified or reset charges.
+    """
+    try:
+        from app.services.rate_engine import clear_pure_buy_rate_cache
+        clear_pure_buy_rate_cache()
+    except Exception as e:
+        logger.debug(f"Rate cache invalidation hook skipped: {e}")
+
+
 class ChargesService:
     """
     Thread-safe and atomic CRUD persistence service for Statutory & Gateway Charges.
@@ -279,7 +303,32 @@ class ChargesService:
         self._lock = threading.RLock()
         self._cached_charges: Optional[List[ChargeRule]] = None
         self._last_mtime: float = 0.0
+        self._version: int = 1
         self._ensure_initialized()
+
+    def get_charges_generation(self) -> str:
+        """
+        Returns cache generation key based on mutation version and file mtime.
+        Used by rate_engine to guarantee LRU memoization keys invalidate across changes.
+        """
+        with self._lock:
+            try:
+                mtime = self.config_path.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            return f"v{self._version}_m{mtime}"
+
+    def _notify_mutation(self) -> None:
+        """
+        Bumps cache generation and triggers invalidation hooks.
+        """
+        self._version += 1
+        _invalidate_rate_engine_cache()
+        for cb in _invalidation_callbacks:
+            try:
+                cb()
+            except Exception as e:
+                logger.warning(f"Error in charges invalidation callback: {e}")
 
     def _ensure_initialized(self) -> None:
         """
@@ -312,12 +361,16 @@ class ChargesService:
                 if self._cached_charges is not None and current_mtime == self._last_mtime:
                     return [c.model_copy() for c in self._cached_charges]
 
+                is_external_change = (self._cached_charges is not None and current_mtime != self._last_mtime)
+
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     raw_data = json.load(f)
 
                 parsed_charges = [ChargeRule(**item) for item in raw_data]
                 self._cached_charges = parsed_charges
                 self._last_mtime = current_mtime
+                if is_external_change:
+                    self._notify_mutation()
                 return [c.model_copy() for c in parsed_charges]
             except Exception as e:
                 logger.error(f"Error reading charges from {self.config_path}: {e}. Falling back to baseline.")
@@ -337,6 +390,7 @@ class ChargesService:
                 self._last_mtime = self.config_path.stat().st_mtime
             except OSError:
                 self._last_mtime = 0.0
+            self._notify_mutation()
 
     def get_all_charges(self) -> List[ChargeRule]:
         """
@@ -508,3 +562,7 @@ def delete_charge(charge_id: str, user: str = "system") -> bool:
 
 def reset_to_defaults() -> List[ChargeRule]:
     return charges_service.reset_to_defaults()
+
+
+def get_charges_generation() -> str:
+    return charges_service.get_charges_generation()

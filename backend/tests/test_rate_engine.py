@@ -8,6 +8,21 @@ from app.services.rate_engine import (
 )
 from app.schemas.rate import RateSearchRequest, CargoDimension
 from app.services.break_even import optimize_break_even_pivot
+from app.services.charges_service import charges_service
+from app.schemas.charge import (
+    CalculationType,
+    ChargeCategory,
+    ChargeRuleCreate,
+    ChargeRuleUpdate,
+    CorridorScope,
+)
+
+
+@pytest.fixture(autouse=True)
+def reset_charges_state():
+    charges_service.reset_to_defaults()
+    yield
+    charges_service.reset_to_defaults()
 
 
 def test_iata_chargeable_weight_rounding():
@@ -176,6 +191,192 @@ def test_rate_sheet_destinations_endpoint(client):
     assert "SIN" in codes
     assert "KUL" in codes
     assert "JFK" in codes
+
+
+def test_dynamic_charge_update_immediately_reflects_in_rate(sample_tariffs):
+    tariff = sample_tariffs[0]
+    # Baseline: 100 kg ex-BOM to DXB -> X-Ray min is 550.0 (3.5 * 100 = 350 < 550)
+    bd_baseline = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd_baseline.xray_total == 550.0
+
+    # Pricing Head updates X-ray screening minimum to 650.0 and rate to 4.0/kg
+    updated = charges_service.update_charge(
+        "chg_xray",
+        ChargeRuleUpdate(min_amount=650.0, rate_per_kg=4.0),
+        user="pricing_head"
+    )
+    assert updated is not None
+
+    # Immediate query with same parameters must reflect the updated cost (cache invalidation verified)
+    bd_updated = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd_updated.xray_total == 650.0
+    # Net subtotal must increase exactly by 100 (650 - 550)
+    assert bd_updated.net_subtotal == bd_baseline.net_subtotal + 100.0
+    # Total landed buy must be net_subtotal + 5% GST
+    assert bd_updated.gst_tax == round(bd_updated.net_subtotal * 0.05)
+    assert bd_updated.total_landed_buy == bd_updated.net_subtotal + bd_updated.gst_tax
+
+    # Query with 200 kg: 4.0 * 200 = 800.0 > 650.0
+    bd_200 = calculate_pure_buy_rate(tariff, 200.0, "DXB", "General Cargo")
+    assert bd_200.xray_total == 800.0
+
+
+def test_custom_charge_addition_and_evaluation(sample_tariffs):
+    tariff = sample_tariffs[0]
+    bd_before = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+
+    # Add custom war risk surcharge: FLAT ₹1,200 ex-BOM
+    war_charge = ChargeRuleCreate(
+        code="WAR",
+        name="War Risk Insurance Surcharge",
+        description="Gulf corridor conflict zone supplementary airline premium",
+        category=ChargeCategory.OTHER,
+        calculation_type=CalculationType.FLAT,
+        flat_amount=1200.0,
+        is_statutory=False
+    )
+    created = charges_service.create_charge(war_charge, user="pricing_head")
+    assert created.code == "WAR"
+
+    # Query rate: custom charge must evaluate, appear in dynamic_charges, and increment totals
+    bd_after = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+
+    # Check presence in dynamic_charges list
+    war_entry = next((c for c in bd_after.dynamic_charges if c["code"] == "WAR"), None)
+    assert war_entry is not None
+    assert war_entry["name"] == "War Risk Insurance Surcharge"
+    assert war_entry["amount"] == 1200.0
+    assert war_entry["category"] == "OTHER"
+    assert war_entry["is_statutory"] is False
+
+    # Check financial totals
+    assert bd_after.net_subtotal == bd_before.net_subtotal + 1200.0
+    # 5% GST on 1200 is 60 -> total increments by 1260
+    assert bd_after.total_landed_buy == bd_before.total_landed_buy + 1260.0
+
+
+def test_baseline_charge_deactivation_omits_from_dynamic_charges_and_zeros_legacy_field(sample_tariffs):
+    tariff = sample_tariffs[0]
+    bd_active = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd_active.awb_fee == 800.0
+    assert any(c["code"] == "CGC" for c in bd_active.dynamic_charges)
+
+    # Deactivate e-AWB fee
+    success = charges_service.delete_charge("chg_eawb", user="pricing_head")
+    assert success is True
+
+    # Immediate query: awb_fee must be 0.0 and CGC omitted from dynamic_charges
+    bd_inactive = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd_inactive.awb_fee == 0.0
+    assert not any(c["code"] == "CGC" for c in bd_inactive.dynamic_charges)
+
+    # Net subtotal must decrease by 800
+    assert bd_inactive.net_subtotal == bd_active.net_subtotal - 800.0
+    # Landed buy must decrease by 800 + 5% GST (40) = 840
+    assert bd_inactive.total_landed_buy == bd_active.total_landed_buy - 840.0
+
+
+def test_dynamic_charge_per_piece_and_applicability_filtering(sample_tariffs):
+    tariff = sample_tariffs[0]
+
+    # Add PER_PIECE handling charge: ₹50 / piece
+    piece_charge = ChargeRuleCreate(
+        code="LBL",
+        name="Pallet Barcode Labeling",
+        category=ChargeCategory.TERMINAL,
+        calculation_type=CalculationType.PER_PIECE,
+        rate_per_piece=50.0,
+        is_statutory=False
+    )
+    charges_service.create_charge(piece_charge, user="pricing_head")
+
+    # 1. Evaluate with 4 pieces
+    bd_4pcs = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo", pieces=4)
+    lbl_entry = next((c for c in bd_4pcs.dynamic_charges if c["code"] == "LBL"), None)
+    assert lbl_entry is not None
+    assert lbl_entry["amount"] == 200.0  # 4 * 50
+
+    # 2. Add corridor-specific charge: EUF applicable only to FRA, LHR
+    eu_charge = ChargeRuleCreate(
+        code="EUF",
+        name="EU Customs Security Surcharge",
+        category=ChargeCategory.CUSTOMS,
+        calculation_type=CalculationType.FLAT,
+        flat_amount=500.0,
+        applicability={
+            "corridor_scope": "SPECIFIC_PORTS",
+            "destination_codes": ["FRA", "LHR"]
+        },
+        is_statutory=True
+    )
+    charges_service.create_charge(eu_charge, user="pricing_head")
+
+    # DXB query: EUF must NOT apply
+    bd_dxb = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert not any(c["code"] == "EUF" for c in bd_dxb.dynamic_charges)
+
+    # FRA query: EUF MUST apply
+    bd_fra = calculate_pure_buy_rate(tariff, 100.0, "FRA", "General Cargo")
+    euf_entry = next((c for c in bd_fra.dynamic_charges if c["code"] == "EUF"), None)
+    assert euf_entry is not None
+    assert euf_entry["amount"] == 500.0
+
+
+def test_cost_breakdown_full_backward_compatibility(sample_tariffs):
+    tariff = sample_tariffs[0]
+    bd = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+
+    # All 16 legacy fields must exist and be valid floats
+    legacy_fields = [
+        "base_rate_per_kg", "base_freight_total", "fsc_rate_per_kg", "fsc_total",
+        "ssc_rate_per_kg", "ssc_total", "fuel_security_total", "xray_total",
+        "misc_handling_total", "commodity_fee", "origin_thc_total", "awb_fee",
+        "ams_fee", "net_subtotal", "gst_tax", "total_landed_buy", "effective_buy_per_kg"
+    ]
+    for field_name in legacy_fields:
+        val = getattr(bd, field_name)
+        assert isinstance(val, (int, float)), f"{field_name} must be numeric"
+
+    # dynamic_charges must be a populated list of dictionaries
+    assert isinstance(bd.dynamic_charges, list)
+    assert len(bd.dynamic_charges) >= 3  # At least XBC, CTG, CGC, GST
+    for item in bd.dynamic_charges:
+        assert "code" in item
+        assert "name" in item
+        assert "amount" in item
+        assert "category" in item
+        assert "is_statutory" in item
+
+
+def test_external_file_change_invalidates_pure_buy_rate_cache(sample_tariffs):
+    import json
+    import os
+    tariff = sample_tariffs[0]
+
+    # Baseline query (cached)
+    bd1 = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd1.xray_total == 550.0
+
+    # Simulate external file edit by directly modifying charges_config.json on disk
+    with open(charges_service.config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    for item in data:
+        if item["id"] == "chg_xray":
+            item["min_amount"] = 999.0
+
+    # Write back and advance mtime to simulate external edit
+    with open(charges_service.config_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    new_mtime = os.path.getmtime(charges_service.config_path) + 2.0
+    os.utime(charges_service.config_path, (new_mtime, new_mtime))
+
+    # Next query must detect file mtime change and reflect ₹999.0 minimum
+    bd2 = calculate_pure_buy_rate(tariff, 100.0, "DXB", "General Cargo")
+    assert bd2.xray_total == 999.0
+
+
 
 
 

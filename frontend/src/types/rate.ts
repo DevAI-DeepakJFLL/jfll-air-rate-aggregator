@@ -31,6 +31,13 @@ export interface CostBreakdown {
   gst_tax: number;
   total_landed_buy: number;
   effective_buy_per_kg: number;
+  dynamic_charges?: Array<{
+    code: string;
+    name: string;
+    amount: number;
+    category: string;
+    is_statutory: boolean;
+  }>;
 }
 
 export interface RateQuoteItem {
