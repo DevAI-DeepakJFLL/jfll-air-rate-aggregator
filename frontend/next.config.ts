@@ -14,7 +14,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  ...(process.env.BUILD_STANDALONE === "true" ? { output: "standalone" } : {}),
   reactStrictMode: true,
   poweredByHeader: false,
   async headers() {
