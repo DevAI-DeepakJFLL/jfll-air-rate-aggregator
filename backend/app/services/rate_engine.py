@@ -104,6 +104,26 @@ COUNTRY_ALIASES: Dict[str, Set[str]] = {
     "AU": {"AU", "AUS", "AUSTRALIA"},
 }
 
+# Pre-computed frozensets for O(1) set operations
+COUNTRY_AND_ALIASES: Dict[str, frozenset] = {
+    k: frozenset({k} | v) for k, v in COUNTRY_ALIASES.items()
+}
+
+
+def _get_applicability_cache(app: Any) -> Tuple[frozenset, frozenset, Tuple[str, ...]]:
+    """
+    DSA Optimization: Lazily caches normalized frozensets on applicability model.
+    Eliminates redundant string upper/strip and dynamic set allocations across thousands of evaluations.
+    """
+    cached = getattr(app, "_dsa_cache", None)
+    if cached is None:
+        dest_set = frozenset(c.upper().strip() for c in app.destination_codes) if app.destination_codes else frozenset()
+        carrier_set = frozenset(c.upper().strip() for c in app.carrier_codes) if app.carrier_codes else frozenset()
+        comm_tuple = tuple(kw.lower().strip() for kw in app.commodity_keywords) if app.commodity_keywords else ()
+        cached = (dest_set, carrier_set, comm_tuple)
+        setattr(app, "_dsa_cache", cached)
+    return cached
+
 
 def get_country_for_airport(airport_code: str) -> Optional[str]:
     """Returns ISO country code for common airport IATA codes."""
@@ -259,51 +279,48 @@ def is_charge_applicable(
     """
     Evaluates whether a charge rule applies to a specific shipment.
     Checks min chargeable weight, corridor, commodity keywords, and carrier airline.
+    DSA: Uses cached frozensets for O(1) membership checks, eliminating allocation loops.
     """
     app = rule.applicability
     if not app:
         return True
 
-    # 1. Minimum chargeable weight threshold
+    # 1. Minimum chargeable weight threshold (O(1) float comparison)
     if app.min_chargeable_weight is not None and cw < app.min_chargeable_weight:
         return False
 
+    dest_set, carrier_set, comm_tuple = _get_applicability_cache(app)
+
     # 2. Corridor Scope (SPECIFIC_PORTS or SPECIFIC_COUNTRIES)
     scope = app.corridor_scope
+    dest_upper = (destination or '').upper().strip()
+
     if scope in (CorridorScope.SPECIFIC_PORTS, "SPECIFIC_PORTS"):
-        dest_upper = (destination or '').upper().strip()
-        dest_codes = {c.upper().strip() for c in app.destination_codes}
-        if dest_upper not in dest_codes:
+        if dest_upper not in dest_set:
             return False
     elif scope in (CorridorScope.SPECIFIC_COUNTRIES, "SPECIFIC_COUNTRIES"):
-        dest_upper = (destination or '').upper().strip()
-        dest_codes = {c.upper().strip() for c in app.destination_codes}
-        matched = False
-        if dest_upper in dest_codes:
-            matched = True
+        if dest_upper in dest_set:
+            pass  # Direct port match in country corridor spec
         else:
             country = AIRPORT_TO_COUNTRY.get(dest_upper)
-            if country:
-                matched_aliases = {country} | COUNTRY_ALIASES.get(country, set())
-                if any(alias in dest_codes for alias in matched_aliases):
-                    matched = True
-        if not matched:
-            return False
+            if not country:
+                return False
+            country_set = COUNTRY_AND_ALIASES.get(country, frozenset({country}))
+            if country_set.isdisjoint(dest_set):
+                return False
 
     # 3. Commodity Scope (SPECIFIC_COMMODITIES)
     comm_scope = app.commodity_scope
     if comm_scope in (CommodityScope.SPECIFIC_COMMODITIES, "SPECIFIC_COMMODITIES"):
         comm_lower = (commodity or '').lower().strip()
-        matched = any(kw.lower() in comm_lower for kw in app.commodity_keywords)
-        if not matched:
+        if not any(kw in comm_lower for kw in comm_tuple):
             return False
 
     # 4. Carrier Scope (SPECIFIC_CARRIERS)
     carr_scope = app.carrier_scope
     if carr_scope in (CarrierScope.SPECIFIC_CARRIERS, "SPECIFIC_CARRIERS"):
         carrier_upper = (carrier_code or '').upper().strip()
-        carr_codes = [c.upper().strip() for c in app.carrier_codes]
-        if carrier_upper not in carr_codes:
+        if carrier_upper not in carrier_set:
             return False
 
     return True

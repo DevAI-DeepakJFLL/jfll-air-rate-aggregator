@@ -204,3 +204,58 @@ def test_dsa_transshipment_routing_api(client):
     assert res_unknown.status_code == 404
 
 
+def test_dsa_charges_service_o1_lookup():
+    from app.services.charges_service import charges_service
+
+    # Benchmark O(1) hash index retrieval
+    start = time.perf_counter()
+    for _ in range(500):
+        charge = charges_service.get_charge_by_id("chg_xray")
+    avg_latency = (time.perf_counter() - start) / 500
+
+    assert charge is not None
+    assert charge.code == "XBC"
+    assert avg_latency < 0.0001  # Sub-100 microseconds per query
+
+    # Benchmark pre-partitioned active charges retrieval
+    start_act = time.perf_counter()
+    for _ in range(500):
+        active = charges_service.get_active_charges()
+    avg_act_latency = (time.perf_counter() - start_act) / 500
+
+    assert len(active) > 0
+    assert avg_act_latency < 0.0001
+
+
+def test_dsa_tariff_registry_inverted_index():
+    from app.services.tariff_registry_service import tariff_registry_service
+
+    # Benchmark O(1) inverted index retrieval across ~3000 tariffs
+    start = time.perf_counter()
+    for _ in range(100):
+        rates_ey = tariff_registry_service.get_carrier_rates("EY")
+    avg_latency = (time.perf_counter() - start) / 100
+
+    assert len(rates_ey) > 0
+    assert avg_latency < 0.0005  # Sub-500 microseconds per query, zero full table scans
+
+
+def test_dsa_charge_applicability_frozenset_fast_path():
+    from app.services.charges_service import charges_service
+    from app.services.rate_engine import is_charge_applicable, _get_applicability_cache
+
+    active_charges = charges_service.get_active_charges()
+    ams_rule = next((r for r in active_charges if r.code == "CCC"), None)
+    assert ams_rule is not None
+
+    # First call initializes cached frozenset
+    assert is_charge_applicable(ams_rule, 100.0, "JFK", "General Cargo", "AI") is True
+    assert is_charge_applicable(ams_rule, 100.0, "DXB", "General Cargo", "AI") is False
+
+    # Verify frozenset cache is attached
+    cache = _get_applicability_cache(ams_rule.applicability)
+    assert isinstance(cache[0], frozenset)
+    assert "JFK" in cache[0]
+
+
+

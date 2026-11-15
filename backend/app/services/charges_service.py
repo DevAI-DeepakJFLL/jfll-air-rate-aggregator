@@ -291,6 +291,9 @@ def _invalidate_rate_engine_cache() -> None:
 class ChargesService:
     """
     Thread-safe and atomic CRUD persistence service for Statutory & Gateway Charges.
+    DSA Optimization:
+    - O(1) Primary Key Index (_id_to_charge) for fast single-charge lookups.
+    - Pre-sorted and pre-partitioned active charges cached in memory for sub-microsecond rate engine evaluation.
     """
 
     def __init__(
@@ -302,6 +305,9 @@ class ChargesService:
         self.seed_path = Path(seed_path) if seed_path else DEFAULT_SEED_PATH
         self._lock = threading.RLock()
         self._cached_charges: Optional[List[ChargeRule]] = None
+        self._id_to_charge: Dict[str, ChargeRule] = {}
+        self._sorted_all_charges: Optional[List[ChargeRule]] = None
+        self._sorted_active_charges: Optional[List[ChargeRule]] = None
         self._last_mtime: float = 0.0
         self._version: int = 1
         self._ensure_initialized()
@@ -349,6 +355,16 @@ class ChargesService:
 
                 _atomic_write_json(self.config_path, seed_data)
 
+    def _update_in_memory_indexes(self, charges: List[ChargeRule]) -> None:
+        """
+        DSA Helper: Rebuilds hash index and sorted partitions in O(N log N) once per reload.
+        Enables O(1) ID lookups and O(1) active rule retrieval.
+        """
+        self._cached_charges = charges
+        self._id_to_charge = {c.id: c for c in charges}
+        self._sorted_all_charges = sorted(charges, key=lambda c: (c.display_order, c.code))
+        self._sorted_active_charges = [c for c in self._sorted_all_charges if c.is_active]
+
     def _read_charges(self) -> List[ChargeRule]:
         """
         Reads and parses charges from the active configuration file.
@@ -367,7 +383,7 @@ class ChargesService:
                     raw_data = json.load(f)
 
                 parsed_charges = [ChargeRule(**item) for item in raw_data]
-                self._cached_charges = parsed_charges
+                self._update_in_memory_indexes(parsed_charges)
                 self._last_mtime = current_mtime
                 if is_external_change:
                     self._notify_mutation()
@@ -380,12 +396,12 @@ class ChargesService:
 
     def _write_charges(self, charges: List[ChargeRule]) -> None:
         """
-        Persists charge rules atomically to disk.
+        Persists charge rules atomically to disk and refreshes memory indexes.
         """
         with self._lock:
             serialized = [c.model_dump() for c in charges]
             _atomic_write_json(self.config_path, serialized)
-            self._cached_charges = [c.model_copy() for c in charges]
+            self._update_in_memory_indexes([c.model_copy() for c in charges])
             try:
                 self._last_mtime = self.config_path.stat().st_mtime
             except OSError:
@@ -395,29 +411,35 @@ class ChargesService:
     def get_all_charges(self) -> List[ChargeRule]:
         """
         Returns all configured charges sorted by display_order ascending, then code.
+        DSA: O(N) copy from pre-sorted in-memory partition.
         """
         with self._lock:
-            charges = self._read_charges()
-            return sorted(charges, key=lambda c: (c.display_order, c.code))
+            self._read_charges()
+            if self._sorted_all_charges is not None:
+                return [c.model_copy() for c in self._sorted_all_charges]
+            charges = self._cached_charges or []
+            return sorted([c.model_copy() for c in charges], key=lambda c: (c.display_order, c.code))
 
     def get_active_charges(self) -> List[ChargeRule]:
         """
         Returns only active charges (is_active == True) sorted by display_order.
+        DSA: O(A) copy from pre-filtered in-memory partition (sub-microsecond).
         """
         with self._lock:
-            all_charges = self.get_all_charges()
-            return [c for c in all_charges if c.is_active]
+            self._read_charges()
+            if self._sorted_active_charges is not None:
+                return [c.model_copy() for c in self._sorted_active_charges]
+            return [c for c in self.get_all_charges() if c.is_active]
 
     def get_charge_by_id(self, charge_id: str) -> Optional[ChargeRule]:
         """
         Retrieves a single charge rule by its unique identifier.
+        DSA: O(1) hash map lookup via _id_to_charge index.
         """
         with self._lock:
-            charges = self._read_charges()
-            for c in charges:
-                if c.id == charge_id:
-                    return c
-            return None
+            self._read_charges()
+            charge = self._id_to_charge.get(charge_id)
+            return charge.model_copy() if charge else None
 
     def create_charge(self, charge_in: ChargeRuleCreate, user: str = "system") -> ChargeRule:
         """

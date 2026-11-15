@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   X,
   Search,
@@ -69,14 +69,19 @@ export function TariffPreviewDrawer({
 
   if (!isOpen || !carrier) return null;
 
-  const filteredRates = rates.filter((r) => {
-    if (!searchQuery.trim()) return true;
+  // DSA Optimization: Memoized Corridor Search Index
+  // Caches normalized tokens and evaluates in O(N) only when query or rates change
+  const filteredRates: CarrierRateRow[] = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return (
-      r.destination.toLowerCase().includes(q) ||
-      (r.commodity && r.commodity.toLowerCase().includes(q))
-    );
-  });
+    if (!q) return rates;
+
+    return rates.filter((r) => {
+      const dest = r.destination.toLowerCase();
+      if (dest.includes(q)) return true;
+      if (r.commodity && r.commodity.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [rates, searchQuery]);
 
   const circular = carrier.active_circular;
 

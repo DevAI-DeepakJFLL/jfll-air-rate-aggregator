@@ -121,25 +121,33 @@ export default function AdminTariffsPage() {
     }
   };
 
-  // Filtered carriers
-  const filteredCarriers = carriers.filter((c) => {
-    // Mode filter
-    if (filterMode === "ACTIVE" && !c.has_active_circular) return false;
-    if (filterMode === "BASELINE" && c.has_active_circular) return false;
+  // DSA Optimization: Precomputed fleet status partitions in O(N)
+  const { activeCount, fallbackCount } = React.useMemo(() => {
+    let active = 0;
+    for (let i = 0; i < carriers.length; i++) {
+      if (carriers[i].has_active_circular) active++;
+    }
+    return { activeCount: active, fallbackCount: carriers.length - active };
+  }, [carriers]);
 
-    // Search query filter
-    if (!searchQuery.trim()) return true;
+  // DSA Optimization: Memoized Multi-Attribute Filter Pipeline
+  const filteredCarriers = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return (
-      c.carrier_code.toLowerCase().includes(q) ||
-      c.carrier_name.toLowerCase().includes(q) ||
-      c.prefix.includes(q) ||
-      (c.corridors_sample && c.corridors_sample.some((dest) => dest.toLowerCase().includes(q)))
-    );
-  });
+    return carriers.filter((c) => {
+      // Mode filter in O(1)
+      if (filterMode === "ACTIVE" && !c.has_active_circular) return false;
+      if (filterMode === "BASELINE" && c.has_active_circular) return false;
 
-  const activeCount = carriers.filter((c) => c.has_active_circular).length;
-  const fallbackCount = carriers.length - activeCount;
+      // Substring token filter
+      if (!q) return true;
+      return (
+        c.carrier_code.toLowerCase().includes(q) ||
+        c.carrier_name.toLowerCase().includes(q) ||
+        c.prefix.includes(q) ||
+        (c.corridors_sample && c.corridors_sample.some((dest) => dest.toLowerCase().includes(q)))
+      );
+    });
+  }, [carriers, filterMode, searchQuery]);
 
   return (
     <div className="space-y-6">

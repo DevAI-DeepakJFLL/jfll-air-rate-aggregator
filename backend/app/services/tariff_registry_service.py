@@ -122,18 +122,21 @@ class TariffRegistryService:
         self._lock = threading.Lock()
         self._registry: Dict[str, Dict[str, Any]] = {}
         self._custom_rates: Dict[str, List[Dict[str, Any]]] = {}
+        self._baseline_carrier_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._initialize_registry()
 
     def _initialize_registry(self) -> None:
         """Seed initial state from known carriers and baseline rate database."""
         now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        # Map existing corridors from AIRLINE_TARIFFS per carrier
+        # DSA Inverted Index: Map existing corridors from AIRLINE_TARIFFS per carrier
         carrier_corridors: Dict[str, List[Dict[str, Any]]] = {}
         for tariff in AIRLINE_TARIFFS:
             code = tariff.get("carrier_code", "").upper().strip()
             if code:
                 carrier_corridors.setdefault(code, []).append(tariff)
+
+        self._baseline_carrier_rates = carrier_corridors
 
         for carrier in KNOWN_CARRIERS:
             code = carrier["carrier_code"]
@@ -182,16 +185,19 @@ class TariffRegistryService:
             return dict(info) if info else None
 
     def get_carrier_rates(self, carrier_code: str) -> List[Dict[str, Any]]:
-        """Return all active corridor rates for this carrier."""
+        """
+        Return all active corridor rates for this carrier.
+        DSA: O(1) hash bucket lookup via inverted index, replacing O(N) scan over ~3000 tariffs.
+        """
         code = carrier_code.upper().strip()
         with self._lock:
             # Check custom uploaded rates first
             if code in self._custom_rates and self._custom_rates[code]:
                 return [dict(r) for r in self._custom_rates[code]]
 
-            # Fall back to base AIRLINE_TARIFFS
-            rates = [dict(t) for t in AIRLINE_TARIFFS if t.get("carrier_code") == code]
-            return rates
+            # Fall back to baseline inverted index in O(1)
+            rates = self._baseline_carrier_rates.get(code, [])
+            return [dict(t) for t in rates]
 
     def register_circular_upload(
         self,

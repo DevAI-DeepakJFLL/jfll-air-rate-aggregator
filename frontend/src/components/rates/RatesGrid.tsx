@@ -239,37 +239,35 @@ export function RatesGrid({ rates }: RatesGridProps) {
     return m ? m.sellTotal : item.breakdown.total_landed_buy;
   };
 
-  // DSA Optimization: Filter & Multi-column Sort Pipeline
+  // DSA Optimization: Single-Pass Filter & Multi-column Sort Pipeline
+  // Evaluates effective sort criteria upfront to avoid redundant O(N log N) multi-pass sorting.
   const displayedRates = useMemo(() => {
-    // 1. Filter
-    let filtered = rates;
-    if (activeFilter === "direct") {
-      filtered = rates.filter((r) => r.routing_type.toLowerCase().includes("direct"));
-    }
+    // 1. Filter in O(N)
+    const filtered = activeFilter === "direct"
+      ? rates.filter((r) => r.routing_type.toLowerCase().includes("direct"))
+      : rates;
 
-    // 2. Sort
-    const sorted = [...filtered].sort((a, b) => {
+    // 2. Determine effective sort criteria upfront in O(1)
+    const effectiveField: SortField =
+      activeFilter === "cheapest" ? "price" : activeFilter === "fastest" ? "transit" : sortField;
+    const effectiveDir: SortDirection =
+      activeFilter === "cheapest" || activeFilter === "fastest" ? "asc" : sortDirection;
+
+    // 3. Single deterministic O(N log N) sort
+    return [...filtered].sort((a, b) => {
       let comparison = 0;
-      if (sortField === "price") {
+      if (effectiveField === "price") {
         comparison = getEffectivePrice(a) - getEffectivePrice(b);
-      } else if (sortField === "carrier") {
+      } else if (effectiveField === "carrier") {
         comparison = a.carrier_name.localeCompare(b.carrier_name);
-      } else if (sortField === "transit") {
+      } else if (effectiveField === "transit") {
         comparison = (a.transit_minutes ?? 9999) - (b.transit_minutes ?? 9999);
-      } else if (sortField === "cutoff") {
+      } else if (effectiveField === "cutoff") {
         comparison = a.cargo_cutoff.localeCompare(b.cargo_cutoff);
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
+      return effectiveDir === "asc" ? comparison : -comparison;
     });
-
-    if (activeFilter === "cheapest") {
-      sorted.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
-    } else if (activeFilter === "fastest") {
-      sorted.sort((a, b) => (a.transit_minutes ?? 9999) - (b.transit_minutes ?? 9999));
-    }
-
-    return sorted;
   }, [rates, activeFilter, sortField, sortDirection, marginMap]);
 
   const directCount = useMemo(() => {
