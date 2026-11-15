@@ -47,6 +47,13 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
   if (!quote) return null;
 
   const { breakdown } = quote;
+  const hasDynamicCharges = Boolean(breakdown.dynamic_charges && breakdown.dynamic_charges.length > 0);
+  const gatewayCharges = hasDynamicCharges
+    ? (breakdown.dynamic_charges?.filter((c) => c.category !== "STATUTORY_TAX") ?? [])
+    : [];
+  const taxCharges = hasDynamicCharges
+    ? (breakdown.dynamic_charges?.filter((c) => c.category === "STATUTORY_TAX") ?? [])
+    : [];
 
   return (
     <div
@@ -131,54 +138,101 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
               </span>
             </div>
 
-            <div className="flex justify-between py-1">
-              <span className="text-slate-600">Airport X-Ray Screening</span>
-              <span className="font-mono tabular-nums font-bold text-slate-900">
-                {formatINR(breakdown.xray_total)}
-              </span>
-            </div>
+            {/* 2. Gateway & Handling Ancillaries (Dynamic or Fallback) */}
+            {gatewayCharges.length > 0 ? (
+              gatewayCharges.map((charge) => (
+                <div key={charge.code} className="flex justify-between py-1 items-center">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-700 font-medium">{charge.name}</span>
+                    <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500 font-mono">
+                      {charge.code}
+                    </span>
+                    {charge.is_statutory && (
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-700 border border-amber-200">
+                        Statutory
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono tabular-nums font-bold text-slate-900">
+                    {formatINR(charge.amount)}
+                  </span>
+                </div>
+              ))
+            ) : !hasDynamicCharges ? (
+              <>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-600">Airport X-Ray Screening</span>
+                  <span className="font-mono tabular-nums font-bold text-slate-900">
+                    {formatINR(breakdown.xray_total)}
+                  </span>
+                </div>
 
-            <div className="flex justify-between py-1">
-              <span className="text-slate-600">Terminal Handling & CTG</span>
-              <span className="font-mono tabular-nums font-bold text-slate-900">
-                {formatINR(breakdown.misc_handling_total)}
-              </span>
-            </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-600">Terminal Handling & CTG</span>
+                  <span className="font-mono tabular-nums font-bold text-slate-900">
+                    {formatINR(breakdown.misc_handling_total)}
+                  </span>
+                </div>
 
-            {breakdown.commodity_fee > 0 && (
-              <div className="flex justify-between py-1 text-amber-800 font-semibold">
-                <span>Commodity Handling ({quote.cargo_category})</span>
-                <span className="font-mono tabular-nums font-bold">
-                  {formatINR(breakdown.commodity_fee)}
-                </span>
-              </div>
-            )}
+                {breakdown.commodity_fee > 0 && (
+                  <div className="flex justify-between py-1 text-amber-800 font-semibold">
+                    <span>Commodity Handling ({quote.cargo_category})</span>
+                    <span className="font-mono tabular-nums font-bold">
+                      {formatINR(breakdown.commodity_fee)}
+                    </span>
+                  </div>
+                )}
 
-            <div className="flex justify-between py-1">
-              <span className="text-slate-600">e-AWB Issuance Fee</span>
-              <span className="font-mono tabular-nums font-bold text-slate-900">
-                {formatINR(breakdown.awb_fee)}
-              </span>
-            </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-600">e-AWB Issuance Fee</span>
+                  <span className="font-mono tabular-nums font-bold text-slate-900">
+                    {formatINR(breakdown.awb_fee)}
+                  </span>
+                </div>
 
-            {breakdown.ams_fee > 0 && (
-              <div className="flex justify-between py-1 text-purple-800 font-semibold">
-                <span>Customs AMS Manifest (US/Canada)</span>
-                <span className="font-mono tabular-nums font-bold">
-                  {formatINR(breakdown.ams_fee)}
-                </span>
-              </div>
-            )}
+                {breakdown.ams_fee > 0 && (
+                  <div className="flex justify-between py-1 text-purple-800 font-semibold">
+                    <span>Customs AMS Manifest (US/Canada)</span>
+                    <span className="font-mono tabular-nums font-bold">
+                      {formatINR(breakdown.ams_fee)}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : null}
 
+            {/* 3. Net Subtotal */}
             <div className="flex justify-between pt-2.5 text-base font-bold text-slate-900">
               <span>Net Airline Subtotal</span>
               <span className="font-mono tabular-nums">{formatINR(breakdown.net_subtotal)}</span>
             </div>
 
-            <div className="flex justify-between py-1 text-xs font-semibold text-slate-500">
-              <span>Statutory Air Export GST (5%)</span>
-              <span className="font-mono tabular-nums">{formatINR(breakdown.gst_tax)}</span>
-            </div>
+            {/* 4. Statutory Taxes (Dynamic or Fallback) */}
+            {taxCharges.length > 0 ? (
+              taxCharges.map((charge) => (
+                <div key={charge.code} className="flex justify-between py-1 text-xs font-semibold text-slate-500 items-center">
+                  <div className="flex items-center gap-1.5">
+                    <span>{charge.name}</span>
+                    <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500 font-mono">
+                      {charge.code}
+                    </span>
+                    {charge.is_statutory && (
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-700 border border-amber-200">
+                        Statutory
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono tabular-nums font-bold text-slate-700">
+                    {formatINR(charge.amount)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="flex justify-between py-1 text-xs font-semibold text-slate-500">
+                <span>Statutory Air Export GST (5%)</span>
+                <span className="font-mono tabular-nums">{formatINR(breakdown.gst_tax)}</span>
+              </div>
+            )}
 
             <div className="flex justify-between items-center pt-3 text-lg font-black text-slate-900 border-t border-slate-200">
               <div className="flex items-center gap-2">
