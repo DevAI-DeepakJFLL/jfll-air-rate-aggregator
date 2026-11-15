@@ -1,6 +1,6 @@
 import secrets
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from app.core.config import settings

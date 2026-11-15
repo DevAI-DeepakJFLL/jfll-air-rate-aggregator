@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Network, Search, Plane, Globe, MapPin, CheckCircle2 } from "lucide-react";
+import { Network, Search, Globe, CheckCircle2 } from "lucide-react";
 
 interface CorridorItem {
   code: string;

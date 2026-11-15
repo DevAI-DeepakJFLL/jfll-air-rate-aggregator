@@ -9,15 +9,9 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 from app.schemas.charge import (
-    CalculationType,
-    ChargeApplicability,
-    ChargeCategory,
     ChargeRule,
     ChargeRuleCreate,
     ChargeRuleUpdate,
-    CommodityScope,
-    CorridorScope,
-    CarrierScope,
 )
 
 logger = logging.getLogger(__name__)
@@ -255,7 +249,8 @@ def _atomic_write_json(file_path: Path, data: Any) -> None:
         except OSError:
             pass
         os.replace(temp_path, file_path)
-    except Exception:
+    except (OSError, TypeError, ValueError) as err:
+        logger.error(f"Failed to atomically write configuration to {file_path}: {err}")
         temp_file.close()
         if temp_path.exists():
             try:

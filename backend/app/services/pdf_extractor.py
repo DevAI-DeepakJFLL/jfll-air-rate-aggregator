@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Tuple
+from typing import Dict, Any, Tuple
 import pypdf
 from pypdf.errors import PdfReadError
 

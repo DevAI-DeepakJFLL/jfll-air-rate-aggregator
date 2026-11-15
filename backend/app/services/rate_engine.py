@@ -20,12 +20,6 @@ from app.services.charges_service import (
 from app.services.break_even import optimize_break_even_pivot
 
 
-# Frozen set for O(1) membership lookup
-AMS_APPLICABLE_DESTINATIONS = frozenset({
-    'ORD', 'JFK', 'LAX', 'ATL', 'DFW', 'SFO', 'MIA', 'BOS', 'SEA', 'IAD',
-    'IAH', 'EWR', 'DTW', 'MSP', 'PHL', 'CLT', 'DEN', 'YYZ', 'YVR', 'YUL'
-})
-
 # Airport IATA Code to ISO Country Code Mapping for Corridor Evaluation
 AIRPORT_TO_COUNTRY: Dict[str, str] = {
     # United States
@@ -230,16 +224,11 @@ def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[
     vol_weight = 0.0
     if dimensions:
         for dim in dimensions:
-            if isinstance(dim, dict):
-                l = dim.get('length_cm', 0.0)
-                w = dim.get('width_cm', 0.0)
-                h = dim.get('height_cm', 0.0)
-                pcs = dim.get('pieces', 1)
-            else:
-                l = getattr(dim, 'length_cm', 0.0)
-                w = getattr(dim, 'width_cm', 0.0)
-                h = getattr(dim, 'height_cm', 0.0)
-                pcs = getattr(dim, 'pieces', 1)
+            is_dict = isinstance(dim, dict)
+            l = dim.get('length_cm', 0.0) if is_dict else getattr(dim, 'length_cm', 0.0)
+            w = dim.get('width_cm', 0.0) if is_dict else getattr(dim, 'width_cm', 0.0)
+            h = dim.get('height_cm', 0.0) if is_dict else getattr(dim, 'height_cm', 0.0)
+            pcs = dim.get('pieces', 1) if is_dict else getattr(dim, 'pieces', 1)
             vol_weight += (l * w * h * pcs) / 6000.0
 
     raw_weight = max(actual_weight, vol_weight)
@@ -262,10 +251,10 @@ def clear_pure_buy_rate_cache() -> None:
     _PURE_BUY_RATE_CACHE.clear()
 
 
-# Wire cache invalidation hook from charges_service
+# Wire cache invalidation hook from charges_service with graceful degradation
 try:
     register_charges_invalidation_callback(clear_pure_buy_rate_cache)
-except Exception:
+except (ImportError, AttributeError, RuntimeError):
     pass
 
 
@@ -350,6 +339,53 @@ def calculate_charge_amount(
         pct = rule.percentage_rate or 0.0
         return float(round(net_subtotal * (pct / 100.0)))
     return 0.0
+
+
+def _map_legacy_cost_fields(dynamic_charges: List[Dict[str, Any]]) -> Dict[str, float]:
+    """
+    Helper to extract baseline legacy cost breakdown fields from dynamic charges
+    for 100% backward compatibility with consumers expecting specific field names.
+    """
+    xray_total = 0.0
+    misc_handling = 0.0
+    commodity_fee = 0.0
+    terminal_charges_total = 0.0
+    awb_fee = 0.0
+    ams_fee = 0.0
+    gst_tax = 0.0
+
+    for chg in dynamic_charges:
+        code = chg.get("code")
+        amt = float(chg.get("amount", 0.0))
+        cat = chg.get("category")
+
+        if code == "XBC":
+            xray_total = amt
+        elif code == "CTG":
+            misc_handling = amt
+        elif code in ("RAC", "COL"):
+            commodity_fee += amt
+        elif code == "CGC":
+            awb_fee = amt
+        elif code == "CCC":
+            ams_fee = amt
+
+        if cat == "TERMINAL":
+            terminal_charges_total += amt
+        elif cat == "STATUTORY_TAX":
+            gst_tax += amt
+
+    origin_thc_total = terminal_charges_total + commodity_fee
+
+    return {
+        "xray_total": xray_total,
+        "misc_handling": misc_handling,
+        "commodity_fee": commodity_fee,
+        "origin_thc_total": origin_thc_total,
+        "awb_fee": awb_fee,
+        "ams_fee": ams_fee,
+        "gst_tax": gst_tax,
+    }
 
 
 def calculate_pure_buy_rate(
@@ -490,36 +526,7 @@ def calculate_pure_buy_rate(
     effective_buy_per_kg = round(total_landed_buy / max(cw, 0.5), 2)
 
     # Map baseline legacy fields from dynamic charges for 100% backward compatibility
-    xray_total = 0.0
-    misc_handling = 0.0
-    commodity_fee = 0.0
-    terminal_charges_total = 0.0
-    awb_fee = 0.0
-    ams_fee = 0.0
-    gst_tax = 0.0
-
-    for chg in dynamic_charges:
-        code = chg["code"]
-        amt = chg["amount"]
-        cat = chg["category"]
-
-        if code == "XBC":
-            xray_total = amt
-        elif code == "CTG":
-            misc_handling = amt
-        elif code in ("RAC", "COL"):
-            commodity_fee += amt
-        elif code == "CGC":
-            awb_fee = amt
-        elif code == "CCC":
-            ams_fee = amt
-
-        if cat == "TERMINAL":
-            terminal_charges_total += amt
-        elif cat == "STATUTORY_TAX":
-            gst_tax += amt
-
-    origin_thc_total = terminal_charges_total + commodity_fee
+    legacy_costs = _map_legacy_cost_fields(dynamic_charges)
 
     breakdown = CostBreakdown(
         base_rate_per_kg=effective_rate,
@@ -529,14 +536,14 @@ def calculate_pure_buy_rate(
         ssc_rate_per_kg=ssc_rate,
         ssc_total=ssc_total,
         fuel_security_total=fuel_security_total,
-        xray_total=xray_total,
-        misc_handling_total=misc_handling,
-        commodity_fee=commodity_fee,
-        origin_thc_total=origin_thc_total,
-        awb_fee=awb_fee,
-        ams_fee=ams_fee,
+        xray_total=legacy_costs["xray_total"],
+        misc_handling_total=legacy_costs["misc_handling"],
+        commodity_fee=legacy_costs["commodity_fee"],
+        origin_thc_total=legacy_costs["origin_thc_total"],
+        awb_fee=legacy_costs["awb_fee"],
+        ams_fee=legacy_costs["ams_fee"],
         net_subtotal=net_subtotal,
-        gst_tax=gst_tax,
+        gst_tax=legacy_costs["gst_tax"],
         total_landed_buy=total_landed_buy,
         effective_buy_per_kg=effective_buy_per_kg,
         dynamic_charges=dynamic_charges

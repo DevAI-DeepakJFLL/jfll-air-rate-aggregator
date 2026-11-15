@@ -7,12 +7,7 @@ import {
   AlertTriangle,
   Search,
   Filter,
-  CheckCircle2,
-  XCircle,
   Shield,
-  Layers,
-  Tag,
-  MapPin,
   Lock,
 } from "lucide-react";
 import { ChargeRule, ChargeCategory } from "@/types/charge";

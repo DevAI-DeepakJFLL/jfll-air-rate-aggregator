@@ -13,7 +13,6 @@ import {
   Info,
   Copy,
   Check,
-  Plane,
   Sparkles,
   SlidersHorizontal,
   FileText,
@@ -22,7 +21,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Zap,
 } from "lucide-react";
 
 interface RatesGridProps {

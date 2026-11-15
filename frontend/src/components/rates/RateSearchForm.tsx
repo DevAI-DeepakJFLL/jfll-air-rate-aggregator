@@ -7,8 +7,6 @@ import {
   Search,
   AlertCircle,
   Scale,
-  Lock,
-  Building2,
 } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 import { RATE_SHEET_DESTINATIONS } from "../../lib/rate-destinations";

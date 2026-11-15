@@ -5,10 +5,6 @@ import {
   X,
   Search,
   TableProperties,
-  Calendar,
-  Layers,
-  Sparkles,
-  FileText,
   AlertCircle,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";

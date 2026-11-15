@@ -7,10 +7,8 @@ import {
   RotateCcw,
   ShieldCheck,
   ShieldAlert,
-  Sliders,
   CheckCircle2,
   AlertCircle,
-  Lock,
   Layers,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";

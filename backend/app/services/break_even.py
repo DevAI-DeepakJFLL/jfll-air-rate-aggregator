@@ -1,5 +1,5 @@
 import bisect
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Any
 
 
 def optimize_break_even_pivot(

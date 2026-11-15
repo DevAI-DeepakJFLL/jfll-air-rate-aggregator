@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, Lock, Key, Users, Check, X, ShieldAlert } from "lucide-react";
+import { ShieldCheck, Users, Check, X } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 
 export default function AdminSecurityPage() {
