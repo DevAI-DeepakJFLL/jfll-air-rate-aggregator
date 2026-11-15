@@ -117,8 +117,6 @@ export const RATE_SHEET_DESTINATIONS: DestinationItem[] = [
   { code: "GRU", city: "São Paulo Guarulhos", country: "Brazil", region: "Latin America" },
 ];
 
-export const POPULAR_DESTINATIONS = ["DXB", "LHR", "FRA", "SIN", "KUL", "JFK", "ORD", "BKK"];
-
 export function getDestinationsByRegion(): Record<string, DestinationItem[]> {
   const groups: Record<string, DestinationItem[]> = {};
   for (const d of RATE_SHEET_DESTINATIONS) {

@@ -13,7 +13,7 @@ export default function RateDiscoveryPage() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<RateSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [currentRoute, setCurrentRoute] = useState({ origin: "BOM", destination: "DXB" });
+  const [currentRoute, setCurrentRoute] = useState({ origin: "BOM", destination: "" });
 
   const handleSearch = async (payload: RateSearchRequest) => {
     setLoading(true);
@@ -28,16 +28,6 @@ export default function RateDiscoveryPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickRoute = (origin: string, destination: string) => {
-    setCurrentRoute({ origin, destination });
-    handleSearch({
-      origin,
-      destination,
-      actual_weight_kg: 120.0,
-      commodity: "General Cargo",
-    });
   };
 
   return (
@@ -78,7 +68,6 @@ export default function RateDiscoveryPage() {
         <EmptyRateState
           origin={currentRoute.origin}
           destination={currentRoute.destination}
-          onSelectRoute={handleQuickRoute}
         />
       )}
 

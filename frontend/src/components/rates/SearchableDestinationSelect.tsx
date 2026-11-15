@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { ChevronDown, Search, X, Check, Globe } from "lucide-react";
 import { DestinationItem } from "../../types/rate";
-import { POPULAR_DESTINATIONS } from "../../lib/rate-destinations";
 
 interface SearchableDestinationSelectProps {
   value: string;
@@ -238,31 +237,7 @@ export function SearchableDestinationSelect({
         </div>
       )}
 
-      {/* 3. Popular Hub Quick Chips */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        <span className="text-[10px] font-semibold text-slate-400 mr-0.5">Top:</span>
-        {POPULAR_DESTINATIONS.map((code) => {
-          const d = destinations.find((item) => item.code === code);
-          const isSelected = value === code;
-          return (
-            <button
-              key={code}
-              type="button"
-              onClick={() => onChange(code)}
-              className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition-colors cursor-pointer border ${
-                isSelected
-                  ? "bg-obsidian-900 text-amber-300 border-obsidian-900 shadow-2xs"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200"
-              }`}
-              title={`${d?.city}, ${d?.country}`}
-            >
-              {code}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 4. Active Destination Geographic Metadata */}
+      {/* 2. Active Destination Geographic Metadata */}
       {selectedDest && (
         <div className="text-[10px] font-semibold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
           <Globe className="h-3 w-3 text-slate-400 shrink-0" />

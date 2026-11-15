@@ -31,7 +31,7 @@ const DEFAULT_STAGED_DATA: StagedRow[] = [
 
 export default function AdminIngestionPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [airline, setAirline] = useState("Etihad Airways");
+  const [airline, setAirline] = useState("");
   const [currency, setCurrency] = useState("INR");
   const [uploading, setUploading] = useState(false);
   const [stagedRows, setStagedRows] = useState<StagedRow[] | null>(null);
@@ -91,6 +91,7 @@ export default function AdminIngestionPage() {
               type="text"
               value={airline}
               onChange={(e) => setAirline(e.target.value)}
+              placeholder="e.g. Etihad Airways, Emirates, Qatar Cargo..."
               className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold focus-ring"
               required
             />

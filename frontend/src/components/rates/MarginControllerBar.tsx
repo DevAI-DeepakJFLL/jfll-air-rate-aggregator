@@ -5,29 +5,6 @@ import { Calculator, RotateCcw } from "lucide-react";
 
 export type MarginMode = "per_kg" | "percent" | "flat";
 
-export const MARGIN_PRESETS: Record<MarginMode, { label: string; value: number }[]> = {
-  per_kg: [
-    { label: "+₹10/kg", value: 10 },
-    { label: "+₹15/kg", value: 15 },
-    { label: "+₹20/kg", value: 20 },
-    { label: "+₹25/kg", value: 25 },
-    { label: "+₹35/kg", value: 35 },
-  ],
-  percent: [
-    { label: "+5%", value: 5 },
-    { label: "+8%", value: 8 },
-    { label: "+10%", value: 10 },
-    { label: "+12%", value: 12 },
-    { label: "+15%", value: 15 },
-  ],
-  flat: [
-    { label: "+₹1,500", value: 1500 },
-    { label: "+₹2,500", value: 2500 },
-    { label: "+₹3,500", value: 3500 },
-    { label: "+₹5,000", value: 5000 },
-  ],
-};
-
 export interface MarginControllerBarProps {
   marginMode: MarginMode;
   onMarginModeChange: (mode: MarginMode) => void;
@@ -46,7 +23,6 @@ export function MarginControllerBar({
   onResetMargins,
 }: MarginControllerBarProps) {
   const globalMarginNum = parseFloat(marginInputStr) || 0;
-  const currentPresets = MARGIN_PRESETS[marginMode];
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-obsidian-900 p-4 sm:p-5 text-white shadow-card">
@@ -157,27 +133,6 @@ export function MarginControllerBar({
               {marginMode === "per_kg" ? "/kg" : marginMode === "percent" ? "%" : ""}
             </span>
           </div>
-        </div>
-
-        {/* Quick Click Preset Chips */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
-            Quick:
-          </span>
-          {currentPresets.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => onMarginInputChange(preset.value.toString())}
-              className={`rounded-lg px-2.5 py-1 font-mono text-xs font-extrabold border transition-all cursor-pointer ${
-                globalMarginNum === preset.value
-                  ? "bg-amber-400/20 border-amber-400 text-amber-300"
-                  : "bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
         </div>
       </div>
     </div>

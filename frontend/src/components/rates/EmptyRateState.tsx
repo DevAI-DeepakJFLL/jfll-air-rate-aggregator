@@ -1,25 +1,14 @@
 "use client";
 
 import React from "react";
-import { Plane, ArrowRight, RotateCcw } from "lucide-react";
+import { Plane } from "lucide-react";
 
 interface EmptyRateStateProps {
   origin: string;
   destination: string;
-  onSelectRoute: (origin: string, destination: string) => void;
 }
 
-const ACTIVE_CORRIDORS = [
-  { origin: "BOM", destination: "DXB", label: "BOM → DXB (Dubai)" },
-  { origin: "BOM", destination: "LHR", label: "BOM → LHR (London)" },
-  { origin: "BOM", destination: "FRA", label: "BOM → FRA (Frankfurt)" },
-  { origin: "BOM", destination: "SIN", label: "BOM → SIN (Singapore)" },
-  { origin: "BOM", destination: "KUL", label: "BOM → KUL (Kuala Lumpur)" },
-  { origin: "BOM", destination: "JFK", label: "BOM → JFK (New York)" },
-  { origin: "BOM", destination: "MEX", label: "BOM → MEX (Mexico City)" },
-];
-
-export function EmptyRateState({ origin, destination, onSelectRoute }: EmptyRateStateProps) {
+export function EmptyRateState({ origin, destination }: EmptyRateStateProps) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-xs">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 mb-4">
@@ -32,27 +21,8 @@ export function EmptyRateState({ origin, destination, onSelectRoute }: EmptyRate
 
       <p className="mt-1.5 text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
         Published tariffs in our system are currently ingested for high-frequency export corridors.
-        Try selecting an active hub or upload a new rate circular in Admin Ingestion.
+        Please select a different destination airport from the dropdown or ingest a new tariff sheet via the Admin panel.
       </p>
-
-      <div className="mt-5">
-        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-          Quick-load active corridors:
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {ACTIVE_CORRIDORS.map((corridor) => (
-            <button
-              key={`${corridor.origin}-${corridor.destination}`}
-              type="button"
-              onClick={() => onSelectRoute(corridor.origin, corridor.destination)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-jfll-blue hover:bg-blue-50/50 hover:text-jfll-blue transition-colors cursor-pointer"
-            >
-              <span>{corridor.label}</span>
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -33,23 +33,23 @@ interface RateSearchFormProps {
 export function RateSearchForm({
   onSearch,
   loading,
-  initialDestination = "DXB",
+  initialDestination = "",
 }: RateSearchFormProps) {
   // Origin is strictly fixed at BOM (Mumbai Gateway Hub)
   const origin = "BOM";
-  const [destination, setDestination] = useState(initialDestination);
-  const [actualWeight, setActualWeight] = useState("120");
+  const [destination, setDestination] = useState(initialDestination || "");
+  const [actualWeight, setActualWeight] = useState("");
   const [commodity, setCommodity] = useState("General Cargo");
 
-  // Volumetric Sizing & Unit Conversion State
-  const [useDims, setUseDims] = useState(true);
+  // Volumetric Sizing & Unit Conversion State (Starts unselected with zero defaults)
+  const [useDims, setUseDims] = useState(false);
   const [dimensionMode, setDimensionMode] = useState<DimensionMode>("dimensions");
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("cm");
-  const [length, setLength] = useState("80");
-  const [width, setWidth] = useState("60");
-  const [height, setHeight] = useState("50");
-  const [pieces, setPieces] = useState("2");
-  const [cbmVolume, setCbmVolume] = useState("0.48");
+  const [length, setLength] = useState("");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [pieces, setPieces] = useState("");
+  const [cbmVolume, setCbmVolume] = useState("");
 
   const wtNum = parseFloat(actualWeight) || 0;
   const lNum = parseFloat(length) || 0;
@@ -344,6 +344,7 @@ export function RateSearchForm({
                 min="0.1"
                 value={length}
                 onChange={(e) => setLength(e.target.value)}
+                placeholder="Length"
                 className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
                 required
               />
@@ -362,6 +363,7 @@ export function RateSearchForm({
                 min="0.1"
                 value={width}
                 onChange={(e) => setWidth(e.target.value)}
+                placeholder="Width"
                 className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
                 required
               />
@@ -380,6 +382,7 @@ export function RateSearchForm({
                 min="0.1"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
+                placeholder="Height"
                 className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
                 required
               />
@@ -397,6 +400,7 @@ export function RateSearchForm({
                 min="1"
                 value={pieces}
                 onChange={(e) => setPieces(e.target.value)}
+                placeholder="Pcs (e.g. 1)"
                 className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
                 required
               />
@@ -502,7 +506,7 @@ export function RateSearchForm({
       <div className="mt-5 flex justify-end">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !destination || wtNum <= 0}
           className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-aero-navy focus-ring transition-all shadow-md cursor-pointer disabled:opacity-50"
         >
           {loading ? (
