@@ -1,414 +1,208 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import Link from "next/link";
 import {
-  UploadCloud,
-  CheckCircle,
-  FileText,
-  AlertTriangle,
-  Eye,
+  FileSpreadsheet,
+  Receipt,
+  Network,
+  ShieldCheck,
+  ArrowRight,
+  Plane,
+  TrendingUp,
+  Sliders,
+  CheckCircle2,
+  Clock,
+  Layers,
 } from "lucide-react";
+import { useAdminRole } from "@/context/AdminRoleContext";
 
-interface StagedRow {
-  destination: string;
-  commodity: string;
-  min_charge: number;
-  rate_normal: number;
-  rate_45: number;
-  rate_100: number;
-  rate_250: number;
-  rate_300: number;
-  fsc_per_kg: number;
-  ssc_per_kg: number;
-}
-
-export default function AdminIngestionPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [airline, setAirline] = useState("");
-  const [currency, setCurrency] = useState("INR");
-  const [uploading, setUploading] = useState(false);
-  const [stagedRows, setStagedRows] = useState<StagedRow[] | null>(null);
-  const [published, setPublished] = useState(false);
-  const [isScanned, setIsScanned] = useState(false);
-
-  const handleUpload = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return;
-
-    setUploading(true);
-    setPublished(false);
-
-    // Initialize clean staged workbench
-    setTimeout(() => {
-      setUploading(false);
-      setIsScanned(file.name.toLowerCase().includes("scan") || file.name.toLowerCase().includes("img"));
-      setStagedRows([]);
-    }, 800);
-  };
-
-  const handleAddRow = () => {
-    setStagedRows((prev) => [
-      ...(prev || []),
-      {
-        destination: "",
-        commodity: "General Cargo",
-        min_charge: 0,
-        rate_normal: 0,
-        rate_45: 0,
-        rate_100: 0,
-        rate_250: 0,
-        rate_300: 0,
-        fsc_per_kg: 0,
-        ssc_per_kg: 0,
-      },
-    ]);
-  };
-
-  const handleDeleteRow = (index: number) => {
-    setStagedRows((prev) => (prev ? prev.filter((_, i) => i !== index) : null));
-  };
-
-  const handleCellChange = (index: number, field: keyof StagedRow, value: string | number) => {
-    if (!stagedRows) return;
-    const updated = [...stagedRows];
-    if (field === "destination" || field === "commodity") {
-      updated[index] = { ...updated[index], [field]: String(value) };
-    } else {
-      const numValue = typeof value === "number" ? value : parseFloat(value) || 0;
-      updated[index] = { ...updated[index], [field]: numValue };
-    }
-    setStagedRows(updated);
-  };
-
-  const handlePublish = () => {
-    setPublished(true);
-  };
+export default function AdminDashboardPage() {
+  const { role, isPricingHead } = useAdminRole();
 
   return (
     <div className="space-y-6">
-      {/* Upload Zone */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4 mb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-jfll-blue">
-            <UploadCloud className="h-5 w-5" />
+      {/* Welcome Banner */}
+      <div className="rounded-2xl border border-obsidian-800 bg-obsidian-950 p-6 text-white shadow-card relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-400/10 to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 border border-amber-400/30">
+            Jet Freight Mumbai Hub (BOM) &bull; Commercial Control Desk
           </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Airline Rate Sheet Ingestion Engine</h2>
-            <p className="text-xs font-semibold text-slate-600">
-              Upload PDF rate circulars &bull; AI table extraction &bull; Admin verification staging
-            </p>
-          </div>
+          <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+            Commercial Tariff &amp; Surcharge Management
+          </h1>
+          <p className="text-xs text-slate-300 font-medium leading-relaxed">
+            Centralized air cargo administration for the &lt; 500kg Smalls Desk. Ingest carrier circulars, maintain baseline and airline-specific surcharges, and audit RBAC permissions in real time.
+          </p>
         </div>
 
-        <form onSubmit={handleUpload} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="airline-input" className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Airline / GSA
-            </label>
-            <input
-              id="airline-input"
-              type="text"
-              value={airline}
-              onChange={(e) => setAirline(e.target.value)}
-              placeholder="e.g. Etihad Airways, Emirates, Qatar Cargo..."
-              className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold focus-ring"
-              required
-            />
+        {/* Current Active Role Simulator Pill */}
+        <div className="mt-5 pt-4 border-t border-obsidian-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-medium">Active Simulation Mode:</span>
+            {isPricingHead ? (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400/20 px-2.5 py-1 font-bold text-amber-300 border border-amber-400/30">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                Pricing Team Head (Full Read / Write Access)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/20 px-2.5 py-1 font-bold text-sky-200 border border-sky-400/30">
+                <span className="h-2 w-2 rounded-full bg-sky-400" />
+                Pricing Coordinator (Read-Only Preview)
+              </span>
+            )}
           </div>
 
-          <div>
-            <label htmlFor="currency-select" className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Tariff Currency
-            </label>
-            <select
-              id="currency-select"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="w-full h-11 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus-ring cursor-pointer"
-            >
-              <option value="INR">INR (Indian Rupee)</option>
-              <option value="USD">USD (US Dollar)</option>
-            </select>
+          <div className="text-[11px] text-slate-400">
+            Use the toggle in the top bar to simulate alternate RBAC tiers.
           </div>
-
-          <div>
-            <label htmlFor="pdf-input" className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Airline Rate Sheet PDF
-            </label>
-            <input
-              id="pdf-input"
-              type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full h-11 text-xs text-slate-500 file:mr-2 file:h-full file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:text-xs file:font-bold hover:file:bg-slate-200 cursor-pointer"
-              required
-            />
-          </div>
-
-          <div className="sm:col-span-3 flex justify-end mt-2">
-            <button
-              type="submit"
-              disabled={uploading || !file}
-              className="inline-flex items-center gap-2 rounded-xl bg-jfll-blue px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-jfll-navy transition-all focus-ring disabled:opacity-50 cursor-pointer"
-            >
-              <UploadCloud className="h-4 w-4" />
-              {uploading ? "Extracting Tabular Tariffs..." : "Upload & Parse to Staging"}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
 
-      {/* Success Notification */}
-      {published && (
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle className="h-5 w-5 text-emerald-700" />
-            <span className="text-sm font-bold">
-              Tariffs Published Successfully! Updated live dashboard for {airline} across {stagedRows?.length} corridors.
-            </span>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1 */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span>Rate Sheets</span>
+            <FileSpreadsheet className="h-4 w-4 text-jfll-blue" />
           </div>
-          <a
-            href="/"
-            className="text-xs font-bold text-emerald-800 underline hover:text-emerald-950"
+          <div className="text-2xl font-black text-slate-900 font-mono">12 Circulars</div>
+          <p className="text-[11px] text-slate-500 font-medium">
+            5 Carriers active on BOM Hub
+          </p>
+        </div>
+
+        {/* Metric 2 */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span>Dynamic Surcharges</span>
+            <Receipt className="h-4 w-4 text-amber-500" />
+          </div>
+          <div className="text-2xl font-black text-slate-900 font-mono">5 Active Rules</div>
+          <p className="text-[11px] text-slate-500 font-medium">
+            FSC, SSC, Screening &amp; Handling
+          </p>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span>Monitored Hubs</span>
+            <Network className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900 font-mono">24 Corridors</div>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Direct &amp; 1-stop routes from BOM
+          </p>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span>Security &amp; RBAC</span>
+            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900 font-mono">Enforced</div>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Header-based RBAC active
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Action Navigation Grid */}
+      <div>
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-3">
+          Administrative Modules
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Card 1: Rate Sheets */}
+          <Link
+            href="/admin/tariffs"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400/50 hover:shadow-card transition-all flex items-start gap-4"
           >
-            View on Live Dashboard →
-          </a>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-700 group-hover:bg-amber-400 group-hover:text-obsidian-950 transition-colors shrink-0">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
+                  Airline Rate Sheet Ingestion
+                </h3>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Ingest PDF rate circulars, verify extracted weight breaks (+45kg, +100kg, +250kg, +300kg), and publish to live quotation desk.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 2: Charges & Surcharges */}
+          <Link
+            href="/admin/charges"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400/50 hover:shadow-card transition-all flex items-start gap-4"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-jfll-blue group-hover:bg-jfll-blue group-hover:text-white transition-colors shrink-0">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-jfll-blue transition-colors">
+                  Charges &amp; Surcharges Engine
+                </h3>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-jfll-blue group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Configure baseline and airline-specific dynamic fees (Fuel, Security, Screening, X-Ray) dynamically evaluated by the pure buy rate engine.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 3: Corridors */}
+          <Link
+            href="/admin/corridors"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400/50 hover:shadow-card transition-all flex items-start gap-4"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+              <Network className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  Corridors &amp; Port Directory
+                </h3>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Inspect Mumbai Hub (BOM) export corridors across GCC, Europe, Southeast Asia, and the Americas.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 4: Security & RBAC */}
+          <Link
+            href="/admin/security"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400/50 hover:shadow-card transition-all flex items-start gap-4"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                  Security &amp; RBAC Governance
+                </h3>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Inspect role privileges, review security authorization headers, and audit mutation permissions across the operations team.
+              </p>
+            </div>
+          </Link>
         </div>
-      )}
-
-      {/* Split-Pane Staging Workbench (Left: Document Overview, Right: Editable Grid) */}
-      {stagedRows && !published && (
-        <div className="space-y-4">
-          {/* Surcharge Verification Alert */}
-          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-900 leading-relaxed">
-              <strong>Staged Tariff Verification:</strong> Ingested rate circular for{" "}
-              <strong>{airline || file?.name}</strong> is staged for administrative review. Verify base freight weight breaks and surcharges in the workbench below before approving for live quote calculation.
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Column: PDF Source Card */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <FileText className="h-5 w-5 text-jfll-blue" />
-                <h3 className="text-sm font-bold text-slate-900">Source Document</h3>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-xs">
-                <div className="font-bold text-slate-900 truncate">{file?.name}</div>
-                <div className="text-slate-600">
-                  Size: {(file ? file.size / 1024 : 0).toFixed(1)} KB
-                </div>
-                <div className="text-slate-600">
-                  Status:{" "}
-                  <span className="font-bold text-amber-700">STAGED_FOR_REVIEW</span>
-                </div>
-                <div className="text-slate-600">
-                  Mode:{" "}
-                  <span className="font-bold text-slate-800">
-                    {isScanned ? "Vision OCR (Raster)" : "Digital Text Engine"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-[11px] font-semibold text-slate-500 leading-normal">
-                Human-in-the-loop guarantee: Review rates and surcharge columns before committing to
-                live quotation desk.
-              </div>
-            </div>
-
-            {/* Right Column: Editable Staged Tariff Table */}
-            <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
-                    Staged Buying Rates ({stagedRows.length} Corridors)
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-500">
-                    Enter or verify extracted tariffs inline
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddRow}
-                    className="inline-flex items-center gap-1 rounded-xl bg-obsidian-900 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
-                  >
-                    + Add Corridor
-                  </button>
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jfll-blue border border-blue-200">
-                    Scope: &lt; 500 kg Smalls
-                  </span>
-                </div>
-              </div>
-
-              {/* Data Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-semibold text-slate-700">
-                  <thead className="bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider border-y border-slate-200">
-                    <tr>
-                      <th className="px-3 py-2.5">Dest</th>
-                      <th className="px-3 py-2.5">Min (₹)</th>
-                      <th className="px-3 py-2.5">Norm</th>
-                      <th className="px-3 py-2.5">+45kg</th>
-                      <th className="px-3 py-2.5">+100kg</th>
-                      <th className="px-3 py-2.5">+250kg</th>
-                      <th className="px-3 py-2.5">+300kg</th>
-                      <th className="px-3 py-2.5">FSC/kg</th>
-                      <th className="px-3 py-2.5">SSC/kg</th>
-                      <th className="px-2 py-2.5 w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
-                    {stagedRows.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={10}
-                          className="px-4 py-8 text-center text-xs text-slate-500 font-medium"
-                        >
-                          No tariff corridors staged yet. Click{" "}
-                          <button
-                            type="button"
-                            onClick={handleAddRow}
-                            className="font-bold text-obsidian-900 underline hover:text-amber-600"
-                          >
-                            + Add Corridor
-                          </button>{" "}
-                          to key in an export corridor.
-                        </td>
-                      </tr>
-                    ) : (
-                      stagedRows.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-3 py-2 font-bold text-slate-900 font-sans">
-                            <input
-                              type="text"
-                              value={row.destination}
-                              onChange={(e) =>
-                                handleCellChange(idx, "destination", e.target.value.toUpperCase())
-                              }
-                              placeholder="IATA"
-                              maxLength={3}
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs font-bold font-mono uppercase focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.min_charge || ""}
-                              onChange={(e) => handleCellChange(idx, "min_charge", e.target.value)}
-                              placeholder="0"
-                              className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.rate_normal || ""}
-                              onChange={(e) => handleCellChange(idx, "rate_normal", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.rate_45 || ""}
-                              onChange={(e) => handleCellChange(idx, "rate_45", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.rate_100 || ""}
-                              onChange={(e) => handleCellChange(idx, "rate_100", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.rate_250 || ""}
-                              onChange={(e) => handleCellChange(idx, "rate_250", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.rate_300 || ""}
-                              onChange={(e) => handleCellChange(idx, "rate_300", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.fsc_per_kg || ""}
-                              onChange={(e) => handleCellChange(idx, "fsc_per_kg", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-amber-200 bg-amber-50/50 px-1.5 py-1 text-xs text-amber-900 focus-ring"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={row.ssc_per_kg || ""}
-                              onChange={(e) => handleCellChange(idx, "ssc_per_kg", e.target.value)}
-                              placeholder="0"
-                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteRow(idx)}
-                              className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                              title="Delete row"
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Review Approval Bar */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setStagedRows(null)}
-                  className="text-xs font-bold text-slate-500 hover:text-red-700 transition-colors cursor-pointer"
-                >
-                  Discard Staging Draft
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handlePublish}
-                    disabled={!stagedRows || stagedRows.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm focus-ring cursor-pointer disabled:opacity-50"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Approve & Publish to Dashboard
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
