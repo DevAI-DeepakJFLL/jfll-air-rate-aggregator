@@ -22,13 +22,6 @@ interface StagedRow {
   ssc_per_kg: number;
 }
 
-const DEFAULT_STAGED_DATA: StagedRow[] = [
-  { destination: "DXB", commodity: "General Cargo", min_charge: 4500, rate_normal: 240, rate_45: 190, rate_100: 160, rate_250: 138, rate_300: 128, fsc_per_kg: 22, ssc_per_kg: 4.0 },
-  { destination: "AUH", commodity: "General Cargo", min_charge: 4500, rate_normal: 235, rate_45: 185, rate_100: 155, rate_250: 135, rate_300: 125, fsc_per_kg: 22, ssc_per_kg: 4.0 },
-  { destination: "ORD", commodity: "General Cargo", min_charge: 18165, rate_normal: 852, rate_45: 762, rate_100: 686, rate_250: 614, rate_300: 590, fsc_per_kg: 45, ssc_per_kg: 5.0 },
-  { destination: "YYZ", commodity: "General Cargo", min_charge: 19563, rate_normal: 924, rate_45: 830, rate_100: 745, rate_250: 669, rate_300: 640, fsc_per_kg: 45, ssc_per_kg: 5.0 },
-];
-
 export default function AdminIngestionPage() {
   const [file, setFile] = useState<File | null>(null);
   const [airline, setAirline] = useState("");
@@ -45,19 +38,45 @@ export default function AdminIngestionPage() {
     setUploading(true);
     setPublished(false);
 
-    // Simulate fast multimodal extraction
+    // Initialize clean staged workbench
     setTimeout(() => {
       setUploading(false);
-      setIsScanned(file.name.toLowerCase().includes("et") || file.name.toLowerCase().includes("asis"));
-      setStagedRows(DEFAULT_STAGED_DATA);
-    }, 1200);
+      setIsScanned(file.name.toLowerCase().includes("scan") || file.name.toLowerCase().includes("img"));
+      setStagedRows([]);
+    }, 800);
+  };
+
+  const handleAddRow = () => {
+    setStagedRows((prev) => [
+      ...(prev || []),
+      {
+        destination: "",
+        commodity: "General Cargo",
+        min_charge: 0,
+        rate_normal: 0,
+        rate_45: 0,
+        rate_100: 0,
+        rate_250: 0,
+        rate_300: 0,
+        fsc_per_kg: 0,
+        ssc_per_kg: 0,
+      },
+    ]);
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setStagedRows((prev) => (prev ? prev.filter((_, i) => i !== index) : null));
   };
 
   const handleCellChange = (index: number, field: keyof StagedRow, value: string | number) => {
     if (!stagedRows) return;
-    const numValue = typeof value === "number" ? value : parseFloat(value) || 0;
     const updated = [...stagedRows];
-    updated[index] = { ...updated[index], [field]: numValue };
+    if (field === "destination" || field === "commodity") {
+      updated[index] = { ...updated[index], [field]: String(value) };
+    } else {
+      const numValue = typeof value === "number" ? value : parseFloat(value) || 0;
+      updated[index] = { ...updated[index], [field]: numValue };
+    }
     setStagedRows(updated);
   };
 
@@ -164,10 +183,8 @@ export default function AdminIngestionPage() {
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs text-amber-900 leading-relaxed">
-              <strong>Surcharge Verification Notice:</strong> Extracted tariffs from{" "}
-              <strong>{file?.name}</strong> indicate <em>"Preferential Net Net INR Rates ++"</em>.
-              Fuel Surcharge is flagged as <strong>₹22.00/kg</strong> and Security as{" "}
-              <strong>₹4.00/kg</strong>. Verify these rates in the grid below before publishing.
+              <strong>Staged Tariff Verification:</strong> Ingested rate circular for{" "}
+              <strong>{airline || file?.name}</strong> is staged for administrative review. Verify base freight weight breaks and surcharges in the workbench below before approving for live quote calculation.
             </div>
           </div>
 
@@ -207,15 +224,24 @@ export default function AdminIngestionPage() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
-                    Extracted Buying Rates ({stagedRows.length} Corridors)
+                    Staged Buying Rates ({stagedRows.length} Corridors)
                   </h3>
                   <p className="text-xs font-semibold text-slate-500">
-                    Click any cell to edit extracted tariffs inline
+                    Enter or verify extracted tariffs inline
                   </p>
                 </div>
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jfll-blue border border-blue-200">
-                  Scope: &lt; 500 kg Smalls
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="inline-flex items-center gap-1 rounded-xl bg-obsidian-900 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    + Add Corridor
+                  </button>
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jfll-blue border border-blue-200">
+                    Scope: &lt; 500 kg Smalls
+                  </span>
+                </div>
               </div>
 
               {/* Data Table */}
@@ -232,80 +258,127 @@ export default function AdminIngestionPage() {
                       <th className="px-3 py-2.5">+300kg</th>
                       <th className="px-3 py-2.5">FSC/kg</th>
                       <th className="px-3 py-2.5">SSC/kg</th>
+                      <th className="px-2 py-2.5 w-8"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
-                    {stagedRows.map((row, idx) => (
-                      <tr key={row.destination} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-3 py-2 font-bold text-slate-900 font-sans">
-                          {row.destination}
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.min_charge}
-                            onChange={(e) => handleCellChange(idx, "min_charge", e.target.value)}
-                            className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.rate_normal}
-                            onChange={(e) => handleCellChange(idx, "rate_normal", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.rate_45}
-                            onChange={(e) => handleCellChange(idx, "rate_45", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.rate_100}
-                            onChange={(e) => handleCellChange(idx, "rate_100", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.rate_250}
-                            onChange={(e) => handleCellChange(idx, "rate_250", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.rate_300}
-                            onChange={(e) => handleCellChange(idx, "rate_300", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.fsc_per_kg}
-                            onChange={(e) => handleCellChange(idx, "fsc_per_kg", e.target.value)}
-                            className="w-14 rounded border border-amber-200 bg-amber-50/50 px-1.5 py-1 text-xs text-amber-900 focus-ring"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={row.ssc_per_kg}
-                            onChange={(e) => handleCellChange(idx, "ssc_per_kg", e.target.value)}
-                            className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
-                          />
+                    {stagedRows.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={10}
+                          className="px-4 py-8 text-center text-xs text-slate-500 font-medium"
+                        >
+                          No tariff corridors staged yet. Click{" "}
+                          <button
+                            type="button"
+                            onClick={handleAddRow}
+                            className="font-bold text-obsidian-900 underline hover:text-amber-600"
+                          >
+                            + Add Corridor
+                          </button>{" "}
+                          to key in an export corridor.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      stagedRows.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-3 py-2 font-bold text-slate-900 font-sans">
+                            <input
+                              type="text"
+                              value={row.destination}
+                              onChange={(e) =>
+                                handleCellChange(idx, "destination", e.target.value.toUpperCase())
+                              }
+                              placeholder="IATA"
+                              maxLength={3}
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs font-bold font-mono uppercase focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.min_charge || ""}
+                              onChange={(e) => handleCellChange(idx, "min_charge", e.target.value)}
+                              placeholder="0"
+                              className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.rate_normal || ""}
+                              onChange={(e) => handleCellChange(idx, "rate_normal", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.rate_45 || ""}
+                              onChange={(e) => handleCellChange(idx, "rate_45", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.rate_100 || ""}
+                              onChange={(e) => handleCellChange(idx, "rate_100", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.rate_250 || ""}
+                              onChange={(e) => handleCellChange(idx, "rate_250", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.rate_300 || ""}
+                              onChange={(e) => handleCellChange(idx, "rate_300", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.fsc_per_kg || ""}
+                              onChange={(e) => handleCellChange(idx, "fsc_per_kg", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-amber-200 bg-amber-50/50 px-1.5 py-1 text-xs text-amber-900 focus-ring"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={row.ssc_per_kg || ""}
+                              onChange={(e) => handleCellChange(idx, "ssc_per_kg", e.target.value)}
+                              placeholder="0"
+                              className="w-14 rounded border border-slate-200 px-1.5 py-1 text-xs focus-ring bg-white"
+                            />
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(idx)}
+                              className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                              title="Delete row"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -324,7 +397,8 @@ export default function AdminIngestionPage() {
                   <button
                     type="button"
                     onClick={handlePublish}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm focus-ring cursor-pointer"
+                    disabled={!stagedRows || stagedRows.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm focus-ring cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle className="h-4 w-4" />
                     Approve & Publish to Dashboard
