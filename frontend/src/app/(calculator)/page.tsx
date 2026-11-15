@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { RateSearchForm } from "../components/rates/RateSearchForm";
-import { RatesTable } from "../components/rates/RatesGrid";
-import { HeavyCargoBanner } from "../components/rates/HeavyCargoBanner";
-import { AirlineCardSkeleton } from "../components/rates/AirlineCardSkeleton";
-import { EmptyRateState } from "../components/rates/EmptyRateState";
-import { RateSearchRequest, RateSearchResponse } from "../types/rate";
-import { fetchLiveRates } from "../lib/api-client";
+import { RateSearchForm } from "@/components/rates/RateSearchForm";
+import { RatesTable } from "@/components/rates/RatesGrid";
+import { HeavyCargoBanner } from "@/components/rates/HeavyCargoBanner";
+import { AirlineCardSkeleton } from "@/components/rates/AirlineCardSkeleton";
+import { EmptyRateState } from "@/components/rates/EmptyRateState";
+import { RateSearchRequest, RateSearchResponse } from "@/types/rate";
+import { fetchLiveRates } from "@/lib/api-client";
 
 export default function RateDiscoveryPage() {
   const [loading, setLoading] = useState(false);
