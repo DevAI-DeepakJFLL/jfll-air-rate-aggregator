@@ -121,7 +121,7 @@ export default function AdminSidebar({
             <span className="font-extrabold tracking-tight text-white text-sm">
               JET FREIGHT ADMIN
             </span>
-            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+            <p className="text-xs font-medium text-slate-400 mt-0.5">
               BOM Mumbai Gateway
             </p>
           </div>
@@ -144,7 +144,7 @@ export default function AdminSidebar({
       <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
         {NAV_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1">
-            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
               {section.title}
             </div>
             <ul className="space-y-1">
@@ -195,12 +195,12 @@ export default function AdminSidebar({
             </div>
             <div className="mt-0.5">
               {isPricingHead ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-400/30">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-400/30">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                   Pricing Team Head
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300 border border-slate-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-300 border border-slate-700">
                   <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
                   Coordinator Preview
                 </span>

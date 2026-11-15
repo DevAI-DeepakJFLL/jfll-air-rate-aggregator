@@ -1,5 +1,6 @@
 import { RateSearchRequest, RateSearchResponse, DestinationItem } from "../types/rate";
 import { ChargeRule, ChargeRuleCreate, ChargeRuleUpdate } from "../types/charge";
+import { CarrierRegistryItem, CarrierRateRow } from "../types/tariff";
 import { RATE_SHEET_DESTINATIONS } from "./rate-destinations";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -143,6 +144,96 @@ export async function resetChargesToDefaults(role?: string): Promise<ChargeRule[
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.detail || `Failed to reset charges to defaults (Status ${res.status})`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Air Cargo Tariff Registry & Circular API Client
+ */
+export async function fetchTariffRegistry(): Promise<CarrierRegistryItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/tariffs/registry`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Failed to fetch tariff registry (Status ${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchCarrierRates(carrierCode: string): Promise<{
+  carrier_code: string;
+  carrier_name: string;
+  prefix: string;
+  parser_id: string;
+  rates: CarrierRateRow[];
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/tariffs/${encodeURIComponent(carrierCode)}/rates`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Failed to fetch rates for ${carrierCode} (Status ${res.status})`);
+  }
+  return res.json();
+}
+
+export async function uploadTariffPdf(
+  carrierCode: string,
+  file: File,
+  role?: string,
+  currency: string = "INR"
+): Promise<{
+  status: string;
+  filename: string;
+  carrier_code: string;
+  registry_status: CarrierRegistryItem;
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("carrier_code", carrierCode);
+  formData.append("currency", currency);
+
+  const res = await fetch(`${API_BASE}/api/v1/tariffs/upload`, {
+    method: "POST",
+    headers: {
+      "X-Admin-Key": ADMIN_API_KEY,
+      "X-Admin-Role": role || "PRICING_HEAD",
+      "X-Admin-User": "deepak.naidu@jfll.com",
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Failed to upload rate sheet (Status ${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function deleteTariffCircular(
+  carrierCode: string,
+  role?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  carrier: CarrierRegistryItem;
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/tariffs/${encodeURIComponent(carrierCode)}`, {
+    method: "DELETE",
+    headers: {
+      "X-Admin-Key": ADMIN_API_KEY,
+      "X-Admin-Role": role || "PRICING_HEAD",
+      "X-Admin-User": "deepak.naidu@jfll.com",
+    },
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Failed to clear circular (Status ${res.status})`);
   }
 
   return res.json();

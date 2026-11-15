@@ -1,38 +1,82 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
 from app.services.pdf_extractor import parse_airline_rate_sheet
-from app.core.security import verify_admin_key
+from app.services.tariff_registry_service import tariff_registry_service
+from app.core.security import verify_admin_key, verify_pricing_head, UserSession, Role
 from app.core.config import settings
 
 router = APIRouter(prefix="/tariffs", tags=["Tariff Ingestion & Staging"])
 
 
+@router.get("/registry")
+async def get_tariff_registry():
+    """
+    Returns the Known Carrier Registry ex-BOM with active circular metadata,
+    corridor counts, validity windows, and parser statuses.
+    """
+    return tariff_registry_service.get_registry()
+
+
+@router.get("/{carrier_code}/rates")
+async def get_carrier_rates(carrier_code: str):
+    """
+    Retrieve all active or extracted corridor rates for a specific carrier.
+    """
+    code = carrier_code.strip().upper()
+    info = tariff_registry_service.get_carrier_info(code)
+    if not info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Carrier '{code}' not found in known registry.",
+        )
+    rates = tariff_registry_service.get_carrier_rates(code)
+    return {
+        "carrier_code": code,
+        "carrier_name": info["carrier_name"],
+        "prefix": info["prefix"],
+        "parser_id": info["parser_id"],
+        "active_circular": info["active_circular"],
+        "total_corridors": len(rates),
+        "rates": rates,
+    }
+
+
 @router.post("/upload")
 async def upload_rate_sheet(
     file: UploadFile = File(...),
-    airline_name: str = Form(...),
+    carrier_code: Optional[str] = Form(None),
+    airline_name: Optional[str] = Form(None),
     currency: str = Form("INR"),
-    _authorized: bool = Depends(verify_admin_key)
+    _authorized: bool = Depends(verify_admin_key),
 ):
     """
-    Ingest new airline rate sheet PDF into staging.
+    Ingest new airline rate sheet PDF directly bound to carrier code.
     Enforces RBAC (X-Admin-Key), MIME validation, magic byte verification, and size caps.
     """
+    # Resolve carrier code from either carrier_code or airline_name
+    resolved_code = (carrier_code or airline_name or "").strip().upper()
+    if not resolved_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Carrier code or airline name is required for ingestion.",
+        )
+
     # 1. Sanitize filename and verify extension
     safe_filename = Path(file.filename or "upload.pdf").name
     if not safe_filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported format: Only authentic .pdf files are accepted."
+            detail="Unsupported format: Only authentic .pdf files are accepted.",
         )
 
     # 2. Check Content-Type header if present
     if file.content_type and "pdf" not in file.content_type.lower():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid content-type header. Expected application/pdf."
+            detail="Invalid content-type header. Expected application/pdf.",
         )
 
     tmp_path = None
@@ -48,23 +92,35 @@ async def upload_rate_sheet(
                 if total_bytes > settings.MAX_UPLOAD_SIZE_BYTES:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"Uploaded file exceeds maximum limit of {settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB."
+                        detail=f"Uploaded file exceeds maximum limit of {settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB.",
                     )
                 tmp.write(chunk)
 
         # 4. Safe PDF parse
         result = await parse_airline_rate_sheet(
             pdf_path=tmp_path,
-            carrier_hint=airline_name.strip(),
-            currency=currency.strip().upper()
+            carrier_hint=resolved_code,
+            currency=currency.strip().upper(),
         )
         result["filename"] = safe_filename
+        result["carrier_code"] = resolved_code
+
+        # 5. Register circular in registry service
+        extracted = result.get("records", [])
+        carrier_info = tariff_registry_service.register_circular_upload(
+            carrier_code=resolved_code,
+            filename=safe_filename,
+            extracted_records=extracted,
+            currency=currency.strip().upper(),
+        )
+        result["registry_status"] = carrier_info
+
         return result
 
     except ValueError as val_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(val_err)
+            detail=str(val_err),
         )
     finally:
         # Guarantee removal of temporary file
@@ -73,3 +129,26 @@ async def upload_rate_sheet(
                 os.remove(tmp_path)
             except OSError:
                 pass
+
+
+@router.delete("/{carrier_code}")
+async def delete_carrier_circular(
+    carrier_code: str,
+    _pricing_head: UserSession = Depends(verify_pricing_head),
+):
+    """
+    Deactivate and clear an active circular for a carrier.
+    Strictly restricted to PRICING_HEAD role.
+    """
+    code = carrier_code.strip().upper()
+    cleared = tariff_registry_service.clear_carrier_circular(code)
+    if not cleared:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Carrier '{code}' not found in known registry.",
+        )
+    return {
+        "success": True,
+        "message": f"Active circular for {cleared['carrier_name']} ({code}) cleared successfully.",
+        "carrier": cleared,
+    }
