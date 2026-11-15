@@ -34,7 +34,6 @@ export default function RateDiscoveryPage() {
     <div className="space-y-6">
       {/* Search Input Section */}
       <RateSearchForm
-        key={`${currentRoute.origin}-${currentRoute.destination}`}
         initialOrigin={currentRoute.origin}
         initialDestination={currentRoute.destination}
         onSearch={handleSearch}
