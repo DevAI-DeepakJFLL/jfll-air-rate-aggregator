@@ -10,7 +10,7 @@ import {
   Receipt,
   Network,
   ShieldCheck,
-  Plane,
+  X,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 
@@ -80,7 +80,19 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export default function AdminSidebar() {
+export interface AdminSidebarProps {
+  isMobileDrawer?: boolean;
+  onClose?: () => void;
+  onNavigate?: () => void;
+  className?: string;
+}
+
+export default function AdminSidebar({
+  isMobileDrawer = false,
+  onClose,
+  onNavigate,
+  className = "",
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const { isPricingHead } = useAdminRole();
 
@@ -92,10 +104,16 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-64 bg-obsidian-950 border-r border-obsidian-800 text-slate-300 min-h-screen flex flex-col shrink-0 sticky top-0 h-screen select-none">
+    <aside
+      className={
+        isMobileDrawer
+          ? `w-full h-full flex flex-col select-none bg-obsidian-950 text-slate-300 ${className}`
+          : `hidden lg:flex w-64 bg-obsidian-950 border-r border-obsidian-800 text-slate-300 min-h-screen flex-col shrink-0 sticky top-0 h-screen select-none ${className}`
+      }
+    >
       {/* Header / Brand Identity */}
-      <div className="p-4 border-b border-obsidian-800/80 bg-obsidian-900/40">
-        <div className="flex items-center gap-2.5">
+      <div className="p-4 border-b border-obsidian-800/80 bg-obsidian-900/40 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400 text-obsidian-950 shadow-sm shrink-0">
             <Compass className="h-5 w-5" />
           </div>
@@ -119,6 +137,18 @@ export default function AdminSidebar() {
             </div>
           </div>
         </div>
+
+        {/* Mobile slide-over close button */}
+        {isMobileDrawer && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-obsidian-800 transition-colors shrink-0"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Sections */}
@@ -136,6 +166,11 @@ export default function AdminSidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={() => {
+                        if (onNavigate) {
+                          onNavigate();
+                        }
+                      }}
                       className={`group flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all ${
                         active
                           ? "bg-obsidian-900 text-amber-400 border-l-2 border-amber-400 font-bold shadow-2xs"
