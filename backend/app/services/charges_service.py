@@ -427,7 +427,7 @@ class ChargesService:
             self._write_charges(charges)
             return updated_charge
 
-    def delete_charge(self, charge_id: str) -> bool:
+    def delete_charge(self, charge_id: str, user: str = "system") -> bool:
         """
         Deletes custom charges permanently, or deactivates baseline statutory charges.
         Returns True if found and modified/deleted, False if charge_id not found.
@@ -453,7 +453,7 @@ class ChargesService:
                 current_dict = target.model_dump()
                 current_dict["is_active"] = False
                 current_dict["updated_at"] = now_iso
-                current_dict["updated_by"] = "system"
+                current_dict["updated_by"] = user
                 charges[target_idx] = ChargeRule(**current_dict)
 
             self._write_charges(charges)
@@ -502,8 +502,8 @@ def update_charge(
     return charges_service.update_charge(charge_id, charge_in, user)
 
 
-def delete_charge(charge_id: str) -> bool:
-    return charges_service.delete_charge(charge_id)
+def delete_charge(charge_id: str, user: str = "system") -> bool:
+    return charges_service.delete_charge(charge_id, user)
 
 
 def reset_to_defaults() -> List[ChargeRule]:
