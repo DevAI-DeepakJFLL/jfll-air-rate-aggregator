@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, ExternalLink, Plane, Menu } from "lucide-react";
+import { ChevronRight, ExternalLink, Menu } from "lucide-react";
 import RoleSwitcher from "./RoleSwitcher";
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -60,11 +60,6 @@ export default function AdminTopBar({ onOpenMobileNav }: AdminTopBarProps) {
             {currentLabel}
           </span>
         </nav>
-
-        <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 shrink-0">
-          <Plane className="h-3 w-3 text-jfll-blue" />
-          <span>BOM Terminal 2 Hub (CSMIA)</span>
-        </div>
       </div>
 
       {/* Right: Role Simulator Toggle & Live Calculator External Link */}

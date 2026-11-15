@@ -334,20 +334,15 @@ export default function ChargesConfigTable({
                         {charge.display_order}
                       </td>
 
-                      {/* Code + Statutory Pill */}
+                      {/* Code */}
                       <td className="py-2.5 px-3.5">
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="font-mono font-extrabold text-slate-900 text-xs bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-slate-800 text-xs">
                             {charge.code}
                           </span>
-                          {charge.is_statutory ? (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                              <Shield className="h-2.5 w-2.5 text-amber-600" />
-                              Statutory
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                              Gateway
+                          {charge.is_statutory && (
+                            <span title="Statutory Charge">
+                              <Shield className="h-3 w-3 text-amber-600 shrink-0" />
                             </span>
                           )}
                         </div>
@@ -368,14 +363,8 @@ export default function ChargesConfigTable({
                       </td>
 
                       {/* Category */}
-                      <td className="py-2.5 px-3.5">
-                        <span
-                          className={`inline-block border px-2 py-0.5 rounded text-[11px] font-bold ${getCategoryBadge(
-                            charge.category
-                          )}`}
-                        >
-                          {charge.category}
-                        </span>
+                      <td className="py-2.5 px-3.5 text-xs font-semibold text-slate-600">
+                        {charge.category}
                       </td>
 
                       {/* Formula & Rate */}
@@ -386,39 +375,30 @@ export default function ChargesConfigTable({
 
                       {/* Status Toggle Switch */}
                       <td className="py-2.5 px-3.5 text-center">
-                        <div className="flex flex-col items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={charge.is_active}
-                            aria-label={`Toggle active status for charge ${charge.code}`}
-                            disabled={!isPricingHead || isToggling}
-                            onClick={() => handleToggle(charge)}
-                            title={
-                              isPricingHead
-                                ? charge.is_active
-                                  ? "Click to deactivate charge"
-                                  : "Click to activate charge"
-                                : "Read-only: Pricing Head required to toggle"
-                            }
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              charge.is_active ? "bg-emerald-600" : "bg-slate-300"
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                charge.is_active ? "translate-x-4" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={charge.is_active}
+                          aria-label={`Toggle active status for charge ${charge.code}`}
+                          disabled={!isPricingHead || isToggling}
+                          onClick={() => handleToggle(charge)}
+                          title={
+                            isPricingHead
+                              ? charge.is_active
+                                ? "Click to deactivate charge"
+                                : "Click to activate charge"
+                              : "Read-only: Pricing Head required to toggle"
+                          }
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            charge.is_active ? "bg-emerald-600" : "bg-slate-300"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
                           <span
-                            className={`text-[10px] font-bold ${
-                              charge.is_active ? "text-emerald-700" : "text-slate-500"
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              charge.is_active ? "translate-x-4" : "translate-x-0"
                             }`}
-                          >
-                            {isToggling ? "Updating..." : charge.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
+                          />
+                        </button>
                       </td>
 
                       {/* Actions */}

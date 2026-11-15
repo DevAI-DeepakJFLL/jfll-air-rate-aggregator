@@ -310,9 +310,6 @@ export default function AdminTariffsPage() {
                     <Plus className="h-3 w-3" />
                     <span>Add Corridor</span>
                   </button>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-jfll-blue border border-blue-200">
-                    &lt; 500 kg Smalls
-                  </span>
                 </div>
               </div>
 

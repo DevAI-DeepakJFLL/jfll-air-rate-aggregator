@@ -78,15 +78,9 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
               size="md"
             />
             <div>
-              <div className="flex items-center gap-2">
-                <h3 id="breakdown-modal-title" className="text-lg font-bold text-slate-900">
-                  {quote.carrier_name}
-                </h3>
-                <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  API Verified
-                </span>
-              </div>
+              <h3 id="breakdown-modal-title" className="text-lg font-bold text-slate-900">
+                {quote.carrier_name}
+              </h3>
               <p className="text-xs font-semibold text-slate-600 mt-0.5">
                 {quote.origin} → {quote.destination} &bull; Flight {quote.flight_number} &bull; AWB {quote.airline_prefix} &bull; CW:{" "}
                 <span className="font-mono tabular-nums font-bold text-slate-800">
@@ -154,17 +148,7 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
             {gatewayCharges.length > 0 ? (
               gatewayCharges.map((charge, idx) => (
                 <div key={`${charge.code}-${idx}`} className="flex justify-between py-1 items-center">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-700 font-medium">{charge.name}</span>
-                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 font-mono">
-                      {charge.code}
-                    </span>
-                    {charge.is_statutory && (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-700 border border-amber-200">
-                        Statutory
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-slate-700 font-medium">{charge.name}</span>
                   <span className="font-mono tabular-nums font-bold text-slate-900">
                     {formatINR(charge.amount)}
                   </span>
@@ -223,17 +207,7 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
             {taxCharges.length > 0 ? (
               taxCharges.map((charge, idx) => (
                 <div key={`${charge.code}-${idx}`} className="flex justify-between py-1 text-xs font-semibold text-slate-500 items-center">
-                  <div className="flex items-center gap-1.5">
-                    <span>{charge.name}</span>
-                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 font-mono">
-                      {charge.code}
-                    </span>
-                    {charge.is_statutory && (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-700 border border-amber-200">
-                        Statutory
-                      </span>
-                    )}
-                  </div>
+                  <span>{charge.name}</span>
                   <span className="font-mono tabular-nums font-bold text-slate-700">
                     {formatINR(charge.amount)}
                   </span>

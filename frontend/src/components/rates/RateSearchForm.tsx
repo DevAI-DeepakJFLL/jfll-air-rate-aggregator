@@ -127,7 +127,7 @@ export function RateSearchForm({
       className="rounded-2xl bg-white p-6 shadow-card border border-slate-200/90 font-sans"
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-2">
+      <div className="border-b border-slate-100 pb-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-obsidian-900 text-amber-400 shadow-2xs">
             <Plane className="h-4 w-4" />
@@ -136,60 +136,43 @@ export function RateSearchForm({
             <h2 className="text-base font-extrabold text-obsidian-900 tracking-tight">
               Air Cargo Tariff Search
             </h2>
-            <p className="text-xs font-semibold text-slate-500">
-              Live buying tariffs &bull; Mumbai Chhatrapati Shivaji Hub (BOM)
+            <p className="text-xs font-medium text-slate-500">
+              Live spot tariffs &bull; BOM Mumbai Hub (&lt; 500kg Smalls)
             </p>
           </div>
         </div>
-        <span className="inline-flex items-center self-start sm:self-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 border border-amber-200">
-          Scope: &lt; 500 kg Smalls
-        </span>
       </div>
 
       {/* Main Form Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Origin Gateway (Fixed strictly at BOM) */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-              Origin Gateway (Fixed)
-            </label>
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-              <Lock className="h-2.5 w-2.5" />
-              Fixed Hub
-            </span>
-          </div>
-          <div className="flex items-center justify-between w-full h-11 rounded-xl border border-slate-200 bg-slate-100/80 px-3.5 py-2 select-none shadow-2xs">
+          <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1">
+            Origin Airport
+          </label>
+          <div className="flex items-center justify-between w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 select-none">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-black text-sm bg-amber-400/20 text-amber-950 px-2 py-0.5 rounded border border-amber-300/60">
+              <span className="font-mono font-black text-xs text-obsidian-900">
                 BOM
               </span>
               <span className="text-xs font-bold text-slate-700 truncate">
-                Mumbai Hub (CSMIA)
+                Mumbai (CSMIA)
               </span>
             </div>
-            <span className="text-[10px] font-medium text-slate-600 hidden xl:inline">
-              Terminal 2 Cargo
+            <span className="text-[10px] text-slate-500 font-medium">
+              Terminal 2
             </span>
-          </div>
-          <div className="text-[10px] font-medium text-slate-600 mt-1">
-            Chhatrapati Shivaji Maharaj Intl Airport
           </div>
         </div>
 
         {/* Destination Dropdown Driven by Rate Sheets (Hybrid Searchable / Type-Ahead) */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label
-              htmlFor="dest-select"
-              className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider"
-            >
-              Destination Airport
-            </label>
-            <span className="text-[10px] font-bold text-aero-teal">
-              {RATE_SHEET_DESTINATIONS.length} Rate Sheet Ports
-            </span>
-          </div>
+          <label
+            htmlFor="dest-select"
+            className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1"
+          >
+            Destination Airport
+          </label>
           <SearchableDestinationSelect
             id="dest-select"
             value={destination}
@@ -437,55 +420,34 @@ export function RateSearchForm({
           </div>
         )}
 
-        {/* Real-time IATA Weight Derivation Card (TACT Rule 1.3.2) */}
+        {/* Real-time IATA Weight Derivation Strip (TACT Rule 1.3.2) */}
         {useDims && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-extrabold text-obsidian-900 flex items-center gap-1.5">
-                <Scale className="h-4 w-4 text-aero-teal" />
-                IATA TACT Weight Derivation
-              </span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                  derivation.isVolumetricBilled
-                    ? "bg-amber-100 text-amber-900 border border-amber-300"
-                    : "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                }`}
-              >
-                {derivation.isVolumetricBilled
-                  ? "Billed on Volumetric Weight"
-                  : "Billed on Gross Scale Weight"}
-              </span>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap text-slate-600 font-medium">
+              <div className="flex items-center gap-1.5 font-bold text-obsidian-900">
+                <Scale className="h-4 w-4 text-aero-teal shrink-0" />
+                <span>IATA TACT 1.3.2</span>
+              </div>
+              <div>
+                Scale: <strong className="font-mono text-slate-800">{wtNum.toFixed(1)} kg</strong>
+              </div>
+              <span className="text-slate-300">&bull;</span>
+              <div>
+                Volume: <strong className="font-mono text-slate-800">{computedCbm.toFixed(3)} m³</strong>
+              </div>
+              <span className="text-slate-300">&bull;</span>
+              <div>
+                Volumetric: <strong className="font-mono text-slate-800">{volWeight.toFixed(1)} kg</strong>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
-              <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-600 uppercase">Gross Scale Weight</div>
-                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
-                  {wtNum.toFixed(1)} kg
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-600 uppercase">Total Volume (CBM)</div>
-                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
-                  {computedCbm.toFixed(3)} m³
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-600 uppercase">Volumetric Weight</div>
-                <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
-                  {volWeight.toFixed(1)} kg
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-obsidian-900 p-2 text-white shadow-2xs">
-                <div className="text-[10px] font-bold text-amber-300 uppercase">Billed Chargeable Wt</div>
-                <div className="font-mono font-black text-amber-300 text-sm mt-0.5">
-                  {derivation.chargeableWeight.toFixed(1)} kg
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 font-medium">
+                {derivation.isVolumetricBilled ? "Billed on Volume:" : "Billed on Scale Wt:"}
+              </span>
+              <span className="font-mono font-black text-sm text-obsidian-900 bg-amber-300/30 border border-amber-300/60 px-2 py-0.5 rounded-lg">
+                {derivation.chargeableWeight.toFixed(1)} kg CW
+              </span>
             </div>
           </div>
         )}

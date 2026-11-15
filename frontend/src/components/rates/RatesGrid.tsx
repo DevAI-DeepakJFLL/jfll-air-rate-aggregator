@@ -329,20 +329,9 @@ export function RatesGrid({ rates }: RatesGridProps) {
       {/* 2. Header: Table Filter Controls & Quick Stats Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 pt-1">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-extrabold text-obsidian-900 tracking-tight">
-              Airline Comparison Table
-            </h3>
-            <span className="rounded-full bg-slate-200/80 px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-700">
-              {displayedRates.length} tariffs
-            </span>
-            {stats && (
-              <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200">
-                <Zap className="h-3 w-3 text-emerald-600" />
-                Lowest Buy: {formatINR(stats.minBuy)} ({stats.bestCarrier})
-              </span>
-            )}
-          </div>
+          <h3 className="text-base font-extrabold text-obsidian-900 tracking-tight">
+            Airline Comparison Table
+          </h3>
           <p className="text-xs font-semibold text-slate-500 mt-0.5">
             Compare pure net buy vs client sell price side-by-side across all active BOM circulars
           </p>
@@ -730,12 +719,9 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                 <span className="font-extrabold text-obsidian-900 text-xs">
                                   {quote.carrier_name} ({quote.carrier_code}) &bull; Flight {quote.flight_number}
                                 </span>
-                                <span className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700">
-                                  Rate Basis: {quote.rate_basis}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                  Live API Feed
+                                <span className="text-slate-300 text-xs">&bull;</span>
+                                <span className="text-xs font-medium text-slate-500">
+                                  AWB {quote.airline_prefix} &bull; {quote.rate_basis}
                                 </span>
                               </div>
 

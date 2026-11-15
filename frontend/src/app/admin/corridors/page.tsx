@@ -122,12 +122,9 @@ export default function AdminCorridorsPage() {
             BOM
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div>
               <span className="text-sm font-bold text-slate-900">
-                Primary Origin: Mumbai (BOM / VABB)
-              </span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                Terminal 2 Air Cargo Complex
+                Primary Origin: Mumbai (BOM / VABB) &bull; Terminal 2 Cargo Complex
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">

@@ -58,9 +58,6 @@ export function MarginControllerBar({
               <h4 className="text-sm font-black tracking-tight text-white uppercase">
                 Coordinator Margin &amp; Client Sell Price
               </h4>
-              <span className="rounded-md bg-amber-400/20 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300 border border-amber-400/30">
-                Mumbai Hub Smalls Desk
-              </span>
               {globalMarginNum > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 font-mono text-[10px] font-extrabold text-emerald-300 border border-emerald-500/30">
                   Active: +
