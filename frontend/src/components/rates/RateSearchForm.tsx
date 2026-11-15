@@ -168,11 +168,11 @@ export function RateSearchForm({
                 Mumbai Hub (CSMIA)
               </span>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 hidden xl:inline">
+            <span className="text-[10px] font-medium text-slate-600 hidden xl:inline">
               Terminal 2 Cargo
             </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+          <div className="text-[10px] font-medium text-slate-600 mt-1">
             Chhatrapati Shivaji Maharaj Intl Airport
           </div>
         </div>
@@ -217,7 +217,7 @@ export function RateSearchForm({
             placeholder="e.g. 120"
             required
           />
-          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+          <div className="text-[10px] font-medium text-slate-600 mt-1">
             Physical scale weight measured at warehouse
           </div>
         </div>
@@ -243,7 +243,7 @@ export function RateSearchForm({
             <option value="Express Courier">Express Courier (XPS / COU)</option>
             <option value="Valuable Cargo">Valuable Cargo (VAL)</option>
           </select>
-          <div className="text-[10px] font-semibold text-slate-400 mt-1">
+          <div className="text-[10px] font-medium text-slate-600 mt-1">
             Airline handling &amp; surcharges vary by category
           </div>
         </div>
@@ -460,21 +460,21 @@ export function RateSearchForm({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
               <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-400 uppercase">Gross Scale Weight</div>
+                <div className="text-[10px] font-bold text-slate-600 uppercase">Gross Scale Weight</div>
                 <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
                   {wtNum.toFixed(1)} kg
                 </div>
               </div>
 
               <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-400 uppercase">Total Volume (CBM)</div>
+                <div className="text-[10px] font-bold text-slate-600 uppercase">Total Volume (CBM)</div>
                 <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
                   {computedCbm.toFixed(3)} m³
                 </div>
               </div>
 
               <div className="rounded-lg bg-white p-2 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-400 uppercase">Volumetric Weight</div>
+                <div className="text-[10px] font-bold text-slate-600 uppercase">Volumetric Weight</div>
                 <div className="font-mono font-black text-slate-800 text-sm mt-0.5">
                   {volWeight.toFixed(1)} kg
                 </div>

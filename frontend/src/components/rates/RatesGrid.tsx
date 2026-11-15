@@ -555,7 +555,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                         <div>
                           <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-obsidian-900">
                             <span>{quote.departure_time.split(" ")[0]}</span>
-                            <span className="text-slate-400">→</span>
+                            <span className="text-slate-500">→</span>
                             <span>{quote.arrival_time.split(" ")[0]}</span>
                           </div>
                           <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 mt-0.5">
@@ -572,7 +572,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                         <div className="font-mono text-xs font-bold text-amber-950">
                           {quote.cargo_cutoff}
                         </div>
-                        <div className="text-[10px] font-semibold text-slate-400">
+                        <div className="text-[10px] font-medium text-slate-600">
                           BOM Hub Acceptance
                         </div>
                       </td>
@@ -629,10 +629,10 @@ export function RatesGrid({ rates }: RatesGridProps) {
                           </div>
                         ) : (
                           <div>
-                            <div className="font-mono tabular-nums text-xs font-bold text-slate-400">
+                            <div className="font-mono tabular-nums text-xs font-bold text-slate-600">
                               Zero Margin
                             </div>
-                            <div className="font-mono tabular-nums text-[11px] font-semibold text-slate-400 mt-0.5">
+                            <div className="font-mono tabular-nums text-[11px] font-medium text-slate-600 mt-0.5">
                               {formatINR(quote.breakdown.total_landed_buy)} (Buy)
                             </div>
                             <button
@@ -765,7 +765,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   <button
                                     type="button"
                                     onClick={() => setActiveOverrideRowId(null)}
-                                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                    className="text-slate-600 hover:text-slate-800 text-xs font-bold"
                                   >
                                     Close
                                   </button>
@@ -809,7 +809,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
 
                             {/* Itemized Surcharges Grid */}
                             <div>
-                              <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">
                                 Landed Buying Cost Line Items (BOM Terminal)
                               </div>
                               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
@@ -818,7 +818,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.base_freight_total)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
                                     ₹{quote.breakdown.base_rate_per_kg}/kg
                                   </div>
                                 </div>
@@ -827,7 +827,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.fsc_total)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
                                     ₹{quote.breakdown.fsc_rate_per_kg}/kg
                                   </div>
                                 </div>
@@ -836,7 +836,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.ssc_total)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
                                     ₹{quote.breakdown.ssc_rate_per_kg}/kg
                                   </div>
                                 </div>
@@ -845,21 +845,21 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.origin_thc_total)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">Terminal</div>
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">Terminal</div>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
                                   <div className="text-[10px] font-semibold text-slate-500">X-Ray & Handling</div>
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.xray_total + quote.breakdown.misc_handling_total)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">Screening</div>
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">Screening</div>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
                                   <div className="text-[10px] font-semibold text-slate-500">e-AWB & Tax</div>
                                   <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
                                     {formatINR(quote.breakdown.awb_fee + quote.breakdown.gst_tax)}
                                   </div>
-                                  <div className="text-[9px] text-slate-400 font-mono">AWB + 5% GST</div>
+                                  <div className="text-[9px] text-slate-600 font-medium font-mono">AWB + 5% GST</div>
                                 </div>
                                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-2 text-center">
                                   <div className="text-[10px] font-bold text-emerald-800">Net Buy Total</div>

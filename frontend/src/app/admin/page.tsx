@@ -48,7 +48,7 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-400 font-medium">
             Use the toggle in the top bar to simulate alternate RBAC tiers.
           </div>
         </div>
@@ -180,15 +180,15 @@ export default function AdminDashboardPage() {
             href="/admin/security"
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400/50 hover:shadow-card transition-all flex items-start gap-4"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-jfll-blue group-hover:bg-jfll-blue group-hover:text-white transition-colors shrink-0">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-jfll-blue transition-colors">
                   Security &amp; RBAC Governance
                 </h3>
-                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-jfll-blue group-hover:translate-x-0.5 transition-all" />
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 Inspect role privileges, review security authorization headers, and audit mutation permissions across the operations team.

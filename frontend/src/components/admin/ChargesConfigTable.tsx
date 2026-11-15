@@ -101,7 +101,7 @@ export default function ChargesConfigTable({
       case "TERMINAL":
         return "bg-sky-50 text-sky-700 border-sky-200";
       case "COMMODITY":
-        return "bg-purple-50 text-purple-700 border-purple-200";
+        return "bg-teal-50 text-teal-800 border-teal-200";
       case "DOCUMENTATION":
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
       case "CUSTOMS":
@@ -155,7 +155,7 @@ export default function ChargesConfigTable({
           </div>
         );
       default:
-        return <span className="text-slate-400 font-mono text-xs">—</span>;
+        return <span className="text-slate-500 font-mono text-xs">—</span>;
     }
   };
 
@@ -188,7 +188,7 @@ export default function ChargesConfigTable({
       items.push(
         <span
           key="commodity"
-          className="inline-block bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[10px] font-bold"
+          className="inline-block bg-teal-50 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded text-[10px] font-bold"
         >
           {kws.join(", ")}
         </span>
@@ -212,7 +212,7 @@ export default function ChargesConfigTable({
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
           <input
             type="text"
             value={searchQuery}
@@ -330,7 +330,7 @@ export default function ChargesConfigTable({
                       }`}
                     >
                       {/* Order */}
-                      <td className="py-2.5 px-3.5 text-center font-mono text-slate-400 text-[11px]">
+                      <td className="py-2.5 px-3.5 text-center font-mono text-slate-500 font-medium text-[11px]">
                         {charge.display_order}
                       </td>
 
@@ -413,7 +413,7 @@ export default function ChargesConfigTable({
                           </button>
                           <span
                             className={`text-[10px] font-bold ${
-                              charge.is_active ? "text-emerald-700" : "text-slate-400"
+                              charge.is_active ? "text-emerald-700" : "text-slate-500"
                             }`}
                           >
                             {isToggling ? "Updating..." : charge.is_active ? "Active" : "Inactive"}
@@ -438,7 +438,7 @@ export default function ChargesConfigTable({
                               type="button"
                               onClick={() => setChargeToDelete(charge)}
                               title="Delete / Deactivate Charge"
-                              className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              className="rounded-lg p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -467,7 +467,7 @@ export default function ChargesConfigTable({
           <span>
             Showing <strong>{filteredCharges.length}</strong> of <strong>{charges.length}</strong> charges
           </span>
-          <span className="font-mono text-slate-400">Hub: BOM / MIAL T2</span>
+          <span className="font-mono text-slate-600 font-medium">Hub: BOM / MIAL T2</span>
         </div>
       </div>
 

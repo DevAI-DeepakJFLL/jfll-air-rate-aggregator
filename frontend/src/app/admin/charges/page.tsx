@@ -212,7 +212,7 @@ export default function AdminChargesPage() {
             </button>
           ) : (
             <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500">
-              <ShieldAlert className="h-3.5 w-3.5 text-slate-400" />
+              <ShieldAlert className="h-3.5 w-3.5 text-slate-500" />
               <span>Read-Only Preview</span>
             </div>
           )}
@@ -310,9 +310,11 @@ export default function AdminChargesPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
             <span>Custom Ancillaries</span>
-            <Layers className="h-4 w-4 text-purple-600" />
+            <span className="inline-flex items-center justify-center rounded-lg bg-teal-50 border border-teal-200 p-1">
+              <Layers className="h-4 w-4 text-aero-teal" />
+            </span>
           </div>
-          <div className="text-2xl font-black text-purple-700 font-mono">
+          <div className="text-2xl font-black text-teal-700 font-mono">
             {isLoading ? "—" : customAncillaries}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">

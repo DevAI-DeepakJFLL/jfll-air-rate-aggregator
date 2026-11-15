@@ -155,7 +155,7 @@ export default function AdminSidebar({
       <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
         {NAV_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1">
-            <div className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {section.title}
             </div>
             <ul className="space-y-1">
