@@ -8,15 +8,11 @@ import {
   AlertCircle,
   Scale,
   Lock,
-  Globe,
   Building2,
 } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
-import {
-  RATE_SHEET_DESTINATIONS,
-  POPULAR_DESTINATIONS,
-  getDestinationsByRegion,
-} from "../../lib/rate-destinations";
+import { RATE_SHEET_DESTINATIONS } from "../../lib/rate-destinations";
+import { SearchableDestinationSelect } from "./SearchableDestinationSelect";
 import {
   DimensionUnit,
   DimensionMode,
@@ -61,16 +57,6 @@ export function RateSearchForm({
   const hNum = parseFloat(height) || 0;
   const pcsNum = parseInt(pieces, 10) || 1;
   const cbmNum = parseFloat(cbmVolume) || 0;
-
-  // Group destinations by region for clean optgroup presentation
-  const destinationsByRegion = useMemo(() => {
-    return getDestinationsByRegion();
-  }, []);
-
-  // Currently selected destination details
-  const selectedDestInfo = useMemo(() => {
-    return RATE_SHEET_DESTINATIONS.find((d) => d.code === destination);
-  }, [destination]);
 
   // Compute Volumetric Weight and CBM volume
   const { volWeight, computedCbm } = useMemo(() => {
@@ -191,7 +177,7 @@ export function RateSearchForm({
           </div>
         </div>
 
-        {/* Destination Dropdown Driven by Rate Sheets */}
+        {/* Destination Dropdown Driven by Rate Sheets (Hybrid Searchable / Type-Ahead) */}
         <div>
           <div className="flex items-center justify-between mb-1">
             <label
@@ -204,57 +190,12 @@ export function RateSearchForm({
               {RATE_SHEET_DESTINATIONS.length} Rate Sheet Ports
             </span>
           </div>
-          <select
+          <SearchableDestinationSelect
             id="dest-select"
             value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-obsidian-900 focus-ring cursor-pointer"
-            required
-          >
-            {Object.entries(destinationsByRegion).map(([region, dests]) => (
-              <optgroup key={region} label={`── ${region.toUpperCase()} (${dests.length}) ──`}>
-                {dests.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code} — {item.city}, {item.country}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-
-          {/* Popular Rate Sheet Destination Shortcut Pills */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            <span className="text-[10px] font-semibold text-slate-400 mr-0.5">Top:</span>
-            {POPULAR_DESTINATIONS.map((code) => {
-              const d = RATE_SHEET_DESTINATIONS.find((item) => item.code === code);
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setDestination(code)}
-                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition-colors cursor-pointer border ${
-                    destination === code
-                      ? "bg-obsidian-900 text-amber-300 border-obsidian-900"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200"
-                  }`}
-                  title={`${d?.city}, ${d?.country}`}
-                >
-                  {code}
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedDestInfo && (
-            <div className="text-[10px] font-semibold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
-              <Globe className="h-3 w-3 text-slate-400 shrink-0" />
-              <span>
-                {selectedDestInfo.city}, {selectedDestInfo.country}
-              </span>
-              <span className="text-slate-300">&bull;</span>
-              <span className="text-aero-teal font-bold">{selectedDestInfo.region}</span>
-            </div>
-          )}
+            onChange={setDestination}
+            destinations={RATE_SHEET_DESTINATIONS}
+          />
         </div>
 
         {/* Actual Gross Weight */}
