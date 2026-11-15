@@ -5,6 +5,27 @@ import { Calculator, RotateCcw } from "lucide-react";
 
 export type MarginMode = "per_kg" | "percent" | "flat";
 
+const PRESET_CHIPS: Record<MarginMode, { val: number; label: string }[]> = {
+  per_kg: [
+    { val: 5, label: "+₹5/kg" },
+    { val: 10, label: "+₹10/kg" },
+    { val: 15, label: "+₹15/kg" },
+    { val: 20, label: "+₹20/kg" },
+  ],
+  percent: [
+    { val: 3, label: "+3%" },
+    { val: 5, label: "+5%" },
+    { val: 8, label: "+8%" },
+    { val: 10, label: "+10%" },
+  ],
+  flat: [
+    { val: 500, label: "+₹500" },
+    { val: 1000, label: "+₹1k" },
+    { val: 2000, label: "+₹2k" },
+    { val: 5000, label: "+₹5k" },
+  ],
+};
+
 export interface MarginControllerBarProps {
   marginMode: MarginMode;
   onMarginModeChange: (mode: MarginMode) => void;
@@ -51,7 +72,7 @@ export function MarginControllerBar({
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-300 mt-0.5">
               Dynamic customer selling price calculator. Pure airline buy rates remain 100% untouched as your procurement baseline.
             </p>
           </div>
@@ -132,6 +153,29 @@ export function MarginControllerBar({
             <span className="absolute right-2.5 font-mono text-[11px] font-bold text-slate-400 pointer-events-none">
               {marginMode === "per_kg" ? "/kg" : marginMode === "percent" ? "%" : ""}
             </span>
+          </div>
+
+          {/* 1-Click Preset Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Rapid margin presets">
+            {PRESET_CHIPS[marginMode].map((preset) => {
+              const isActive = parseFloat(marginInputStr) === preset.val;
+              return (
+                <button
+                  key={preset.val}
+                  type="button"
+                  onClick={() => onMarginInputChange(String(preset.val))}
+                  aria-label={`Set margin to ${preset.label}`}
+                  aria-pressed={isActive}
+                  className={`h-9 rounded-xl px-2.5 text-xs font-mono transition-all cursor-pointer inline-flex items-center justify-center ${
+                    isActive
+                      ? "bg-amber-400 text-obsidian-950 font-black shadow-xs ring-1 ring-amber-400"
+                      : "bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 font-bold border border-slate-700/80"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
