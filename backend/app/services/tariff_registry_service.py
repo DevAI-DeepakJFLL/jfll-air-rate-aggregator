@@ -122,7 +122,13 @@ class TariffRegistryService:
         self._registry: Dict[str, Dict[str, Any]] = {}
         self._custom_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._baseline_carrier_rates: Dict[str, List[Dict[str, Any]]] = {}
+        self._generation: int = 1
         self._initialize_registry()
+
+    def get_generation(self) -> int:
+        """Returns the current registry cache generation counter."""
+        with self._lock:
+            return self._generation
 
     def _initialize_registry(self) -> None:
         """Seed initial state from known carriers and baseline rate database."""
@@ -203,6 +209,25 @@ class TariffRegistryService:
             rates = self._baseline_carrier_rates.get(code, [])
             return [dict(t) for t in rates]
 
+    def get_all_active_tariffs(self) -> List[Dict[str, Any]]:
+        """
+        Returns all active corridor rates across all registered carriers:
+        - If carrier has uploaded custom circular rates, uses custom rates.
+        - If carrier has active baseline circular, uses baseline rates.
+        - If carrier circular is deactivated/cleared, rates are suppressed.
+        DSA: Fast O(C) carrier aggregation over inverted indices.
+        """
+        with self._lock:
+            all_tariffs: List[Dict[str, Any]] = []
+            for code, carrier in self._registry.items():
+                if not carrier.get("has_active_circular"):
+                    continue
+                if code in self._custom_rates and self._custom_rates[code]:
+                    all_tariffs.extend(self._custom_rates[code])
+                else:
+                    all_tariffs.extend(self._baseline_carrier_rates.get(code, []))
+            return [dict(t) for t in all_tariffs]
+
     def register_circular_upload(
         self,
         carrier_code: str,
@@ -261,6 +286,7 @@ class TariffRegistryService:
                 "corridor_count": corridor_count,
                 "status": "ACTIVE",
             }
+            self._generation += 1
 
             return dict(self._registry[code])
 
@@ -282,6 +308,7 @@ class TariffRegistryService:
             self._registry[code]["active_circular"] = None
             self._registry[code]["total_corridors"] = 0
             self._registry[code]["corridors_sample"] = []
+            self._generation += 1
 
             return dict(self._registry[code])
 

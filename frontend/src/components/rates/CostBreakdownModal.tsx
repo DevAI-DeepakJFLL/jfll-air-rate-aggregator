@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { X, ShieldCheck } from "lucide-react";
+import { X, ShieldCheck, Info, Sparkles, AlertCircle } from "lucide-react";
 import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
 import { AirlineLogo } from "./AirlineLogo";
@@ -235,6 +235,43 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
                 ₹{breakdown.effective_buy_per_kg.toFixed(2)} / kg
               </span>
             </div>
+
+            {/* JFLL Preferential Member Contract Price */}
+            {quote.contract_discount_total && quote.contract_discount_total > 0 && (
+              <div className="mt-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-50/40 p-3 border border-emerald-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="text-xs font-extrabold text-emerald-950">
+                      JFLL Preferential Member Price
+                    </span>
+                  </div>
+                  <span className="font-mono font-black text-emerald-900 text-sm">
+                    {formatINR(quote.contract_total_landed_buy || 0)}
+                  </span>
+                </div>
+                <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                  Applied 8% commercial rebate (Saved {formatINR(quote.contract_discount_total)})
+                </div>
+              </div>
+            )}
+
+            {/* Operational & Regulatory Directives from Audit Report */}
+            {quote.regulatory_notes && quote.regulatory_notes.length > 0 && (
+              <div className="mt-2.5 rounded-xl border border-blue-200 bg-blue-50/50 p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-obsidian-900">
+                  <Info className="h-3.5 w-3.5 text-jfll-blue shrink-0" />
+                  <span>Compliance &amp; Operational Directives</span>
+                </div>
+                <div className="space-y-1">
+                  {quote.regulatory_notes.map((note, idx) => (
+                    <div key={idx} className="text-[11px] font-medium text-slate-700 bg-white/80 border border-blue-100 px-2 py-1 rounded-md">
+                      &bull; {note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Coordinator Commercial Margin Section */}

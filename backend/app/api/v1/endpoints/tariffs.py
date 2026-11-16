@@ -1,3 +1,4 @@
+import io
 import os
 import tempfile
 from pathlib import Path
@@ -79,26 +80,44 @@ async def upload_rate_sheet(
             detail="Invalid content-type header. Expected application/pdf.",
         )
 
+    MAX_IN_MEMORY_BYTES = 2 * 1024 * 1024  # 2 MB in-memory buffer threshold
     tmp_path = None
+    spilled_temp = None
     try:
         # 3. Stream upload with strict size limit to prevent Disk Fill DoS
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            tmp_path = tmp.name
-            total_bytes = 0
-            chunk_size = 64 * 1024  # 64 KB chunks
+        chunk_size = 64 * 1024  # 64 KB chunks
+        in_memory_buf = io.BytesIO()
+        total_bytes = 0
 
-            while chunk := await file.read(chunk_size):
-                total_bytes += len(chunk)
-                if total_bytes > settings.MAX_UPLOAD_SIZE_BYTES:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"Uploaded file exceeds maximum limit of {settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB.",
-                    )
-                tmp.write(chunk)
+        while chunk := await file.read(chunk_size):
+            total_bytes += len(chunk)
+            if total_bytes > settings.MAX_UPLOAD_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"Uploaded file exceeds maximum limit of {settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB.",
+                )
+            if spilled_temp is not None:
+                spilled_temp.write(chunk)
+            elif total_bytes > MAX_IN_MEMORY_BYTES:
+                # Spill to temporary file on disk for files > 2 MB
+                spilled_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                tmp_path = spilled_temp.name
+                spilled_temp.write(in_memory_buf.getvalue())
+                spilled_temp.write(chunk)
+                in_memory_buf = None
+            else:
+                in_memory_buf.write(chunk)
+
+        if spilled_temp is not None:
+            spilled_temp.close()
+            pdf_source = tmp_path
+        else:
+            in_memory_buf.seek(0)
+            pdf_source = in_memory_buf
 
         # 4. Safe PDF parse
         result = await parse_airline_rate_sheet(
-            pdf_path=tmp_path,
+            pdf_source=pdf_source,
             carrier_hint=resolved_code,
             currency=currency.strip().upper(),
         )
@@ -123,7 +142,7 @@ async def upload_rate_sheet(
             detail=str(val_err),
         )
     finally:
-        # Guarantee removal of temporary file
+        # Guarantee removal of temporary file if spilled to disk
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)

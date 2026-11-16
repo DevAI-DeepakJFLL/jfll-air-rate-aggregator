@@ -11,6 +11,11 @@ export interface RateSearchRequest {
   actual_weight_kg: number;
   dimensions?: CargoDimension[];
   commodity?: string;
+  ready_date?: string;
+  packaging_type?: string;
+  has_worked_with_jfll?: boolean;
+  jfll_identifier?: string;
+  pieces?: number;
 }
 
 export interface CostBreakdown {
@@ -66,6 +71,10 @@ export interface RateQuoteItem {
   validity_status: string;
   gauge_restriction?: string;
   recommended: boolean;
+  contract_discount_total?: number;
+  contract_total_landed_buy?: number;
+  regulatory_notes?: string[];
+  packaging_restricted?: boolean;
 }
 
 export interface DestinationItem {
@@ -81,5 +90,7 @@ export interface RateSearchResponse {
   chargeable_weight: number;
   is_heavy_cargo: boolean;
   message?: string;
+  ready_date?: string;
+  applied_commercial_tier?: string;
   rates: RateQuoteItem[];
 }

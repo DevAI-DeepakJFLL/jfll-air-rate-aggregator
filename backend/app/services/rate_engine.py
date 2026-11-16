@@ -579,15 +579,76 @@ def build_rate_quote(
     commodity: str,
     idx: int,
     pivot_res: Tuple[float, float, str, bool, float],
-    breakdown: CostBreakdown
+    breakdown: CostBreakdown,
+    request: Optional[RateSearchRequest] = None,
 ) -> RateQuoteItem:
     """
     Constructs a validated RateQuoteItem from tariff data, schedule info, and calculated landed cost.
+    Applies regulatory, operational, packaging, and commercial discount rules ex-BOM.
     """
     _, _, applied_label, is_pivoted, savings = pivot_res
     carrier_code = (tariff.get('carrier_code') or 'JF').upper().strip()
     sched = get_airline_schedule(carrier_code)
     transit_str = sched['transit']
+
+    # Operational & Regulatory Notes Evaluation
+    regulatory_notes: List[str] = []
+    dest_norm = dest.upper().strip()
+    country_code = AIRPORT_TO_COUNTRY.get(dest_norm)
+
+    # 1. Nigeria Form 'M' Requirement
+    if dest_norm in ("LOS", "ABV", "KAN", "ENU"):
+        regulatory_notes.append("Mandatory Form 'M' number must be declared and typed on AWB.")
+
+    # 2. Manila Destination Terminal Charge
+    if dest_norm == "MNL":
+        regulatory_notes.append("Destination Terminal Charge (TC) of INR 0.50/kg applicable at Manila.")
+
+    # 3. North America Customs Manifest Transmission
+    if country_code in ("US", "CA"):
+        regulatory_notes.append("Customs AMS / ACI electronic security manifest transmission required.")
+
+    # 4. Bulk Aircraft Feasibility / Piece Weight Limits (Malaysia Airlines & narrowbodies)
+    total_pieces = 1
+    if request and request.dimensions:
+        total_pieces = sum(d.pieces for d in request.dimensions)
+    elif request and request.pieces:
+        total_pieces = request.pieces
+
+    piece_weight = (request.actual_weight_kg / max(total_pieces, 1)) if request else cw
+    if carrier_code == "MH" and piece_weight > 60.0:
+        regulatory_notes.append("Piece weight exceeds 60 kg bulk aircraft loading limit (check equipment type).")
+
+    # 5. Oman Air Pharma Carton Dimension Limits (< 100x80x60 cm and < 100 kg)
+    if carrier_code == "WY" and any(k in commodity.lower() for k in ("pharma", "crt", "cold", "col")):
+        has_oversize_box = False
+        if request and request.dimensions:
+            for dim in request.dimensions:
+                if dim.length_cm > 100 or dim.width_cm > 80 or dim.height_cm > 60:
+                    has_oversize_box = True
+                    break
+        if has_oversize_box or piece_weight > 100.0:
+            regulatory_notes.append("Loose cartons exceeding 100x80x60 cm or 100 kg require carrier sales pre-clearance.")
+
+    # 6. AirAsia Packaging Restriction (Wooden boxes/pallets strictly prohibited)
+    packaging_restricted = False
+    pkg = (request.packaging_type or "").lower() if request else ""
+    if carrier_code in ("D7", "AK") and ("wood" in pkg or "pallet" in pkg or "crate" in pkg):
+        packaging_restricted = True
+        regulatory_notes.append("Wooden boxes and pallets are prohibited on AirAsia (loose corrugated cartons only).")
+
+    # 7. Cargo Ready Date Lead Time
+    if request and request.ready_date:
+        regulatory_notes.append(f"Cargo Ready Date: {request.ready_date} (minimum 48h carting lead time ex-BOM)")
+
+    # 8. JFLL Preferential Commercial Tier Pricing
+    contract_discount = None
+    contract_total = None
+    if request and request.has_worked_with_jfll and request.jfll_identifier:
+        ident = request.jfll_identifier.strip()
+        contract_discount = float(round(breakdown.total_landed_buy * 0.08))
+        contract_total = float(breakdown.total_landed_buy - contract_discount)
+        regulatory_notes.append(f"JFLL Client Account ({ident}): 8% preferential commercial rebate applied.")
 
     return RateQuoteItem(
         id=f"quote-{carrier_code}-{idx}",
@@ -614,7 +675,11 @@ def build_rate_quote(
         valid_to=tariff.get('valid_to'),
         validity_status='ACTIVE',
         gauge_restriction=tariff.get('gauge_restriction'),
-        recommended=False
+        recommended=False,
+        contract_discount_total=contract_discount,
+        contract_total_landed_buy=contract_total,
+        regulatory_notes=regulatory_notes,
+        packaging_restricted=packaging_restricted,
     )
 
 
@@ -690,7 +755,8 @@ def process_rate_search(
             commodity=request.commodity,
             idx=idx,
             pivot_res=pivot_res,
-            breakdown=breakdown
+            breakdown=breakdown,
+            request=request,
         )
         matched_quotes.append(quote)
 
@@ -703,10 +769,16 @@ def process_rate_search(
     if sorted_quotes:
         sorted_quotes[0].recommended = True
 
+    commercial_tier = None
+    if request.has_worked_with_jfll and request.jfll_identifier:
+        commercial_tier = f"JFLL Account ({request.jfll_identifier.strip()}): 8% Commercial Tier"
+
     return RateSearchResponse(
         origin=orig,
         destination=dest,
         chargeable_weight=cw,
         is_heavy_cargo=False,
+        ready_date=request.ready_date,
+        applied_commercial_tier=commercial_tier,
         rates=sorted_quotes
     )

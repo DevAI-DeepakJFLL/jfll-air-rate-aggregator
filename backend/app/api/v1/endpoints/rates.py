@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from fastapi import APIRouter, HTTPException, status
 from app.schemas.rate import (
     RateSearchRequest,
@@ -9,15 +9,29 @@ from app.schemas.rate import (
 )
 from app.services.rate_engine import process_rate_search, CorridorRateIndex
 from app.services.routing_graph import GLOBAL_CARGO_GRAPH
-from app.data.tariffs import AIRLINE_TARIFFS, RATE_SHEET_DESTINATIONS
+from app.data.tariffs import RATE_SHEET_DESTINATIONS
+from app.services.tariff_registry_service import tariff_registry_service
 
 router = APIRouter(prefix="/rates", tags=["Rate Discovery"])
 
-# Production tariff table loaded from authentic airline circulars ex-BOM Hub
-ALL_AIRLINE_TARIFFS: List[Dict[str, Any]] = AIRLINE_TARIFFS
+# Dynamic cache for live corridor indexing keyed by tariff registry generation
+_cached_index: Optional[CorridorRateIndex] = None
+_cached_generation: int = -1
+_cached_tariffs: List[Dict[str, Any]] = []
 
-# DSA: Pre-index all tariffs into an in-memory hash table for O(1) corridor lookups
-corridor_index = CorridorRateIndex(ALL_AIRLINE_TARIFFS)
+
+def _get_live_corridor_index() -> Tuple[CorridorRateIndex, List[Dict[str, Any]]]:
+    """
+    Returns the live active corridor index and tariff table.
+    Rebuilds in O(N) only when registry generation increments, otherwise O(1).
+    """
+    global _cached_index, _cached_generation, _cached_tariffs
+    gen = tariff_registry_service.get_generation()
+    if _cached_index is None or _cached_generation != gen:
+        _cached_tariffs = tariff_registry_service.get_all_active_tariffs()
+        _cached_index = CorridorRateIndex(_cached_tariffs)
+        _cached_generation = gen
+    return _cached_index, _cached_tariffs
 
 
 @router.get("/destinations", response_model=List[DestinationItemSchema])
@@ -34,11 +48,13 @@ async def get_air_cargo_quotes(request: RateSearchRequest):
     """
     Search live buying rates across all carriers for a corridor.
     Employs O(1) Corridor Hash Indexing and O(M log K) Min-Heap Top-K selection.
+    Synchronized dynamically with the active Tariff Registry ex-BOM.
     """
+    index, live_tariffs = _get_live_corridor_index()
     return process_rate_search(
         request=request,
-        available_tariffs=ALL_AIRLINE_TARIFFS,
-        corridor_index=corridor_index,
+        available_tariffs=live_tariffs,
+        corridor_index=index,
         limit=25
     )
 

@@ -105,3 +105,86 @@ def test_carrier_no_circular_returns_empty_rates():
     assert data["carrier_code"] == "SV"
     assert data["total_corridors"] == 0
     assert len(data["rates"]) == 0
+
+
+def test_parse_rate_number_comma_and_placeholders():
+    """Verify that parse_rate_number correctly strips commas and handles placeholders."""
+    from app.services.pdf_extractor import parse_rate_number
+    assert parse_rate_number("18,800") == 18800.0
+    assert parse_rate_number("1,035.50") == 1035.5
+    assert parse_rate_number(" 20,400 ") == 20400.0
+    assert parse_rate_number("-") is None
+    assert parse_rate_number("--") is None
+    assert parse_rate_number("N/A") is None
+    assert parse_rate_number(None) is None
+
+
+def test_unroll_destinations_slashes_and_brackets():
+    """Verify unrolling compound destination strings with slashes and parens."""
+    from app.services.pdf_extractor import unroll_destinations
+    assert unroll_destinations("MCT/AMM/BAH/CAI/") == ["MCT", "AMM", "BAH", "CAI"]
+    assert unroll_destinations("JED/MED") == ["JED", "MED"]
+    assert unroll_destinations("CGK (JKT)") == ["CGK"]
+    assert unroll_destinations("CDG/FRA/IST/LHR/MUC/MXP/FCO/AMS") == [
+        "CDG", "FRA", "IST", "LHR", "MUC", "MXP", "FCO", "AMS"
+    ]
+
+
+def test_multi_commodity_regex_matches_without_column_shift():
+    """Verify multi-word commodities match and do not displace numeric columns."""
+    from app.services.pdf_extractor import MULTI_COMMODITY_REGEX
+    matches = [
+        "COL ( 2 to 8 degree)",
+        "CRT(15 to 25 degree)",
+        "DGR - PAX",
+        "PILA - CRT",
+        "AXS-COL / DG PAX / AXM",
+        "GCR - Offline Tariff",
+    ]
+    for text in matches:
+        m = MULTI_COMMODITY_REGEX.search(text)
+        assert m is not None, f"Failed to match commodity in: {text}"
+
+
+@pytest.mark.anyio
+async def test_scanned_pdf_heuristic_character_density():
+    """Verify character density heuristic accurately flags scanned image PDFs."""
+    import pypdf
+    from app.services.pdf_extractor import parse_airline_rate_sheet
+    writer = pypdf.PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    buf = io.BytesIO()
+    writer.write(buf)
+    blank_bytes = buf.getvalue()
+
+    result_blank = await parse_airline_rate_sheet(pdf_source=blank_bytes, carrier_hint="D7")
+    assert result_blank["is_scanned"] is True
+    assert result_blank["mode"] == "VISION_OCR_FALLBACK"
+    assert result_blank["records"] == []
+
+
+@pytest.mark.anyio
+async def test_digital_rate_sheet_extraction_real_files():
+    """Verify digital extractor parses real rates from authentic rate circulars."""
+    from pathlib import Path
+    from app.services.pdf_extractor import parse_airline_rate_sheet
+    repo_root = Path(__file__).resolve().parents[2]
+    rates_dir = repo_root / "rates"
+
+    mh_pdf = rates_dir / "BOM RATE 01OCT-31OCT.pdf"
+    if mh_pdf.exists():
+        result = await parse_airline_rate_sheet(pdf_path=str(mh_pdf), carrier_hint="MH")
+        assert result["is_scanned"] is False
+        assert result["mode"] == "DIGITAL_TEXT_PARSER"
+        assert len(result["records"]) >= 40
+        kul_records = [r for r in result["records"] if r["destination"] == "KUL"]
+        assert len(kul_records) > 0
+        assert kul_records[0]["min_charge"] == 3300.0
+
+    wy_pdf = rates_dir / "WY Tariff Effective 01st Nov 2026 to 31st March 2027 (1).pdf"
+    if wy_pdf.exists():
+        result_wy = await parse_airline_rate_sheet(pdf_path=str(wy_pdf), carrier_hint="WY")
+        assert result_wy["is_scanned"] is False
+        assert len(result_wy["records"]) >= 100
+        mct_records = [r for r in result_wy["records"] if r["destination"] == "MCT"]
+        assert len(mct_records) > 0

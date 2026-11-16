@@ -548,6 +548,21 @@ export function RatesGrid({ rates }: RatesGridProps) {
                               <span className="text-slate-300">&bull;</span>
                               <span>AWB {quote.airline_prefix}</span>
                             </div>
+
+                            {/* JFLL Commercial Tier Discount & Packaging Restriction Badges */}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              {quote.contract_discount_total && quote.contract_discount_total > 0 ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 border border-emerald-300">
+                                  <Sparkles className="h-2.5 w-2.5 text-emerald-600" />
+                                  JFLL Net: {formatINR(quote.contract_total_landed_buy || 0)} (-8%)
+                                </span>
+                              ) : null}
+                              {quote.packaging_restricted && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-700 border border-rose-200">
+                                  Packaging Restricted
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -882,6 +897,26 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                 <p className="leading-relaxed">
                                   {quote.pivot_savings}. Declaring the shipment at the higher weight minimum discounted slab yields a lower total landed invoice than multiplying by the natural tier.
                                 </p>
+                              </div>
+                            )}
+
+                            {/* Operational & Regulatory Directives from Audit Report */}
+                            {quote.regulatory_notes && quote.regulatory_notes.length > 0 && (
+                              <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs space-y-1.5">
+                                <div className="flex items-center gap-2 font-extrabold text-obsidian-900">
+                                  <Info className="h-4 w-4 text-jfll-blue shrink-0" />
+                                  <span>Operational Directives &amp; Regulatory Compliance (ex-BOM)</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                  {quote.regulatory_notes.map((note, nIdx) => (
+                                    <span
+                                      key={nIdx}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-white border border-blue-200/80 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-2xs"
+                                    >
+                                      &bull; {note}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>

@@ -438,6 +438,79 @@ def test_corridor_scope_country_and_airport_matching(sample_tariffs):
     assert is_charge_applicable(rule_gb, 100.0, "JFK", "General Cargo", "EK") is False
 
 
+def test_regulatory_notes_and_commercial_tier_pricing(sample_tariffs):
+    """Verify regulatory alerts, packaging checks, and commercial tier discounts from audit report."""
+    # 1. Test Nigeria Form 'M' note
+    req_nigeria = RateSearchRequest(
+        origin="BOM",
+        destination="LOS",
+        actual_weight_kg=120.0,
+        commodity="General Cargo",
+        ready_date="2026-11-20"
+    )
+    res_nigeria = process_rate_search(req_nigeria, sample_tariffs)
+    # Check that any generated quote has the Nigeria Form M note
+    if res_nigeria.rates:
+        assert any("Form 'M'" in note for note in res_nigeria.rates[0].regulatory_notes)
+
+    # 2. Test Manila Destination Terminal Charge note
+    req_manila = RateSearchRequest(
+        origin="BOM",
+        destination="MNL",
+        actual_weight_kg=100.0,
+        commodity="General Cargo"
+    )
+    res_manila = process_rate_search(req_manila, sample_tariffs)
+    if res_manila.rates:
+        assert any("Manila" in note for note in res_manila.rates[0].regulatory_notes)
+
+    # 3. Test AirAsia wooden box restriction
+    d7_tariff = {
+        "origin": "BOM",
+        "destination": "KUL",
+        "airline": "AirAsia X",
+        "carrier_code": "D7",
+        "prefix": "843",
+        "rate_basis": "ALL_IN",
+        "min_charge": 3000.0,
+        "rate_normal": 160.0,
+        "rate_45": 140.0,
+        "rate_100": 120.0,
+        "rate_300": 110.0,
+        "fsc_per_kg": 0.0,
+        "ssc_per_kg": 0.0,
+    }
+    req_d7_wood = RateSearchRequest(
+        origin="BOM",
+        destination="KUL",
+        actual_weight_kg=100.0,
+        packaging_type="Wooden Box/Pallet",
+        commodity="General Cargo"
+    )
+    res_d7 = process_rate_search(req_d7_wood, [d7_tariff])
+    assert len(res_d7.rates) == 1
+    assert res_d7.rates[0].packaging_restricted is True
+    assert any("Wooden boxes" in n for n in res_d7.rates[0].regulatory_notes)
+
+    # 4. Test JFLL commercial tier 8% discount
+    req_jfll = RateSearchRequest(
+        origin="BOM",
+        destination="DXB",
+        actual_weight_kg=100.0,
+        commodity="General Cargo",
+        has_worked_with_jfll=True,
+        jfll_identifier="JFLL-PREMIUM-007"
+    )
+    res_jfll = process_rate_search(req_jfll, sample_tariffs)
+    assert len(res_jfll.rates) > 0
+    q = res_jfll.rates[0]
+    assert q.contract_discount_total is not None
+    assert q.contract_discount_total > 0
+    assert q.contract_total_landed_buy == q.breakdown.total_landed_buy - q.contract_discount_total
+    assert res_jfll.applied_commercial_tier is not None
+    assert "JFLL-PREMIUM-007" in res_jfll.applied_commercial_tier
+
+
 
 
 
