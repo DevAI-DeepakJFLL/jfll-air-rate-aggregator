@@ -3,7 +3,6 @@
 import React, { useState, useRef, useMemo } from "react";
 import {
   UploadCloud,
-  FileText,
   Trash2,
   TableProperties,
   CheckCircle2,
@@ -344,18 +343,6 @@ export function CarrierTariffTable({
                               </span>
                             )}
                           </div>
-
-                          {/* Ingested Circular File */}
-                          {hasCircular && circular && (
-                            <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-                              <div className="flex items-center gap-1 text-slate-600 truncate max-w-[280px]" title={circular.filename}>
-                                <FileText className="h-3 w-3 text-jfll-blue shrink-0" />
-                                <span className="font-medium text-slate-800 truncate">
-                                  {circular.filename}
-                                </span>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
 
