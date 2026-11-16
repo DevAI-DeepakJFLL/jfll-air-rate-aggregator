@@ -51,11 +51,11 @@ async def upload_rate_sheet(
     carrier_code: Optional[str] = Form(None),
     airline_name: Optional[str] = Form(None),
     currency: str = Form("INR"),
-    _authorized: bool = Depends(verify_admin_key),
+    _authorized: UserSession = Depends(verify_pricing_head),
 ):
     """
     Ingest new airline rate sheet PDF directly bound to carrier code.
-    Enforces RBAC (X-Admin-Key), MIME validation, magic byte verification, and size caps.
+    Enforces RBAC (X-Admin-Key + PRICING_HEAD role), MIME validation, magic byte verification, and size caps.
     """
     # Resolve carrier code from either carrier_code or airline_name
     resolved_code = (carrier_code or airline_name or "").strip().upper()

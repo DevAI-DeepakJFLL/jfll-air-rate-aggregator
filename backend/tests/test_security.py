@@ -80,7 +80,7 @@ def test_admin_upload_endpoint_requires_auth():
 
 
 def test_admin_upload_endpoint_accepts_valid_auth():
-    """Security: /tariffs/upload endpoint accepts requests with valid X-Admin-Key."""
+    """Security: /tariffs/upload endpoint accepts requests with valid X-Admin-Key and PRICING_HEAD role."""
     import io
     import pypdf
     writer = pypdf.PdfWriter()
@@ -91,11 +91,47 @@ def test_admin_upload_endpoint_accepts_valid_auth():
 
     files = {"file": ("test.pdf", valid_pdf_bytes, "application/pdf")}
     data = {"airline_name": "Test Airlines", "currency": "INR"}
-    headers = {"X-Admin-Key": settings.ADMIN_API_KEY}
 
-    res = client.post("/api/v1/tariffs/upload", files=files, data=data, headers=headers)
-    assert res.status_code == 200
-    assert res.json()["status"] == "STAGED_FOR_ADMIN_REVIEW"
+    # 1. Unprivileged COORDINATOR attempt is rejected with 403 Forbidden
+    headers_coord = {
+        "X-Admin-Key": settings.ADMIN_API_KEY,
+        "X-Admin-Role": "COORDINATOR",
+    }
+    res_coord = client.post("/api/v1/tariffs/upload", files=files, data=data, headers=headers_coord)
+    assert res_coord.status_code == 403
+
+    # 2. PRICING_HEAD authorization succeeds with 200 OK
+    headers_head = {
+        "X-Admin-Key": settings.ADMIN_API_KEY,
+        "X-Admin-Role": "PRICING_HEAD",
+    }
+    files_head = {"file": ("test.pdf", valid_pdf_bytes, "application/pdf")}
+    res_head = client.post("/api/v1/tariffs/upload", files=files_head, data=data, headers=headers_head)
+    assert res_head.status_code == 200
+    assert res_head.json()["status"] == "STAGED_FOR_ADMIN_REVIEW"
+
+
+def test_cors_origin_restriction():
+    """Security: Verifies CORS policy restricts origins to configured endpoints."""
+    # Origin in allowed list
+    res_allowed = client.options(
+        "/api/v1/rates/destinations",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert res_allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+    # Origin not in allowed list
+    res_disallowed = client.options(
+        "/api/v1/rates/destinations",
+        headers={
+            "Origin": "https://malicious-external-site.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert res_disallowed.headers.get("access-control-allow-origin") != "https://malicious-external-site.com"
 
 
 def test_security_headers_present():

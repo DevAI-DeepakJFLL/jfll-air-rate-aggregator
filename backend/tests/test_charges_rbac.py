@@ -320,13 +320,20 @@ def test_pricing_head_reset_to_defaults(isolated_client):
 def test_default_role_and_user_fallback(isolated_client):
     """
     Tests default behavior when X-Admin-Role and X-Admin-User are omitted:
-    - X-Admin-Role defaults to PRICING_HEAD.
-    - X-Admin-User defaults to deepak.naidu@jfll.com.
+    - X-Admin-Role defaults to COORDINATOR (Principle of Least Privilege).
+    - Unprivileged coordinator is blocked from writing (403 Forbidden).
+    - Coordinator can safely read active charges (200 OK).
+    - Supplying explicit PRICING_HEAD role with omitted user records default user deepak.naidu@jfll.com.
     """
     client, _ = isolated_client
     headers = {"X-Admin-Key": settings.ADMIN_API_KEY}
 
-    res = client.post(
+    # 1. Read is permitted under default COORDINATOR role
+    read_res = client.get("/api/v1/charges", headers=headers)
+    assert read_res.status_code == 200
+
+    # 2. Write is blocked under default COORDINATOR role (Least Privilege)
+    res_blocked = client.post(
         "/api/v1/charges",
         json={
             "code": "DEF",
@@ -337,8 +344,26 @@ def test_default_role_and_user_fallback(isolated_client):
         },
         headers=headers,
     )
-    assert res.status_code == 201
-    created = res.json()
+    assert res_blocked.status_code == 403
+
+    # 3. Explicit PRICING_HEAD succeeds and adopts default user deepak.naidu@jfll.com
+    headers_head = {
+        "X-Admin-Key": settings.ADMIN_API_KEY,
+        "X-Admin-Role": Role.PRICING_HEAD.value,
+    }
+    res_success = client.post(
+        "/api/v1/charges",
+        json={
+            "code": "DEF",
+            "name": "Default Header Charge",
+            "category": "OTHER",
+            "calculation_type": "FLAT",
+            "flat_amount": 200.0,
+        },
+        headers=headers_head,
+    )
+    assert res_success.status_code == 201
+    created = res_success.json()
     assert created["updated_by"] == "deepak.naidu@jfll.com"
 
 

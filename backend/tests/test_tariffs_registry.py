@@ -39,7 +39,7 @@ def test_get_carrier_rates_not_found():
 
 
 def test_upload_rate_sheet_with_carrier_code():
-    """Verify PDF upload bound to carrier code."""
+    """Verify PDF upload bound to carrier code enforces PRICING_HEAD RBAC."""
     import pypdf
     writer = pypdf.PdfWriter()
     writer.add_blank_page(width=72, height=72)
@@ -49,12 +49,23 @@ def test_upload_rate_sheet_with_carrier_code():
 
     file_tuple = ("AI_BOM_Q1.pdf", pdf_bytes, "application/pdf")
 
-    headers = {"X-Admin-Key": ADMIN_KEY}
+    # 1. Unprivileged coordinator upload returns 403 Forbidden
+    headers_coord = {"X-Admin-Key": ADMIN_KEY, "X-Admin-Role": "COORDINATOR"}
+    res_coord = client.post(
+        "/api/v1/tariffs/upload",
+        data={"carrier_code": "AI", "currency": "INR"},
+        files={"file": file_tuple},
+        headers=headers_coord,
+    )
+    assert res_coord.status_code == 403
+
+    # 2. PRICING_HEAD upload succeeds with 200 OK
+    headers_head = {"X-Admin-Key": ADMIN_KEY, "X-Admin-Role": "PRICING_HEAD"}
     response = client.post(
         "/api/v1/tariffs/upload",
         data={"carrier_code": "AI", "currency": "INR"},
         files={"file": file_tuple},
-        headers=headers,
+        headers=headers_head,
     )
     assert response.status_code == 200
     data = response.json()

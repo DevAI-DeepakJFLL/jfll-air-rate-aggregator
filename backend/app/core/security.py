@@ -52,7 +52,8 @@ async def get_current_user(
 ) -> UserSession:
     """
     Authenticates operator via X-Admin-Key and extracts role & user identity.
-    Defaults role to PRICING_HEAD and user to deepak.naidu@jfll.com if not explicitly provided.
+    Defaults role to COORDINATOR (least privilege) and user to deepak.naidu@jfll.com
+    if not explicitly provided.
     """
     if not api_key or not secrets.compare_digest(api_key, settings.ADMIN_API_KEY):
         raise HTTPException(
@@ -66,7 +67,7 @@ async def get_current_user(
         raw_role = role.strip().upper()
         assigned_role = raw_role if raw_role in valid_roles else Role.COORDINATOR.value
     else:
-        assigned_role = Role.PRICING_HEAD.value
+        assigned_role = Role.COORDINATOR.value  # Least privilege: default to COORDINATOR
 
     assigned_user = user.strip() if user and user.strip() else "deepak.naidu@jfll.com"
 

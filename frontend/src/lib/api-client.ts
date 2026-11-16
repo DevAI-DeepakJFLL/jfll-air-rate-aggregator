@@ -60,12 +60,38 @@ export function getCustomApiUrl(): string | null {
   return null;
 }
 
-const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
+export function setAdminApiKey(key: string): void {
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem("JFLL_ADMIN_API_KEY", key.trim());
+    } catch {
+      // Storage unavailable
+    }
+  }
+}
+
+export function getAdminApiKey(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const stored =
+        sessionStorage.getItem("JFLL_ADMIN_API_KEY") ||
+        localStorage.getItem("JFLL_ADMIN_API_KEY");
+      if (stored) return stored;
+    } catch {
+      // Storage unavailable
+    }
+  }
+  // Safe development fallback: available only in non-production builds
+  if (process.env.NODE_ENV !== "production") {
+    return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
+  }
+  return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
+}
 
 function getAdminHeaders(role?: string): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Admin-Key": ADMIN_API_KEY,
+    "X-Admin-Key": getAdminApiKey(),
     "X-Admin-Role": role || "PRICING_HEAD",
     "X-Admin-User": "deepak.naidu@jfll.com",
   };
@@ -281,7 +307,7 @@ export async function uploadTariffPdf(
   const res = await apiFetch("/api/v1/tariffs/upload", {
     method: "POST",
     headers: {
-      "X-Admin-Key": ADMIN_API_KEY,
+      "X-Admin-Key": getAdminApiKey(),
       "X-Admin-Role": role || "PRICING_HEAD",
       "X-Admin-User": "deepak.naidu@jfll.com",
     },
@@ -307,7 +333,7 @@ export async function deleteTariffCircular(
   const res = await apiFetch(`/api/v1/tariffs/${encodeURIComponent(carrierCode)}`, {
     method: "DELETE",
     headers: {
-      "X-Admin-Key": ADMIN_API_KEY,
+      "X-Admin-Key": getAdminApiKey(),
       "X-Admin-Role": role || "PRICING_HEAD",
       "X-Admin-User": "deepak.naidu@jfll.com",
     },

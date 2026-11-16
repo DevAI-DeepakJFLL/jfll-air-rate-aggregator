@@ -46,7 +46,7 @@ async def add_security_headers(request: Request, call_next):
         )
     return response
 
-# 2. CORS configuration (Permissive for CloudFront + local dev, zero cookies required)
+# 2. CORS configuration (Binds explicitly to settings.CORS_ORIGINS, zero cookies required)
 # In AWS Lambda with Function URLs, AWS handles CORS at the gateway level.
 # Adding CORSMiddleware inside Lambda creates duplicate 'Access-Control-Allow-Origin: *, *'
 # headers which causes modern browsers to reject the response with 'Failed to fetch'.
@@ -54,7 +54,7 @@ IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 if not IS_LAMBDA:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.CORS_ORIGINS,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
