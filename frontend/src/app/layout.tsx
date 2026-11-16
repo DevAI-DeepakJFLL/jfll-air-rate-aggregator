@@ -4,6 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Jet Freight Logistics | In-House Air Cargo Rate Aggregator",
   description: "Internal Air Cargo Buying Rate Comparison & Tariff Desk (<500kg Smalls)",
+  icons: {
+    icon: "/jfll-logo.png",
+    shortcut: "/jfll-logo.png",
+    apple: "/jfll-logo.png",
+  },
 };
 
 export default function RootLayout({

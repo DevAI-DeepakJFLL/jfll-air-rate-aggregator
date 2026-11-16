@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Compass } from "lucide-react";
+import { JfllLogo } from "@/components/common/BrandAssets";
 
 export function CalculatorHeader() {
   return (
@@ -9,18 +9,25 @@ export function CalculatorHeader() {
         {/* Brand Identity / Home Anchor */}
         <Link
           href="/"
-          className="flex items-center gap-2.5 sm:gap-3 focus-ring rounded-xl group min-w-0"
+          className="flex items-center gap-3 focus-ring rounded-xl group min-w-0"
           aria-label="Jet Freight Logistics Home"
         >
-          <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-obsidian-900 text-amber-400 shadow-sm group-hover:bg-aero-teal group-hover:text-white transition-all shrink-0">
-            <Compass className="h-5 w-5" />
-          </div>
+          <JfllLogo
+            size="md"
+            variant="badge"
+            className="group-hover:border-jfll-blue group-hover:shadow-xs transition-all"
+          />
           <div className="min-w-0">
-            <h1 className="text-sm sm:text-base font-black tracking-tight text-obsidian-900">
-              JET FREIGHT
-            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base font-black tracking-tight text-obsidian-900">
+                JET FREIGHT
+              </span>
+              <span className="hidden md:inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider text-jfll-blue bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60">
+                Rate Aggregator
+              </span>
+            </div>
             <p className="hidden sm:block text-xs font-medium text-slate-500">
-              Air Cargo Rate Aggregator &bull; BOM Mumbai Hub (&lt; 500kg)
+              Air Cargo Spot &amp; Published Tariffs &bull; BOM Mumbai Hub (&lt; 500kg)
             </p>
           </div>
         </Link>

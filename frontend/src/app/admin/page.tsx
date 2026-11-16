@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { JfllLogo } from "@/components/common/BrandAssets";
 
 export default function AdminDashboardPage() {
   const { role, isPricingHead } = useAdminRole();
@@ -19,16 +20,21 @@ export default function AdminDashboardPage() {
       {/* Welcome Banner */}
       <div className="rounded-2xl border border-obsidian-800 bg-obsidian-950 p-6 text-white shadow-card relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-400/10 to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 border border-amber-400/30">
-            Jet Freight Mumbai Hub (BOM) &bull; Commercial Control Desk
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="max-w-2xl space-y-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 border border-amber-400/30">
+              Jet Freight Mumbai Hub (BOM) &bull; Commercial Control Desk
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              Commercial Tariff &amp; Surcharge Management
+            </h1>
+            <p className="text-xs text-slate-300 font-medium leading-relaxed">
+              Centralized tariff administration, surcharge rules, and carrier rate circular ingestion.
+            </p>
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-            Commercial Tariff &amp; Surcharge Management
-          </h1>
-          <p className="text-xs text-slate-300 font-medium leading-relaxed">
-            Centralized tariff administration, surcharge rules, and carrier rate circular ingestion.
-          </p>
+          <div className="shrink-0 self-start sm:self-center">
+            <JfllLogo size="lg" variant="badge" className="border-obsidian-700/80 shadow-md bg-white p-1.5" />
+          </div>
         </div>
 
         {/* Current Access Level Pill */}

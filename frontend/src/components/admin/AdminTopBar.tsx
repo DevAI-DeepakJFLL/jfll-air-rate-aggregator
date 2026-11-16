@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, ExternalLink, Menu } from "lucide-react";
 import RoleSwitcher from "./RoleSwitcher";
+import { JfllLogo } from "@/components/common/BrandAssets";
 
 const ROUTE_LABELS: Record<string, string> = {
   "/admin": "Dashboard",
@@ -47,6 +48,11 @@ export default function AdminTopBar({ onOpenMobileNav }: AdminTopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+
+        {/* Mobile Brand Mark */}
+        <div className="lg:hidden shrink-0">
+          <JfllLogo size="xs" variant="badge" />
+        </div>
 
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs min-w-0">
           <Link

@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Compass,
   LayoutDashboard,
   FileSpreadsheet,
   Receipt,
@@ -13,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { JfllLogo } from "@/components/common/BrandAssets";
 
 interface NavItem {
   name: string;
@@ -114,9 +114,7 @@ export default function AdminSidebar({
       {/* Header / Brand Identity */}
       <div className="p-4 border-b border-obsidian-800/80 bg-obsidian-900/40 flex items-center justify-between">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400 text-obsidian-950 shadow-sm shrink-0">
-            <Compass className="h-5 w-5" />
-          </div>
+          <JfllLogo size="md" variant="badge" className="border-obsidian-700/80 shadow-xs" />
           <div className="min-w-0 flex-1">
             <span className="font-extrabold tracking-tight text-white text-sm">
               JET FREIGHT ADMIN

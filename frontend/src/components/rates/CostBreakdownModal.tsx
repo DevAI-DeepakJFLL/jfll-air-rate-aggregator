@@ -5,6 +5,7 @@ import { X, ShieldCheck } from "lucide-react";
 import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
 import { AirlineLogo } from "./AirlineLogo";
+import { JfllLogo } from "@/components/common/BrandAssets";
 
 export interface MarginInfo {
   mode: "per_kg" | "percent" | "flat";
@@ -275,8 +276,15 @@ export function CostBreakdownModal({ quote, marginInfo, onClose }: CostBreakdown
           )}
         </div>
 
-        {/* Action */}
-        <div className="mt-6 flex justify-end">
+        {/* Footer with JFLL Brand Mark & Close Action */}
+        <div className="mt-6 flex items-center justify-between pt-3.5 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            <JfllLogo size="xs" variant="badge" />
+            <span className="text-[11px] font-bold text-slate-500">
+              Jet Freight Logistics Ltd.
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={onClose}
