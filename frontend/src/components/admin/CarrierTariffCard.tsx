@@ -230,7 +230,7 @@ export function CarrierTariffCard({
             </span>
           </div>
           <span className="text-xs font-medium text-slate-600 shrink-0">
-            {hasCircular && circular ? `${circular.corridor_count} active routes` : "Baseline fallback"}
+            {hasCircular && circular ? `${circular.corridor_count} active routes` : "0 active routes"}
           </span>
         </div>
       </div>

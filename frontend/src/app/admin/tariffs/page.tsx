@@ -28,7 +28,7 @@ export default function AdminTariffsPage() {
   const [carriers, setCarriers] = useState<CarrierRegistryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<"ALL" | "ACTIVE" | "BASELINE">("ALL");
+  const [filterMode, setFilterMode] = useState<"ALL" | "ACTIVE" | "PENDING">("ALL");
   const [viewMode, setViewMode] = useState<"TABLE" | "CARDS">("TABLE");
   const [uploadingCarrier, setUploadingCarrier] = useState<string | null>(null);
   const [activePreviewCarrier, setActivePreviewCarrier] = useState<CarrierRegistryItem | null>(null);
@@ -108,7 +108,7 @@ export default function AdminTariffsPage() {
       setCarrierToDelete(null);
       setNotification({
         type: "success",
-        message: `Active circular for ${updatedCarrier.carrier_name} (${carrierCode}) has been cleared. System reverted to default baseline.`,
+        message: `Active circular for ${updatedCarrier.carrier_name} (${carrierCode}) has been cleared.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error clearing circular";
@@ -121,22 +121,22 @@ export default function AdminTariffsPage() {
     }
   };
 
-  // DSA Optimization: Precomputed fleet status partitions in O(N)
-  const { activeCount, fallbackCount } = React.useMemo(() => {
+  // Precomputed fleet status partitions in O(N)
+  const { activeCount, pendingCount } = React.useMemo(() => {
     let active = 0;
     for (let i = 0; i < carriers.length; i++) {
       if (carriers[i].has_active_circular) active++;
     }
-    return { activeCount: active, fallbackCount: carriers.length - active };
+    return { activeCount: active, pendingCount: carriers.length - active };
   }, [carriers]);
 
-  // DSA Optimization: Memoized Multi-Attribute Filter Pipeline
+  // Memoized Multi-Attribute Filter Pipeline
   const filteredCarriers = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return carriers.filter((c) => {
       // Mode filter in O(1)
       if (filterMode === "ACTIVE" && !c.has_active_circular) return false;
-      if (filterMode === "BASELINE" && c.has_active_circular) return false;
+      if (filterMode === "PENDING" && c.has_active_circular) return false;
 
       // Substring token filter
       if (!q) return true;
@@ -287,19 +287,19 @@ export default function AdminTariffsPage() {
 
           <button
             type="button"
-            onClick={() => setFilterMode("BASELINE")}
-            aria-pressed={filterMode === "BASELINE"}
+            onClick={() => setFilterMode("PENDING")}
+            aria-pressed={filterMode === "PENDING"}
             className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
-              filterMode === "BASELINE"
+              filterMode === "PENDING"
                 ? "bg-slate-700 text-white border-slate-700 shadow-xs ring-2 ring-slate-400/30"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300"
             }`}
           >
-            <span className={`text-xs font-bold uppercase tracking-wider block ${filterMode === "BASELINE" ? "text-slate-300" : "text-slate-700"}`}>
-              Fallback Baseline
+            <span className={`text-xs font-bold uppercase tracking-wider block ${filterMode === "PENDING" ? "text-slate-300" : "text-slate-700"}`}>
+              Pending Upload
             </span>
             <span className="font-bold text-xs">
-              {fallbackCount} Benchmark Rates
+              {pendingCount} Awaiting PDF
             </span>
           </button>
         </div>

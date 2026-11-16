@@ -141,8 +141,8 @@ export function TariffPreviewDrawer({
                 <span className="text-[11px] font-semibold text-slate-500 block">
                   Active Circular
                 </span>
-                <span className="font-medium text-slate-900 truncate block mt-0.5" title={circular?.filename}>
-                  {circular?.filename || "Default Benchmark"}
+                <span className="font-medium text-slate-900 truncate block mt-0.5" title={circular?.filename || "No active circular"}>
+                  {circular?.filename || "No active circular"}
                 </span>
               </div>
 

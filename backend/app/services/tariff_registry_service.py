@@ -161,8 +161,8 @@ class TariffRegistryService:
                     "corridor_count": corridor_count,
                     "status": "ACTIVE" if has_circular else "NO_CIRCULAR",
                 } if has_circular else None,
-                "corridors_sample": [t["destination"] for t in existing[:4]],
-                "total_corridors": corridor_count,
+                "corridors_sample": [t["destination"] for t in existing[:4]] if has_circular else [],
+                "total_corridors": corridor_count if has_circular else 0,
             }
 
     def get_registry(self) -> List[Dict[str, Any]]:
@@ -194,7 +194,12 @@ class TariffRegistryService:
             if code in self._custom_rates and self._custom_rates[code]:
                 return [dict(r) for r in self._custom_rates[code]]
 
-            # Fall back to baseline inverted index in O(1)
+            # If carrier does not have an active circular, return empty list
+            carrier_info = self._registry.get(code)
+            if not carrier_info or not carrier_info.get("has_active_circular"):
+                return []
+
+            # Retrieve active baseline rates
             rates = self._baseline_carrier_rates.get(code, [])
             return [dict(t) for t in rates]
 
@@ -240,10 +245,9 @@ class TariffRegistryService:
                 corridor_count = len(extracted_records)
                 sample = [r.get("destination", "") for r in extracted_records[:4] if r.get("destination")]
             else:
-                # Fallback to existing corridor count if available
                 existing = [t for t in AIRLINE_TARIFFS if t.get("carrier_code") == code]
-                corridor_count = len(existing) if existing else 12  # Staged benchmark
-                sample = [t["destination"] for t in existing[:4]] if existing else ["DXB", "AUH", "DOH", "MCT"]
+                corridor_count = len(existing)
+                sample = [t["destination"] for t in existing[:4]]
 
             self._registry[code]["has_active_circular"] = True
             self._registry[code]["total_corridors"] = corridor_count

@@ -92,7 +92,7 @@ export function DeleteCircularModal({
               </span>
             </div>
             <p className="text-xs text-slate-500 truncate mt-0.5">
-              Active File: {circular?.filename || "Default Sheet"}
+              Active File: {circular?.filename || "None"}
             </p>
           </div>
         </div>
@@ -100,8 +100,8 @@ export function DeleteCircularModal({
         {/* Warning Copy */}
         <p className="mt-3.5 text-xs text-slate-600 leading-relaxed">
           Are you sure you want to clear this active circular? Live quote searches for{" "}
-          <strong className="text-slate-900">{carrier.carrier_name}</strong> will revert to the default
-          system benchmark tariffs until a new rate sheet is uploaded.
+          <strong className="text-slate-900">{carrier.carrier_name}</strong> will be deactivated with
+          0 active routes until a new rate sheet is uploaded.
         </p>
 
         {/* Action Buttons */}

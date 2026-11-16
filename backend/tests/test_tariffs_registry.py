@@ -87,3 +87,21 @@ def test_delete_carrier_circular_rbac():
     data = resp_head.json()
     assert data["success"] is True
     assert data["carrier"]["has_active_circular"] is False
+    assert data["carrier"]["total_corridors"] == 0
+
+    # Rates for AI should now be empty (0 active routes, no fallback baseline)
+    rates_resp = client.get("/api/v1/tariffs/AI/rates")
+    assert rates_resp.status_code == 200
+    rates_data = rates_resp.json()
+    assert rates_data["total_corridors"] == 0
+    assert len(rates_data["rates"]) == 0
+
+
+def test_carrier_no_circular_returns_empty_rates():
+    """Verify that a carrier without an active circular returns 0 corridors and no synthetic rates."""
+    resp = client.get("/api/v1/tariffs/SV/rates")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["carrier_code"] == "SV"
+    assert data["total_corridors"] == 0
+    assert len(data["rates"]) == 0

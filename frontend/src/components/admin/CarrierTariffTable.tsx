@@ -78,11 +78,11 @@ export function CarrierTariffTable({
     const circular = carrier.active_circular;
     if (!carrier.has_active_circular || !circular) {
       return {
-        type: "BASELINE",
-        label: "Baseline",
-        badgeClass: "text-slate-700 bg-slate-100 border-slate-200",
+        type: "NO_CIRCULAR",
+        label: "No Circular",
+        badgeClass: "text-slate-600 bg-slate-100 border-slate-200",
         icon: Clock,
-        iconColor: "text-slate-500",
+        iconColor: "text-slate-400",
         daysRemaining: null,
       };
     }
@@ -379,39 +379,42 @@ export function CarrierTariffTable({
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-0.5">
-                          <span className="font-medium text-xs text-slate-700">Perpetual Master</span>
-                          <div className="text-[11px] text-slate-500">Standard baseline</div>
-                        </div>
+                        <span className="text-xs text-slate-400 font-medium italic">
+                          No active circular
+                        </span>
                       )}
                     </td>
 
                     {/* 3. Corridor Coverage */}
                     <td className="py-3.5 px-4">
-                      <div className="space-y-1">
-                        <div className="font-bold text-xs text-slate-900">
-                          {hasCircular && circular
-                            ? `${circular.corridor_count} active routes`
-                            : `${carrier.total_corridors} benchmark routes`}
-                        </div>
-                        {carrier.corridors_sample && carrier.corridors_sample.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap max-w-[240px]">
-                            {carrier.corridors_sample.slice(0, 4).map((dest) => (
-                              <span
-                                key={dest}
-                                className="font-mono text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
-                              >
-                                {dest}
-                              </span>
-                            ))}
-                            {carrier.total_corridors > 4 && (
-                              <span className="text-[10px] text-slate-500 font-medium">
-                                +{carrier.total_corridors - 4} more
-                              </span>
-                            )}
+                      {hasCircular && circular ? (
+                        <div className="space-y-1">
+                          <div className="font-bold text-xs text-slate-900">
+                            {circular.corridor_count} active routes
                           </div>
-                        )}
-                      </div>
+                          {carrier.corridors_sample && carrier.corridors_sample.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap max-w-[240px]">
+                              {carrier.corridors_sample.slice(0, 4).map((dest) => (
+                                <span
+                                  key={dest}
+                                  className="font-mono text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
+                                >
+                                  {dest}
+                                </span>
+                              ))}
+                              {carrier.total_corridors > 4 && (
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  +{carrier.total_corridors - 4} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium">
+                          0 active routes
+                        </span>
+                      )}
                     </td>
 
                     {/* 4. Action Buttons */}
@@ -448,11 +451,7 @@ export function CarrierTariffTable({
                             type="button"
                             onClick={() => onDeleteRequest(carrier)}
                             disabled={!isPricingHead}
-                            title={
-                              !isPricingHead
-                                ? "Pricing Team Head authorization required to clear circulars"
-                                : `Clear active circular for ${carrier.carrier_name} and revert to baseline`
-                            }
+                            title={`Clear active circular for ${carrier.carrier_name}`}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent focus-visible:ring-2 focus-visible:ring-red-500"
                             aria-label={`Clear active circular for ${carrier.carrier_name}`}
                           >

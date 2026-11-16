@@ -1,7 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Network, Search, Globe, CheckCircle2, X } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  Network,
+  Search,
+  Globe,
+  CheckCircle2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { RATE_SHEET_DESTINATIONS } from "@/lib/rate-destinations";
 
 const REGION_CARRIERS: Record<string, string[]> = {
@@ -18,6 +28,8 @@ const REGION_CARRIERS: Record<string, string[]> = {
 export default function AdminCorridorsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   // Derive unique regions list
   const regions = useMemo(() => {
@@ -42,6 +54,38 @@ export default function AdminCorridorsPage() {
       );
     });
   }, [searchTerm, selectedRegion]);
+
+  // Reset to page 1 on filter or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRegion, pageSize]);
+
+  // Pagination calculations
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedItems = useMemo(() => {
+    const startIdx = (safeCurrentPage - 1) * pageSize;
+    return filtered.slice(startIdx, startIdx + pageSize);
+  }, [filtered, safeCurrentPage, pageSize]);
+
+  const startRecord = totalItems === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const endRecord = Math.min(safeCurrentPage * pageSize, totalItems);
+
+  // Visible page numbers window (up to 5 buttons)
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    let start = Math.max(1, safeCurrentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) {
+      start = Math.max(1, end - 4);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [safeCurrentPage, totalPages]);
 
   return (
     <div className="space-y-6">
@@ -159,6 +203,9 @@ export default function AdminCorridorsPage() {
               Monitored Trade Corridors ({filtered.length} of {RATE_SHEET_DESTINATIONS.length})
             </h2>
           </div>
+          <span className="text-xs text-slate-500 font-medium">
+            Page {safeCurrentPage} of {totalPages}
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -173,14 +220,14 @@ export default function AdminCorridorsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {filtered.length === 0 ? (
+              {paginatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-500 font-medium">
                     No monitored corridors found matching &ldquo;{searchTerm}&rdquo;
                   </td>
                 </tr>
               ) : (
-                filtered.map((item) => {
+                paginatedItems.map((item) => {
                   const carriers = REGION_CARRIERS[item.region] || ["Air India", "Emirates"];
                   return (
                     <tr key={item.code} className="hover:bg-slate-50/70 transition-colors">
@@ -225,14 +272,99 @@ export default function AdminCorridorsPage() {
           </table>
         </div>
 
-        {/* Table Footer */}
-        <div className="p-3 bg-slate-50/80 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
-          <span className="font-medium text-slate-500">
-            Jet Freight Air Cargo Network ex-BOM Gateway
-          </span>
-          <span className="font-semibold text-slate-700">
-            Showing {filtered.length} of {RATE_SHEET_DESTINATIONS.length} airports
-          </span>
+        {/* Table Footer with Accessible Pagination Controls */}
+        <div className="p-3.5 bg-slate-50/80 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="font-semibold text-slate-700">
+              Showing {startRecord} to {endRecord} of {totalItems} corridors
+            </span>
+
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <span>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                aria-label="Select rows per page"
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 cursor-pointer focus-ring"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Page Navigation Buttons */}
+          <div className="flex items-center gap-1" role="navigation" aria-label="Pagination Navigation">
+            {/* First Page */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage(1)}
+              disabled={safeCurrentPage === 1}
+              aria-label="First page"
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+
+            {/* Previous Page */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safeCurrentPage === 1}
+              aria-label="Previous page"
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {/* Page Number Pills */}
+            <div className="flex items-center gap-1 px-1">
+              {pageNumbers.map((page) => {
+                const isCurrent = page === safeCurrentPage;
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    aria-current={isCurrent ? "page" : undefined}
+                    aria-label={`Page ${page}`}
+                    className={`min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isCurrent
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next Page */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safeCurrentPage === totalPages}
+              aria-label="Next page"
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Last Page */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safeCurrentPage === totalPages}
+              aria-label="Last page"
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
