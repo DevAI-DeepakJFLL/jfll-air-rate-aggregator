@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
 from app.services.pdf_extractor import parse_airline_rate_sheet
 from app.services.tariff_registry_service import tariff_registry_service
-from app.core.security import verify_admin_key, verify_pricing_head, UserSession
+from app.core.security import verify_pricing_head, UserSession
 from app.core.config import settings
 
 router = APIRouter(prefix="/tariffs", tags=["Tariff Ingestion & Staging"])

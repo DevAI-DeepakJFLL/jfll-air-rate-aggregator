@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints.charges import get_charges_service
 from app.core.config import settings
-from app.core.security import Role, UserSession, get_current_user, verify_admin_key, verify_pricing_head
+from app.core.security import Role, verify_admin_key
 from app.main import app
 from app.services.charges_service import ChargesService, DEFAULT_SEED_PATH
 

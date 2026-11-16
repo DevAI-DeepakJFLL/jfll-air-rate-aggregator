@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas.rate import RateSearchRequest, CargoDimension
-from app.services.pdf_extractor import validate_pdf_file_signature, extract_text_from_pdf
+from app.services.pdf_extractor import validate_pdf_file_signature
 from app.core.config import settings
 
 client = TestClient(app)

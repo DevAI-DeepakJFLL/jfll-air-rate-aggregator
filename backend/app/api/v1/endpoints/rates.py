@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException, status
 from app.schemas.rate import (
     RateSearchRequest,

@@ -22,6 +22,7 @@ AIR_CARGO_RATE_AGGREGATOR_PLAN.md
 *PLAN*.md
 *_AUDIT*.md
 *_REPORT*.md
+anti-slop/
 *.agent*
 .agent*
 .gemini/

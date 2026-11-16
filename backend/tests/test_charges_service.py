@@ -1,6 +1,5 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
@@ -14,7 +13,6 @@ from app.schemas.charge import (
     ChargeRuleUpdate,
     CommodityScope,
     CorridorScope,
-    CarrierScope,
 )
 from app.services.charges_service import ChargesService, DEFAULT_SEED_PATH
 
