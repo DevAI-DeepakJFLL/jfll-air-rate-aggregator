@@ -45,13 +45,13 @@ async def add_security_headers(request: Request, call_next):
         )
     return response
 
-# 2. CORS configuration (Strict Origin Whitelist)
+# 2. CORS configuration (Permissive for CloudFront + local dev, zero cookies required)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Admin-Key", "X-Admin-Role", "X-Admin-User", "Accept"],
+    allow_headers=["*"],
 )
 
 # 3. Include API v1 router

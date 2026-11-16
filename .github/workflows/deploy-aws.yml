@@ -86,6 +86,16 @@ jobs:
             --function-name "$FUNCTION_NAME" \
             --zip-file fileb://lambda-bundle.zip
 
+      - name: Configure Lambda Function URL CORS
+        continue-on-error: true
+        working-directory: ./backend
+        run: |
+          FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
+          echo "Updating Function URL CORS configuration for $FUNCTION_NAME..."
+          aws lambda update-function-url-config \
+            --function-name "$FUNCTION_NAME" \
+            --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","DELETE","OPTIONS"],AllowHeaders=["*"],MaxAge=86400' || echo "Note: Check Function URL CORS in AWS Console if needed."
+
   # =========================================================================
   # JOB 2: Build & Deploy Frontend to S3 + CloudFront
   # =========================================================================
