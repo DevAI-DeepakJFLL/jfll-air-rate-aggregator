@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isExport = process.env.NEXT_OUTPUT_EXPORT === "true";
+
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
@@ -14,17 +16,25 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  ...(process.env.BUILD_STANDALONE === "true" ? { output: "standalone" } : {}),
+  ...(isExport
+    ? { output: "export", images: { unoptimized: true } }
+    : process.env.BUILD_STANDALONE === "true"
+    ? { output: "standalone" }
+    : {}),
   reactStrictMode: true,
   poweredByHeader: false,
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: securityHeaders,
-      },
-    ];
-  },
+  ...(!isExport
+    ? {
+        async headers() {
+          return [
+            {
+              source: "/:path*",
+              headers: securityHeaders,
+            },
+          ];
+        },
+      }
+    : {}),
 };
 
 export default nextConfig;
