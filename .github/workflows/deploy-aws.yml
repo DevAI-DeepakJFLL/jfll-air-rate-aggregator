@@ -149,12 +149,12 @@ jobs:
 
       - name: Sync Static Assets to S3
         run: |
-          BUCKET_NAME="${{ vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME }}"
+          BUCKET_NAME="${{ vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME }}"
           if [ -z "$BUCKET_NAME" ]; then
-            echo "::error::AWS_S3_BUCKET_NAME is not configured in GitHub Secrets or Variables."
+            echo "::error::S3 Bucket Name is not configured. Please add AWS_S3_BUCKET_NAME (or S3_BUCKET_NAME) in GitHub Secrets."
             exit 1
           fi
-          echo "Syncing frontend/out to S3 bucket: $BUCKET_NAME in region ${AWS_REGION:-ap-south-1}..."
+          echo "Target S3 Bucket: $BUCKET_NAME in region ${AWS_REGION:-ap-south-1}"
           # Sync immutable hashed JS/CSS assets
           aws s3 sync frontend/out "s3://$BUCKET_NAME" --delete --exclude "*.html" --cache-control "public, max-age=31536000, immutable" --region "${AWS_REGION:-ap-south-1}"
           # Sync HTML and root documents with no-cache so updates are immediately visible
@@ -162,12 +162,12 @@ jobs:
 
       - name: Invalidate CloudFront CDN Cache
         run: |
-          DIST_ID="${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID || secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}"
+          DIST_ID="${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID || secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID || vars.CLOUDFRONT_DISTRIBUTION_ID || secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
           if [ -n "$DIST_ID" ]; then
-            # Invalidate index documents and root path
+            echo "Invalidating CloudFront Cache for Distribution: $DIST_ID"
             aws cloudfront create-invalidation \
               --distribution-id "$DIST_ID" \
-              --paths "/" "/index.html" "/*"
+              --paths "/*"
           else
-            echo "AWS_CLOUDFRONT_DISTRIBUTION_ID is not configured, skipping cache invalidation."
+            echo "CloudFront Distribution ID is not configured, skipping cache invalidation."
           fi
