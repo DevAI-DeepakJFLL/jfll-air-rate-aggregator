@@ -11,6 +11,7 @@ import {
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 import { RATE_SHEET_DESTINATIONS } from "../../lib/rate-destinations";
 import { SearchableDestinationSelect } from "./SearchableDestinationSelect";
+import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 import {
   DimensionUnit,
   DimensionMode,
@@ -20,6 +21,45 @@ import {
   cbmToVolumetricWeight,
   deriveChargeableWeight,
 } from "../../lib/freight-units";
+
+const COMMODITY_OPTIONS: StandardSelectOption[] = [
+  {
+    value: "General Cargo",
+    label: "General Cargo",
+    badge: "GCR / GEN",
+    description: "Standard ex-BOM air cargo without special handling",
+  },
+  {
+    value: "Pharma CRT",
+    label: "Pharma CRT",
+    badge: "PILA",
+    description: "15°C to 25°C controlled room temperature",
+  },
+  {
+    value: "Cold Chain",
+    label: "Cold Chain",
+    badge: "COL",
+    description: "2°C to 8°C active cool chain refrigeration",
+  },
+  {
+    value: "DGR - PAX",
+    label: "Dangerous Goods",
+    badge: "DGR",
+    description: "IATA Dangerous Goods passenger aircraft compliant",
+  },
+  {
+    value: "Express Courier",
+    label: "Express Courier",
+    badge: "XPS / COU",
+    description: "Priority express transit with fast-track handling",
+  },
+  {
+    value: "Valuable Cargo",
+    label: "Valuable Cargo",
+    badge: "VAL",
+    description: "High-value freight with security vault protocol",
+  },
+];
 
 interface RateSearchFormProps {
   onSearch: (payload: RateSearchRequest) => void;
@@ -214,20 +254,15 @@ export function RateSearchForm({
           >
             Commodity Class
           </label>
-          <select
+          <StandardSelect
             id="commodity-select"
             value={commodity}
-            onChange={(e) => setCommodity(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus-ring cursor-pointer"
-          >
-            <option value="General Cargo">General Cargo (GCR / GEN)</option>
-            <option value="Pharma CRT">Pharma CRT (15°C to 25°C - PILA)</option>
-            <option value="Cold Chain">Cold Chain (2°C to 8°C - COL)</option>
-            <option value="DGR - PAX">Dangerous Goods (DGR - PAX)</option>
-            <option value="Express Courier">Express Courier (XPS / COU)</option>
-            <option value="Valuable Cargo">Valuable Cargo (VAL)</option>
-          </select>
-          <div className="text-[10px] font-medium text-slate-600 mt-1">
+            onChange={(val) => setCommodity(String(val))}
+            options={COMMODITY_OPTIONS}
+            ariaLabel="Commodity Class"
+            ariaDescribedBy="commodity-help"
+          />
+          <div id="commodity-help" className="text-[10px] font-medium text-slate-600 mt-1">
             Airline handling &amp; surcharges vary by category
           </div>
         </div>

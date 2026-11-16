@@ -7,6 +7,7 @@ import { CostBreakdownModal, MarginInfo } from "./CostBreakdownModal";
 import { CarrierBadge } from "./CarrierBadge";
 import { AirlineLogo } from "./AirlineLogo";
 import { MarginControllerBar, MarginMode } from "./MarginControllerBar";
+import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 import {
   Clock,
   TrendingDown,
@@ -35,6 +36,12 @@ interface CardMarginOverride {
   mode: MarginMode;
   value: number;
 }
+
+const MARGIN_MODE_OPTIONS: StandardSelectOption<MarginMode>[] = [
+  { value: "per_kg", label: "₹ / kg", description: "Per chargeable kilogram" },
+  { value: "percent", label: "% Markup", description: "Percentage markup of freight" },
+  { value: "flat", label: "₹ Flat", description: "Fixed flat markup per shipment" },
+];
 
 export function RatesGrid({ rates }: RatesGridProps) {
   const [selectedQuote, setSelectedQuote] = useState<RateQuoteItem | null>(null);
@@ -763,15 +770,15 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  <select
-                                    value={overrideMode}
-                                    onChange={(e) => setOverrideMode(e.target.value as MarginMode)}
-                                    className="h-8 rounded-lg border border-slate-300 bg-white px-2.5 font-mono text-xs font-bold text-slate-800"
-                                  >
-                                    <option value="per_kg">₹ / kg</option>
-                                    <option value="percent">% Markup</option>
-                                    <option value="flat">₹ Flat</option>
-                                  </select>
+                                  <div className="w-32">
+                                    <StandardSelect
+                                      size="sm"
+                                      value={overrideMode}
+                                      onChange={(val) => setOverrideMode(val as MarginMode)}
+                                      options={MARGIN_MODE_OPTIONS}
+                                      ariaLabel="Margin calculation mode"
+                                    />
+                                  </div>
                                   <input
                                     type="number"
                                     value={overrideInputStr}

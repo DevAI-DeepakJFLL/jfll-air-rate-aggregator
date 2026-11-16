@@ -25,6 +25,7 @@ import {
 } from "@/types/charge";
 import { createCharge, updateCharge } from "@/lib/api-client";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 
 interface AddChargeDrawerProps {
   isOpen: boolean;
@@ -40,6 +41,28 @@ const CATEGORY_OPTIONS: { label: string; value: ChargeCategory; desc: string }[]
   { label: "Customs & Regulatory", value: "CUSTOMS", desc: "AMS advance filing, export customs inspection" },
   { label: "Statutory Tax", value: "STATUTORY_TAX", desc: "Indian Air Export GST (5%) or government levies" },
   { label: "Other Ancillary", value: "OTHER", desc: "Airline-specific and miscellaneous ancillary fees" },
+];
+
+const CATEGORY_SELECT_OPTIONS: StandardSelectOption<ChargeCategory>[] = CATEGORY_OPTIONS.map((opt) => ({
+  value: opt.value,
+  label: opt.label,
+  description: opt.desc,
+  badge: opt.value,
+}));
+
+const CARRIER_SCOPE_OPTIONS: StandardSelectOption<CarrierScope>[] = [
+  {
+    value: "ALL",
+    label: "All Airlines (Global)",
+    description: "Applies to all air carriers operating out of BOM",
+    badge: "GLOBAL",
+  },
+  {
+    value: "SPECIFIC_CARRIERS",
+    label: "Specific Carriers Only",
+    description: "Applies to selected IATA carrier codes (e.g. EK, QR, SQ)",
+    badge: "SCOPED",
+  },
 ];
 
 const CALCULATION_TYPES: {
@@ -594,19 +617,14 @@ export default function AddChargeDrawer({
                 <label htmlFor="charge-category" className="block text-xs font-bold text-slate-700 mb-1">
                   Category Classification
                 </label>
-                <select
+                <StandardSelect
                   id="charge-category"
                   disabled={!isPricingHead}
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as ChargeCategory)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none disabled:bg-slate-100 disabled:text-slate-500"
-                >
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}: {opt.desc}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setCategory(val as ChargeCategory)}
+                  options={CATEGORY_SELECT_OPTIONS}
+                  ariaLabel="Category Classification"
+                />
               </div>
 
               <div>
@@ -892,16 +910,14 @@ export default function AddChargeDrawer({
                   <label htmlFor="carrier-scope" className="block text-xs font-bold text-slate-700 mb-1">
                     Carrier Scope
                   </label>
-                  <select
+                  <StandardSelect
                     id="carrier-scope"
                     disabled={!isPricingHead}
                     value={carrierScope}
-                    onChange={(e) => setCarrierScope(e.target.value as CarrierScope)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-sky-500 outline-none disabled:bg-slate-100"
-                  >
-                    <option value="ALL">All Airlines (Global)</option>
-                    <option value="SPECIFIC_CARRIERS">Specific Carriers Only</option>
-                  </select>
+                    onChange={(val) => setCarrierScope(val as CarrierScope)}
+                    options={CARRIER_SCOPE_OPTIONS}
+                    ariaLabel="Carrier Scope"
+                  />
                 </div>
 
                 <div>

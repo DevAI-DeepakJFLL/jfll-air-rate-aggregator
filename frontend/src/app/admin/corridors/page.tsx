@@ -13,6 +13,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { RATE_SHEET_DESTINATIONS } from "@/lib/rate-destinations";
+import { StandardSelect, StandardSelectOption } from "@/components/common/StandardSelect";
 
 const REGION_CARRIERS: Record<string, string[]> = {
   "Middle East": ["Emirates", "Air India", "Etihad Cargo", "Qatar Cargo", "Oman Air", "IndiGo"],
@@ -24,6 +25,13 @@ const REGION_CARRIERS: Record<string, string[]> = {
   "Latin America": ["LATAM Cargo", "Emirates", "Qatar Cargo"],
   "Australia & Pacific": ["Air India", "Singapore Airlines", "Malaysia Airlines"],
 };
+
+const PAGE_SIZE_OPTIONS: StandardSelectOption<number>[] = [
+  { value: 10, label: "10 per page" },
+  { value: 15, label: "15 per page" },
+  { value: 25, label: "25 per page" },
+  { value: 50, label: "50 per page" },
+];
 
 export default function AdminCorridorsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -282,17 +290,19 @@ export default function AdminCorridorsPage() {
             {/* Rows per page selector */}
             <div className="flex items-center gap-1.5 text-slate-500">
               <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                aria-label="Select rows per page"
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 cursor-pointer focus-ring"
-              >
-                <option value={10}>10</option>
-                <option value={15}>15</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
+              <div className="w-32">
+                <StandardSelect
+                  size="sm"
+                  value={pageSize}
+                  onChange={(val) => {
+                    setPageSize(Number(val));
+                    setCurrentPage(1);
+                  }}
+                  options={PAGE_SIZE_OPTIONS}
+                  dropDirection="up"
+                  ariaLabel="Select rows per page"
+                />
+              </div>
             </div>
           </div>
 

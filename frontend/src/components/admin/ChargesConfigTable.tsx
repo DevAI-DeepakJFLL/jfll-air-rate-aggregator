@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ChargeRule, ChargeCategory } from "@/types/charge";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 
 interface ChargesConfigTableProps {
   charges: ChargeRule[];
@@ -20,6 +21,16 @@ interface ChargesConfigTableProps {
   onToggleActive: (charge: ChargeRule) => Promise<void>;
   onDelete: (charge: ChargeRule) => Promise<void>;
 }
+
+const CATEGORY_FILTER_OPTIONS: StandardSelectOption[] = [
+  { value: "ALL", label: "All Categories" },
+  { value: "TERMINAL", label: "Terminal Handling", badge: "THC", description: "MIAL terminal screening and handling" },
+  { value: "COMMODITY", label: "Commodity Specific", badge: "SPEC", description: "DGR, Pharma, Perishable special handling" },
+  { value: "DOCUMENTATION", label: "Documentation", badge: "DOCS", description: "Electronic AWB, ICEGATE EDI transmission" },
+  { value: "CUSTOMS", label: "Customs / ICEGATE", badge: "CUST", description: "AMS filing, export customs inspection" },
+  { value: "STATUTORY_TAX", label: "Statutory Tax (GST)", badge: "TAX", description: "Indian Air Export GST (5%)" },
+  { value: "OTHER", label: "Other Ancillaries", badge: "OTHER", description: "Miscellaneous handling and surcharges" },
+];
 
 export default function ChargesConfigTable({
   charges,
@@ -217,25 +228,21 @@ export default function ChargesConfigTable({
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 flex-wrap pb-1 sm:pb-0">
           {/* Category Dropdown */}
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden md:inline">
               Category:
             </span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
-            >
-              <option value="ALL">All Categories</option>
-              <option value="TERMINAL">Terminal Handling</option>
-              <option value="COMMODITY">Commodity Specific</option>
-              <option value="DOCUMENTATION">Documentation</option>
-              <option value="CUSTOMS">Customs / ICEGATE</option>
-              <option value="STATUTORY_TAX">Statutory Tax (GST)</option>
-              <option value="OTHER">Other Ancillaries</option>
-            </select>
+            <div className="w-48 sm:w-56">
+              <StandardSelect
+                size="sm"
+                value={selectedCategory}
+                onChange={(val) => setSelectedCategory(String(val))}
+                options={CATEGORY_FILTER_OPTIONS}
+                ariaLabel="Filter charges by category"
+              />
+            </div>
           </div>
 
           {/* Status Segment */}
