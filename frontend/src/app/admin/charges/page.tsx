@@ -227,21 +227,14 @@ export default function AdminChargesPage() {
           )}
 
           {/* Add Charge Button */}
-          {isPricingHead ? (
-            <button
-              type="button"
-              onClick={handleOpenCreateDrawer}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 hover:bg-slate-900 active:bg-black px-4 py-2 text-xs font-extrabold text-amber-400 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>+ Add Custom Charge</span>
-            </button>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500">
-              <ShieldAlert className="h-3.5 w-3.5 text-slate-500" />
-              <span>Read-Only Preview</span>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleOpenCreateDrawer}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 hover:bg-slate-900 active:bg-black px-4 py-2 text-xs font-extrabold text-amber-400 shadow-xs transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Custom Charge</span>
+          </button>
         </div>
       </div>
 

@@ -22,10 +22,8 @@ export function AdminRoleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMounted(true);
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "PRICING_HEAD" || saved === "COORDINATOR") {
-        setRoleState(saved);
-      }
+      localStorage.setItem(STORAGE_KEY, "PRICING_HEAD");
+      setRoleState("PRICING_HEAD");
     } catch {
       // LocalStorage unavailable (e.g. private browsing or security sandbox)
     }

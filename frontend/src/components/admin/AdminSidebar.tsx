@@ -194,17 +194,10 @@ export default function AdminSidebar({
               Deepak Naidu
             </div>
             <div className="mt-0.5">
-              {isPricingHead ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-400/30">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Pricing Team Head
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-300 border border-slate-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                  Coordinator Preview
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-400/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Pricing Team Head
+              </span>
             </div>
           </div>
         </div>
