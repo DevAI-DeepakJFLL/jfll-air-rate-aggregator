@@ -66,15 +66,34 @@ jobs:
       - name: Package Backend Code & Dependencies
         working-directory: ./backend
         run: |
-          echo "Installing Lambda dependencies..."
+          FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
+          echo "Detecting Lambda architecture..."
+          ARCH=$(aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --query "Architectures[0]" --output text 2>/dev/null || echo "x86_64")
+          if [ "$ARCH" = "None" ] || [ -z "$ARCH" ]; then ARCH="x86_64"; fi
+          echo "Detected architecture: $ARCH"
+          
+          if [ "$ARCH" = "arm64" ]; then
+            PLATFORM_TAG="manylinux2014_aarch64"
+          else
+            PLATFORM_TAG="manylinux2014_x86_64"
+          fi
+          echo "Using binary wheel platform: $PLATFORM_TAG"
+
+          echo "Installing Lambda dependencies for $PLATFORM_TAG and Python 3.11..."
           python -m pip install --upgrade pip
-          pip install --target ./lambda_pkg mangum fastapi uvicorn pydantic pydantic-settings sqlalchemy aiosqlite pypdf httpx python-multipart python-dotenv
+          pip install \
+            --platform "$PLATFORM_TAG" \
+            --target ./lambda_pkg \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: \
+            mangum fastapi uvicorn pydantic pydantic-core pydantic-settings sqlalchemy aiosqlite pypdf httpx python-multipart python-dotenv
           
           echo "Building Lambda bundle..."
           cd lambda_pkg
-          zip -r ../lambda-bundle.zip . -x "*__pycache__*" "*.dist-info/*"
+          zip -r ../lambda-bundle.zip . -x "*__pycache__*" "*.pyc"
           cd ..
-          zip -g -r lambda-bundle.zip lambda_handler.py lambda_function.py app data -x "*__pycache__*"
+          zip -g -r lambda-bundle.zip lambda_handler.py lambda_function.py app data -x "*__pycache__*" "*.pyc"
           ls -lh lambda-bundle.zip
 
       - name: Update Lambda Function Code
@@ -94,9 +113,10 @@ jobs:
         working-directory: ./backend
         run: |
           FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          echo "Optimizing Lambda configuration (timeout=30s, memory=512MB, handler=lambda_handler.handler)..."
+          echo "Optimizing Lambda configuration (runtime=python3.11, timeout=30s, memory=512MB, handler=lambda_handler.handler)..."
           aws lambda update-function-configuration \
             --function-name "$FUNCTION_NAME" \
+            --runtime python3.11 \
             --timeout 30 \
             --memory-size 512 \
             --handler "lambda_handler.handler" || echo "Note: Check Lambda configuration in AWS Console if needed."
