@@ -345,21 +345,17 @@ export function CarrierTariffTable({
                             )}
                           </div>
 
-                          {/* Ingested Circular File or Baseline note */}
-                          <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-                            {hasCircular && circular ? (
+                          {/* Ingested Circular File */}
+                          {hasCircular && circular && (
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px]">
                               <div className="flex items-center gap-1 text-slate-600 truncate max-w-[280px]" title={circular.filename}>
                                 <FileText className="h-3 w-3 text-jfll-blue shrink-0" />
                                 <span className="font-medium text-slate-800 truncate">
                                   {circular.filename}
                                 </span>
                               </div>
-                            ) : (
-                              <span className="text-slate-500 italic">
-                                Standard ex-BOM system baseline (No active circular uploaded)
-                              </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -398,7 +394,7 @@ export function CarrierTariffTable({
                       ) : (
                         <div className="space-y-0.5">
                           <span className="font-medium text-xs text-slate-700">Perpetual Master</span>
-                          <div className="text-[11px] text-slate-500">Default fallback baseline</div>
+                          <div className="text-[11px] text-slate-500">Standard baseline</div>
                         </div>
                       )}
                     </td>
@@ -485,15 +481,12 @@ export function CarrierTariffTable({
           </table>
         </div>
 
-        {/* Operational Footer Bar with Quick Dropzone Guidance */}
-        <div className="p-3.5 bg-slate-50/80 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600">
-          <div className="flex items-center gap-2 font-medium">
-            <UploadCloud className="h-4 w-4 text-jfll-blue shrink-0" />
-            <span>
-              Drag and drop any airline PDF rate circular directly onto its row to ingest and parse rates instantly.
-            </span>
-          </div>
-          <span className="font-semibold text-slate-700 shrink-0">
+        {/* Table Footer */}
+        <div className="p-3 bg-slate-50/80 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
+          <span className="font-medium text-slate-500">
+            Air Cargo Master Tariffs ex-BOM
+          </span>
+          <span className="font-semibold text-slate-700">
             Showing {sortedCarriers.length} of {carriers.length} airlines
           </span>
         </div>

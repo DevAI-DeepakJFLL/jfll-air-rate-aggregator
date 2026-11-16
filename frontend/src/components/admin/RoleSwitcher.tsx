@@ -10,7 +10,7 @@ export default function RoleSwitcher() {
   return (
     <div
       role="group"
-      aria-label="Role Simulation Switcher"
+      aria-label="Admin Role Switcher"
       className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 shadow-2xs"
     >
       {/* Pricing Team Head */}
@@ -18,7 +18,7 @@ export default function RoleSwitcher() {
         type="button"
         onClick={() => setRole("PRICING_HEAD")}
         aria-pressed={isPricingHead}
-        title="Simulate Pricing Team Head: Full Read/Write Permissions"
+        title="Pricing Team Head"
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
           isPricingHead
             ? "bg-obsidian-950 text-amber-400 shadow-xs border border-obsidian-900"
@@ -35,7 +35,7 @@ export default function RoleSwitcher() {
         type="button"
         onClick={() => setRole("COORDINATOR")}
         aria-pressed={!isPricingHead}
-        title="Simulate Pricing Coordinator: Read-Only Operations Preview"
+        title="Pricing Coordinator"
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
           !isPricingHead
             ? "bg-obsidian-950 text-sky-300 shadow-xs border border-obsidian-900"

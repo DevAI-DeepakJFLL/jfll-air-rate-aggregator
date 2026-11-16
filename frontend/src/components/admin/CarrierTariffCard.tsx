@@ -322,15 +322,12 @@ export function CarrierTariffCard({
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800">
-                {isUploading ? "Uploading & Extracting..." : "Drag & Drop Carrier Circular PDF"}
+                {isUploading ? "Uploading & Extracting..." : "Upload Carrier Circular PDF"}
               </p>
-              <p className="text-xs text-slate-600 mt-0.5">
-                or click to browse filesystem (.pdf only)
+              <p className="text-xs text-slate-500 mt-0.5">
+                Drop PDF here or click to browse
               </p>
             </div>
-            <span className="text-xs text-slate-600 mt-1">
-              Currently serving system baseline ex-BOM
-            </span>
           </div>
         )}
       </div>

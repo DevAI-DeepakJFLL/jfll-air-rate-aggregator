@@ -56,7 +56,7 @@ export function MarginControllerBar({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-sm font-black tracking-tight text-white uppercase">
-                Coordinator Margin &amp; Client Sell Price
+                Commercial Margin &amp; Client Selling Price
               </h4>
               {globalMarginNum > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 font-mono text-[10px] font-extrabold text-emerald-300 border border-emerald-500/30">
@@ -70,7 +70,7 @@ export function MarginControllerBar({
               )}
             </div>
             <p className="text-xs text-slate-300 mt-0.5">
-              Dynamic customer selling price calculator. Pure airline buy rates remain 100% untouched as your procurement baseline.
+              Apply commercial markup over airline net buy rates before quoting clients.
             </p>
           </div>
         </div>

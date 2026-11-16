@@ -27,29 +27,25 @@ export default function AdminDashboardPage() {
             Commercial Tariff &amp; Surcharge Management
           </h1>
           <p className="text-xs text-slate-300 font-medium leading-relaxed">
-            Centralized air cargo administration for the &lt; 500kg Smalls Desk. Ingest carrier circulars, maintain baseline and airline-specific surcharges, and audit RBAC permissions in real time.
+            Centralized tariff administration, surcharge rules, and carrier rate circular ingestion.
           </p>
         </div>
 
-        {/* Current Active Role Simulator Pill */}
+        {/* Current Active Role Pill */}
         <div className="mt-5 pt-4 border-t border-obsidian-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-medium">Active Simulation Mode:</span>
+            <span className="text-slate-400 font-medium">Active Role:</span>
             {isPricingHead ? (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400/20 px-2.5 py-1 font-bold text-amber-300 border border-amber-400/30">
                 <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                Pricing Team Head (Full Read / Write Access)
+                Pricing Team Head
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/20 px-2.5 py-1 font-bold text-sky-200 border border-sky-400/30">
                 <span className="h-2 w-2 rounded-full bg-sky-400" />
-                Pricing Coordinator (Read-Only Preview)
+                Pricing Coordinator
               </span>
             )}
-          </div>
-
-          <div className="text-[11px] text-slate-400 font-medium">
-            Use the toggle in the top bar to simulate alternate RBAC tiers.
           </div>
         </div>
       </div>
@@ -191,7 +187,7 @@ export default function AdminDashboardPage() {
                 <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-jfll-blue group-hover:translate-x-0.5 transition-all" />
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Inspect role privileges, review security authorization headers, and audit mutation permissions across the operations team.
+                Role permissions and authorization access matrix.
               </p>
             </div>
           </Link>

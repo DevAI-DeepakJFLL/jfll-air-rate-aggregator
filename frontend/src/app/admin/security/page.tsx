@@ -30,10 +30,10 @@ export default function AdminSecurityPage() {
             </div>
             <div>
               <h2 className="text-sm font-bold text-slate-900">
-                Active Client Simulation Profile
+                Active Role Profile
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Changes in the top bar switch the local state and the <code className="font-mono text-slate-800 bg-slate-100 px-1 py-0.5 rounded">X-Admin-Role</code> header.
+                Current role configuration and active <code className="font-mono text-slate-800 bg-slate-100 px-1 py-0.5 rounded">X-Admin-Role</code> header.
               </p>
             </div>
           </div>

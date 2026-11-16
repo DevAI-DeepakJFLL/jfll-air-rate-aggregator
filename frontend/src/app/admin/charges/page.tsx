@@ -245,35 +245,6 @@ export default function AdminChargesPage() {
         </div>
       </div>
 
-      {/* Role Notice Banner */}
-      <div
-        className={`rounded-xl border p-4 text-xs transition-all ${
-          isPricingHead
-            ? "border-amber-200 bg-amber-50/70 text-amber-900"
-            : "border-sky-200 bg-sky-50 text-sky-900"
-        }`}
-      >
-        <div className="flex items-start sm:items-center gap-2.5">
-          {isPricingHead ? (
-            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
-          ) : (
-            <ShieldAlert className="h-4 w-4 text-sky-700 shrink-0 mt-0.5 sm:mt-0" />
-          )}
-          <div className="flex-1">
-            <span className="font-bold">
-              {isPricingHead
-                ? "Pricing Team Head Authorized: "
-                : "Read-Only Mode: "}
-            </span>
-            <span>
-              {isPricingHead
-                ? "You have full write permissions to configure, edit, toggle, or purge statutory tariffs and custom ancillaries. All changes persist across quotes."
-                : "You are viewing charges as Pricing Coordinator. To add, edit, or toggle charges, switch to Pricing Team Head."}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Error alert if load failed */}
       {errorMessage && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 space-y-3">

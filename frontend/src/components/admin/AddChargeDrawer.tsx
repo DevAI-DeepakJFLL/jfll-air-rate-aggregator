@@ -533,16 +533,6 @@ export default function AddChargeDrawer({
             </button>
           </div>
 
-          {/* Role Status Bar */}
-          {!isPricingHead && (
-            <div className="bg-sky-50 border-b border-sky-200 px-6 py-2.5 text-xs text-sky-900 flex items-center gap-2 shrink-0">
-              <ShieldAlert className="h-4 w-4 text-sky-600 shrink-0" />
-              <span>
-                <strong>Read-Only Mode:</strong> You are viewing this charge as Pricing Coordinator. To save changes, switch to Pricing Team Head.
-              </span>
-            </div>
-          )}
-
           {/* Drawer Scrollable Body */}
           <form id="charge-drawer-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
             {formError && (

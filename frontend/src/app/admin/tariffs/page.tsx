@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import {
   CheckCircle,
   AlertTriangle,
-  Lock,
   Search,
   RefreshCw,
   Plane,
@@ -215,17 +214,6 @@ export default function AdminTariffsPage() {
           </button>
         </div>
       </div>
-
-      {/* Role Notice for Coordinator */}
-      {!isPricingHead && (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-900 flex items-center gap-3">
-          <Lock className="h-5 w-5 text-sky-600 shrink-0" />
-          <div>
-            <span className="font-bold">Coordinator Preview Mode:</span> You can test drag-and-drop parsing and preview extracted corridor rates. Deactivating active circulars or altering master pricing requires{" "}
-            <strong>Pricing Team Head</strong> authorization.
-          </div>
-        </div>
-      )}
 
       {/* Notification Banner */}
       {notification && (

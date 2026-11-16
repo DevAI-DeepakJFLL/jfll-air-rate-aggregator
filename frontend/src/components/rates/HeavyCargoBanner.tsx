@@ -25,7 +25,7 @@ export function HeavyCargoBanner({ chargeableWeight, message }: HeavyCargoBanner
           </h3>
           <p className="mt-1 text-xs font-semibold text-amber-900 leading-relaxed">
             {message ||
-              "Published airline smalls tariffs only apply to shipments strictly under 500 kg. Shipments 500 kg and above require ad-hoc spot rate negotiation from the airline cargo desk."}
+              "Published smalls tariffs apply to shipments under 500 kg. Shipments 500 kg and above require ad-hoc carrier spot rates."}
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <a
