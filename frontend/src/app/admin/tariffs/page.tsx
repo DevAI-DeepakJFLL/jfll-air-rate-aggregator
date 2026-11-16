@@ -9,10 +9,13 @@ import {
   RefreshCw,
   Plane,
   X,
+  TableProperties,
+  LayoutGrid,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 import { CarrierRegistryItem } from "@/types/tariff";
 import { CarrierTariffCard } from "@/components/admin/CarrierTariffCard";
+import { CarrierTariffTable } from "@/components/admin/CarrierTariffTable";
 import { TariffPreviewDrawer } from "@/components/admin/TariffPreviewDrawer";
 import { DeleteCircularModal } from "@/components/admin/DeleteCircularModal";
 import {
@@ -27,6 +30,7 @@ export default function AdminTariffsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "ACTIVE" | "BASELINE">("ALL");
+  const [viewMode, setViewMode] = useState<"TABLE" | "CARDS">("TABLE");
   const [uploadingCarrier, setUploadingCarrier] = useState<string | null>(null);
   const [activePreviewCarrier, setActivePreviewCarrier] = useState<CarrierRegistryItem | null>(null);
   const [carrierToDelete, setCarrierToDelete] = useState<CarrierRegistryItem | null>(null);
@@ -164,15 +168,52 @@ export default function AdminTariffsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={fetchRegistry}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs self-start sm:self-auto cursor-pointer"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh Registry
-        </button>
+        {/* View Mode Toggle and Refresh Button */}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {/* View Toggle */}
+          <div
+            className="inline-flex items-center rounded-xl border border-slate-300 bg-slate-100 p-0.5 text-xs font-semibold shadow-2xs"
+            role="group"
+            aria-label="Tariff desk layout view switch"
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("TABLE")}
+              aria-pressed={viewMode === "TABLE"}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "TABLE"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <TableProperties className="h-3.5 w-3.5 text-jfll-blue" />
+              Table View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("CARDS")}
+              aria-pressed={viewMode === "CARDS"}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "CARDS"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5 text-slate-600" />
+              Card Deck
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchRegistry}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-jfll-blue"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh Registry
+          </button>
+        </div>
       </div>
 
       {/* Role Notice for Coordinator */}
@@ -189,6 +230,8 @@ export default function AdminTariffsPage() {
       {/* Notification Banner */}
       {notification && (
         <div
+          role="alert"
+          aria-live="polite"
           className={`rounded-xl border p-4 text-xs flex items-center justify-between gap-3 shadow-xs animate-in fade-in duration-150 ${
             notification.type === "success"
               ? "border-emerald-300 bg-emerald-50 text-emerald-900"
@@ -206,7 +249,8 @@ export default function AdminTariffsPage() {
           <button
             type="button"
             onClick={() => setNotification(null)}
-            className="text-xs font-bold underline hover:opacity-80 cursor-pointer"
+            className="text-xs font-bold underline hover:opacity-80 cursor-pointer min-h-[32px] px-2 inline-flex items-center justify-center"
+            aria-label="Dismiss notification"
           >
             Dismiss
           </button>
@@ -220,6 +264,7 @@ export default function AdminTariffsPage() {
           <button
             type="button"
             onClick={() => setFilterMode("ALL")}
+            aria-pressed={filterMode === "ALL"}
             className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
               filterMode === "ALL"
                 ? "bg-slate-900 text-white border-slate-900 shadow-xs"
@@ -237,6 +282,7 @@ export default function AdminTariffsPage() {
           <button
             type="button"
             onClick={() => setFilterMode("ACTIVE")}
+            aria-pressed={filterMode === "ACTIVE"}
             className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
               filterMode === "ACTIVE"
                 ? "bg-emerald-900 text-white border-emerald-900 shadow-xs ring-2 ring-emerald-500/30"
@@ -254,6 +300,7 @@ export default function AdminTariffsPage() {
           <button
             type="button"
             onClick={() => setFilterMode("BASELINE")}
+            aria-pressed={filterMode === "BASELINE"}
             className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer border ${
               filterMode === "BASELINE"
                 ? "bg-slate-700 text-white border-slate-700 shadow-xs ring-2 ring-slate-400/30"
@@ -271,19 +318,20 @@ export default function AdminTariffsPage() {
 
         {/* Carrier Search / Filter Input */}
         <div className="relative w-full md:w-80">
-          <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter by airline, code (e.g. EY, AI)..."
+            aria-label="Filter airlines by code, name, or destination"
             className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-slate-50/50"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 p-1.5 rounded cursor-pointer min-h-[32px] min-w-[32px] inline-flex items-center justify-center"
               aria-label="Clear filter search"
             >
               <X className="h-4 w-4" />
@@ -292,7 +340,7 @@ export default function AdminTariffsPage() {
         </div>
       </div>
 
-      {/* Known Carriers Deck Grid */}
+      {/* Main View Area: Table or Card Deck */}
       {loading ? (
         <div className="h-64 flex flex-col items-center justify-center gap-2 text-slate-500">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-jfll-blue border-t-transparent" />
@@ -318,6 +366,19 @@ export default function AdminTariffsPage() {
             Clear Search & Filters
           </button>
         </div>
+      ) : viewMode === "TABLE" ? (
+        <section aria-labelledby="fleet-circulars-heading">
+          <h2 id="fleet-circulars-heading" className="sr-only">
+            Known Airline Fleet Circulars ex-BOM
+          </h2>
+          <CarrierTariffTable
+            carriers={filteredCarriers}
+            onUpload={handleCarrierUpload}
+            onPreview={(c) => setActivePreviewCarrier(c)}
+            onDeleteRequest={(c) => setCarrierToDelete(c)}
+            uploadingCarrier={uploadingCarrier}
+          />
+        </section>
       ) : (
         <section aria-labelledby="fleet-circulars-heading">
           <h2 id="fleet-circulars-heading" className="sr-only">
