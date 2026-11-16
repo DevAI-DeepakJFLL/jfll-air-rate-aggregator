@@ -3,7 +3,8 @@ import { ChargeRule, ChargeRuleCreate, ChargeRuleUpdate } from "../types/charge"
 import { CarrierRegistryItem, CarrierRateRow } from "../types/tariff";
 import { RATE_SHEET_DESTINATIONS } from "./rate-destinations";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = rawBase.replace(/\/+$/, "");
 const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
 
 function getAdminHeaders(role?: string): HeadersInit {

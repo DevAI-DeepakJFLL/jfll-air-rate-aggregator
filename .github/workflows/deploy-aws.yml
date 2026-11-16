@@ -114,20 +114,47 @@ jobs:
             --function-name "$FUNCTION_NAME" \
             --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","DELETE","OPTIONS"],AllowHeaders=["*"],MaxAge=86400' || echo "Note: Check Function URL CORS in AWS Console if needed."
 
-      - name: Verify Lambda Health via Invocation
+      - name: Verify Lambda Diagnostics & Health
         continue-on-error: true
         working-directory: ./backend
         run: |
           FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          echo "=== Testing Lambda Health Check Invocation ==="
+          echo "## Lambda Diagnostics Report" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 1. Function Configuration" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          aws lambda get-function-configuration --function-name "$FUNCTION_NAME" >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "### 2. Test Invocation (/api/v1/health)" >> $GITHUB_STEP_SUMMARY
           aws lambda invoke \
             --function-name "$FUNCTION_NAME" \
             --payload '{"version":"2.0","rawPath":"/api/v1/health","requestContext":{"http":{"method":"GET","path":"/api/v1/health"}}}' \
-            test_response.json \
+            health_response.json \
             --log-type Tail \
-            --query "LogResult" --output text | base64 -d || true
-          echo "Lambda Response:"
-          cat test_response.json || true
+            --query "LogResult" --output text | base64 -d > health_log.txt 2>&1 || true
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat health_log.txt >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '**Response:**' >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat health_response.json >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "### 3. Test Invocation (/api/v1/charges)" >> $GITHUB_STEP_SUMMARY
+          aws lambda invoke \
+            --function-name "$FUNCTION_NAME" \
+            --payload '{"version":"2.0","rawPath":"/api/v1/charges","headers":{"x-admin-key":"dev-admin-api-key-change-in-production","x-admin-role":"PRICING_HEAD","x-admin-user":"deepak.naidu@jfll.com"},"requestContext":{"http":{"method":"GET","path":"/api/v1/charges"}}}' \
+            charges_response.json \
+            --log-type Tail \
+            --query "LogResult" --output text | base64 -d > charges_log.txt 2>&1 || true
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat charges_log.txt >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '**Response:**' >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat charges_response.json >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
   # JOB 2: Build & Deploy Frontend to S3 + CloudFront
