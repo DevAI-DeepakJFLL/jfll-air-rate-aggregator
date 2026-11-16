@@ -49,22 +49,9 @@ class RateSearchRequest(BaseModel):
         max_length=64,
         description="Commodity type: General Cargo, DGR - PAX, Pharma CRT, Cold Chain, Express Courier, etc."
     )
-    ready_date: Optional[str] = Field(
-        default=None,
-        description="Cargo Ready Date in YYYY-MM-DD format (minimum today + 2 days ex-BOM)"
-    )
     packaging_type: Optional[str] = Field(
         default="Carton",
-        description="Packaging material type: Carton or Wooden Box/Pallet"
-    )
-    has_worked_with_jfll: bool = Field(
-        default=False,
-        description="Customer account status: existing client/partner of JFLL"
-    )
-    jfll_identifier: Optional[str] = Field(
-        default=None,
-        max_length=128,
-        description="JFLL client ID, partner code, or company name unlocking preferential commercial tier"
+        description="Packaging material type: Carton or Wooden Box/Pallet (evaluates circular equipment rules)"
     )
     pieces: Optional[int] = Field(
         default=1,
@@ -123,17 +110,9 @@ class RateQuoteItem(BaseModel):
     validity_status: str = "ACTIVE"
     gauge_restriction: Optional[str] = None
     recommended: bool = False
-    contract_discount_total: Optional[float] = Field(
-        default=None,
-        description="Preferential volume discount amount for verified JFLL account holders (INR)"
-    )
-    contract_total_landed_buy: Optional[float] = Field(
-        default=None,
-        description="Discounted landed buying total for verified JFLL account holders (INR)"
-    )
     regulatory_notes: List[str] = Field(
         default_factory=list,
-        description="Operational, customs, and regulatory notes for corridor and carrier"
+        description="Operational directives and regulatory notes extracted from carrier rate sheet"
     )
     packaging_restricted: bool = Field(
         default=False,
@@ -147,8 +126,6 @@ class RateSearchResponse(BaseModel):
     chargeable_weight: float
     is_heavy_cargo: bool = False
     message: Optional[str] = None
-    ready_date: Optional[str] = None
-    applied_commercial_tier: Optional[str] = None
     rates: List[RateQuoteItem] = []
 
 

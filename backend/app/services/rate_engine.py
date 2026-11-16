@@ -637,19 +637,6 @@ def build_rate_quote(
         packaging_restricted = True
         regulatory_notes.append("Wooden boxes and pallets are prohibited on AirAsia (loose corrugated cartons only).")
 
-    # 7. Cargo Ready Date Lead Time
-    if request and request.ready_date:
-        regulatory_notes.append(f"Cargo Ready Date: {request.ready_date} (minimum 48h carting lead time ex-BOM)")
-
-    # 8. JFLL Preferential Commercial Tier Pricing
-    contract_discount = None
-    contract_total = None
-    if request and request.has_worked_with_jfll and request.jfll_identifier:
-        ident = request.jfll_identifier.strip()
-        contract_discount = float(round(breakdown.total_landed_buy * 0.08))
-        contract_total = float(breakdown.total_landed_buy - contract_discount)
-        regulatory_notes.append(f"JFLL Client Account ({ident}): 8% preferential commercial rebate applied.")
-
     return RateQuoteItem(
         id=f"quote-{carrier_code}-{idx}",
         carrier_name=tariff.get('airline', 'Air Cargo Partner'),
@@ -676,8 +663,6 @@ def build_rate_quote(
         validity_status='ACTIVE',
         gauge_restriction=tariff.get('gauge_restriction'),
         recommended=False,
-        contract_discount_total=contract_discount,
-        contract_total_landed_buy=contract_total,
         regulatory_notes=regulatory_notes,
         packaging_restricted=packaging_restricted,
     )
@@ -769,16 +754,10 @@ def process_rate_search(
     if sorted_quotes:
         sorted_quotes[0].recommended = True
 
-    commercial_tier = None
-    if request.has_worked_with_jfll and request.jfll_identifier:
-        commercial_tier = f"JFLL Account ({request.jfll_identifier.strip()}): 8% Commercial Tier"
-
     return RateSearchResponse(
         origin=orig,
         destination=dest,
         chargeable_weight=cw,
         is_heavy_cargo=False,
-        ready_date=request.ready_date,
-        applied_commercial_tier=commercial_tier,
         rates=sorted_quotes
     )

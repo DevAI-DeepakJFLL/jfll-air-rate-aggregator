@@ -7,10 +7,7 @@ import {
   Search,
   AlertCircle,
   Scale,
-  Calendar,
   Package,
-  Sparkles,
-  Building2,
 } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 import { RATE_SHEET_DESTINATIONS } from "../../lib/rate-destinations";
@@ -128,11 +125,8 @@ export function RateSearchForm({
   const [actualWeight, setActualWeight] = useState("");
   const [commodity, setCommodity] = useState("General Cargo");
 
-  // Operational & Customer Status State
-  const [readyDate, setReadyDate] = useState("");
+  // Tariff & Equipment Verification State
   const [packagingType, setPackagingType] = useState("Carton");
-  const [hasWorkedWithJfll, setHasWorkedWithJfll] = useState(false);
-  const [jfllIdentifier, setJfllIdentifier] = useState("");
 
   // Volumetric Sizing & Unit Conversion State
   const [useDims, setUseDims] = useState(false);
@@ -143,13 +137,6 @@ export function RateSearchForm({
   const [height, setHeight] = useState("");
   const [pieces, setPieces] = useState("");
   const [cbmVolume, setCbmVolume] = useState("");
-
-  // Calculate forward minimum Cargo Ready Date (today + 2 days for 48h carting lead time)
-  const minReadyDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toISOString().split("T")[0];
-  }, []);
 
   const wtNum = parseFloat(actualWeight) || 0;
   const lNum = parseFloat(length) || 0;
@@ -218,10 +205,7 @@ export function RateSearchForm({
       actual_weight_kg: wtNum,
       dimensions: dims.length > 0 ? dims : undefined,
       commodity,
-      ready_date: readyDate || undefined,
       packaging_type: packagingType,
-      has_worked_with_jfll: hasWorkedWithJfll,
-      jfll_identifier: hasWorkedWithJfll && jfllIdentifier.trim() ? jfllIdentifier.trim() : undefined,
       pieces: pcsNum,
     });
   };
@@ -335,102 +319,44 @@ export function RateSearchForm({
         </div>
       </div>
 
-      {/* Secondary Operational Inputs: Ready Date, Packaging, and Client Account */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-3.5 border-t border-slate-100">
-        {/* Cargo Ready Date */}
-        <div>
-          <label
-            htmlFor="ready-date-input"
-            className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1"
-          >
-            Cargo Ready Date
-          </label>
-          <input
-            id="ready-date-input"
-            type="date"
-            min={minReadyDate}
-            value={readyDate}
-            onChange={(e) => setReadyDate(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-bold focus-ring font-mono"
-            aria-describedby="ready-date-help"
-          />
-          <div id="ready-date-help" className="text-[10px] font-medium text-slate-500 mt-1">
-            Min 48h lead time ex-BOM for carting &amp; screening
-          </div>
-        </div>
-
-        {/* Packaging Type */}
+      {/* Tariff & Equipment Specifications: Packaging Material */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-3.5 border-t border-slate-100 items-start">
         <div>
           <label
             htmlFor="packaging-select"
             className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1"
           >
-            Packaging Type
+            Packaging Material
           </label>
           <StandardSelect
             id="packaging-select"
             value={packagingType}
             onChange={(val) => setPackagingType(String(val))}
             options={PACKAGING_OPTIONS}
-            ariaLabel="Packaging Type"
+            ariaLabel="Packaging Material"
             ariaDescribedBy="packaging-help"
           />
           <div id="packaging-help" className="text-[10px] font-medium text-slate-500 mt-1">
             {packagingType === "Wooden Box/Pallet" ? (
               <span className="text-amber-700 font-bold">
-                Requires ISPM-15 heat stamp (AirAsia restricts pallets)
+                ISPM-15 heat stamp required (AirAsia restricts wooden pallets)
               </span>
             ) : (
-              "Corrugated cartons accepted on all passenger flights"
+              "Corrugated cartons accepted on all passenger and cargo flights"
             )}
           </div>
         </div>
 
-        {/* JFLL Client Commercial Tier Box (Spans 2 columns on lg) */}
-        <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/60 to-amber-50/20 p-3 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <label
-              htmlFor="jfll-member-checkbox"
-              className="flex items-center gap-2 text-xs font-extrabold text-amber-950 cursor-pointer select-none"
-            >
-              <input
-                id="jfll-member-checkbox"
-                type="checkbox"
-                checked={hasWorkedWithJfll}
-                onChange={(e) => setHasWorkedWithJfll(e.target.checked)}
-                className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-              />
-              <span className="flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-amber-700" />
-                Existing JFLL Client / Partner Account
-              </span>
-            </label>
-            {hasWorkedWithJfll && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black text-amber-950 border border-amber-300">
-                <Sparkles className="h-2.5 w-2.5 text-amber-800" />
-                8% Commercial Rebate Active
-              </span>
-            )}
-          </div>
-
-          {hasWorkedWithJfll ? (
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="text"
-                value={jfllIdentifier}
-                onChange={(e) => setJfllIdentifier(e.target.value)}
-                placeholder="Enter Client ID, Partner Code, or Company Name"
-                className="flex-1 h-9 rounded-lg border border-amber-300/80 bg-white px-3 text-xs font-bold focus-ring font-mono text-obsidian-900"
-              />
-              <span className="text-[10px] font-bold text-amber-900 whitespace-nowrap">
-                Volume Tier Applied
+        <div className="md:col-span-2 flex flex-col justify-center h-full pt-1">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 text-xs text-slate-600 flex items-start gap-2.5">
+            <Package className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-obsidian-900">Carrier Equipment &amp; Operational Directives:</span>
+              <span className="block text-[11px] text-slate-500 mt-0.5">
+                Surfaces buy rate rules ex-BOM from airline circulars (e.g. AirAsia wooden packaging restrictions, Oman Air dimensions caps, US/Canada AMS requirements).
               </span>
             </div>
-          ) : (
-            <p className="text-[10px] text-amber-800/80 mt-1">
-              Check this if quoting for an existing Jet Freight customer to unlock contract commercial tier pricing.
-            </p>
-          )}
+          </div>
         </div>
       </div>
 

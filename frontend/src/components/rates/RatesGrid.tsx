@@ -549,20 +549,14 @@ export function RatesGrid({ rates }: RatesGridProps) {
                               <span>AWB {quote.airline_prefix}</span>
                             </div>
 
-                            {/* JFLL Commercial Tier Discount & Packaging Restriction Badges */}
-                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                              {quote.contract_discount_total && quote.contract_discount_total > 0 ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 border border-emerald-300">
-                                  <Sparkles className="h-2.5 w-2.5 text-emerald-600" />
-                                  JFLL Net: {formatINR(quote.contract_total_landed_buy || 0)} (-8%)
-                                </span>
-                              ) : null}
-                              {quote.packaging_restricted && (
+                            {/* Tariff Equipment / Packaging Restriction Badge */}
+                            {quote.packaging_restricted && (
+                              <div className="flex items-center gap-1.5 flex-wrap mt-1">
                                 <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-700 border border-rose-200">
                                   Packaging Restricted
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

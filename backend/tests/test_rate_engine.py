@@ -438,15 +438,14 @@ def test_corridor_scope_country_and_airport_matching(sample_tariffs):
     assert is_charge_applicable(rule_gb, 100.0, "JFK", "General Cargo", "EK") is False
 
 
-def test_regulatory_notes_and_commercial_tier_pricing(sample_tariffs):
-    """Verify regulatory alerts, packaging checks, and commercial tier discounts from audit report."""
+def test_regulatory_and_operational_directives(sample_tariffs):
+    """Verify regulatory alerts and packaging checks from carrier circulars."""
     # 1. Test Nigeria Form 'M' note
     req_nigeria = RateSearchRequest(
         origin="BOM",
         destination="LOS",
         actual_weight_kg=120.0,
-        commodity="General Cargo",
-        ready_date="2026-11-20"
+        commodity="General Cargo"
     )
     res_nigeria = process_rate_search(req_nigeria, sample_tariffs)
     # Check that any generated quote has the Nigeria Form M note
@@ -491,24 +490,6 @@ def test_regulatory_notes_and_commercial_tier_pricing(sample_tariffs):
     assert len(res_d7.rates) == 1
     assert res_d7.rates[0].packaging_restricted is True
     assert any("Wooden boxes" in n for n in res_d7.rates[0].regulatory_notes)
-
-    # 4. Test JFLL commercial tier 8% discount
-    req_jfll = RateSearchRequest(
-        origin="BOM",
-        destination="DXB",
-        actual_weight_kg=100.0,
-        commodity="General Cargo",
-        has_worked_with_jfll=True,
-        jfll_identifier="JFLL-PREMIUM-007"
-    )
-    res_jfll = process_rate_search(req_jfll, sample_tariffs)
-    assert len(res_jfll.rates) > 0
-    q = res_jfll.rates[0]
-    assert q.contract_discount_total is not None
-    assert q.contract_discount_total > 0
-    assert q.contract_total_landed_buy == q.breakdown.total_landed_buy - q.contract_discount_total
-    assert res_jfll.applied_commercial_tier is not None
-    assert "JFLL-PREMIUM-007" in res_jfll.applied_commercial_tier
 
 
 
