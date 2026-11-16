@@ -133,13 +133,49 @@ Before launching any resources, set up a zero-spend budget so AWS notifies you i
 5. **Allowed HTTP methods**: Select `GET, HEAD, OPTIONS`.
 6. **Default root object**: Type `index.html`.
 7. Scroll down and click **Create distribution**.
-8. **Configure SPA Error Pages** (so deep page reloads work smoothly):
+8. **Configure SPA Error Pages**:
    - Go to your distribution's **Error pages** tab > click **Create custom error response**.
    - HTTP error code: `403: Forbidden` > Response page path: `/index.html` > HTTP Response code: `200: OK`.
-   - Create another custom error response for `404: Not Found` > Response page path: `/index.html` > HTTP Response code: `200: OK`.
+   - Create another custom error response for `404: Not Found` > Response page path: `/404.html` (or `/index.html`) > HTTP Response code: `200: OK`.
 9. Note down your:
    - **Distribution ID** (e.g., `E1A2B3C4D5E6F7`)
    - **Distribution domain name** (e.g., `d12345abcdef.cloudfront.net`)
+
+### 2.5 Add CloudFront URL Rewrite Function (Required for Next.js Clean Routes)
+When using Next.js static export, pages are built as individual HTML files (`admin.html`, `admin/tariffs.html`, etc.). When visiting `/admin`, S3 looks for an object named `admin`, fails with 403, and falls back to `/index.html` (the calculator). A CloudFront Function resolves this instantly at the edge at zero cost (2 million requests/month free).
+
+1. In the CloudFront console left menu, click **Functions**.
+2. Click **Create function**.
+3. **Name**: `jfll-url-rewrite`.
+4. **Runtime**: Select `cloudfront-js-2.0`.
+5. Click **Create function**.
+6. In the **Build** tab code editor, paste the following code:
+
+```javascript
+function handler(event) {
+    var request = event.request;
+    var uri = request.uri;
+
+    // 1. Root or trailing slash requests -> index.html
+    if (uri.endsWith('/')) {
+        request.uri += 'index.html';
+    }
+    // 2. Clean URLs without extension (e.g. /admin -> /admin.html)
+    else if (!uri.includes('.')) {
+        request.uri += '.html';
+    }
+
+    return request;
+}
+```
+
+7. Click **Save changes**.
+8. Click the **Publish** tab at the top, then click **Publish function**.
+9. Under **Associated distributions**, click **Add association**:
+   - **Distribution**: Select your distribution.
+   - **Event type**: `Viewer request`.
+   - **Cache behavior**: `Default (*)`.
+   - Click **Add association**.
 
 ---
 
