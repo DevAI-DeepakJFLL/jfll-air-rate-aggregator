@@ -3,8 +3,63 @@ import { ChargeRule, ChargeRuleCreate, ChargeRuleUpdate } from "../types/charge"
 import { CarrierRegistryItem, CarrierRateRow } from "../types/tariff";
 import { RATE_SHEET_DESTINATIONS } from "./rate-destinations";
 
-const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_BASE = rawBase.replace(/\/+$/, "");
+/**
+ * Dynamically resolves the API base URL.
+ * Priority:
+ * 1. User runtime override saved in browser localStorage (JFLL_API_URL)
+ * 2. Build-time baked NEXT_PUBLIC_API_URL environment variable
+ * 3. Empty string if running on HTTPS (same-origin / CloudFront proxy)
+ * 4. Fallback to http://localhost:8000 for local development
+ */
+export function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("JFLL_API_URL");
+      if (stored && stored.trim()) {
+        return stored.trim().replace(/\/+$/, "");
+      }
+    } catch {
+      // Ignore local storage errors
+    }
+  }
+
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined" && window.location.protocol === "https:") {
+    return "";
+  }
+
+  return "http://localhost:8000";
+}
+
+export function setCustomApiUrl(url: string): void {
+  if (typeof window !== "undefined") {
+    try {
+      if (!url || !url.trim()) {
+        localStorage.removeItem("JFLL_API_URL");
+      } else {
+        localStorage.setItem("JFLL_API_URL", url.trim().replace(/\/+$/, ""));
+      }
+    } catch {
+      // Ignore
+    }
+  }
+}
+
+export function getCustomApiUrl(): string | null {
+  if (typeof window !== "undefined") {
+    try {
+      return localStorage.getItem("JFLL_API_URL");
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
 
 function getAdminHeaders(role?: string): HeadersInit {
@@ -17,9 +72,31 @@ function getAdminHeaders(role?: string): HeadersInit {
   return headers;
 }
 
+/**
+ * Resilient fetch wrapper with actionable error diagnostics for network and CORS errors.
+ */
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const base = getApiBase();
+  const url = path.startsWith("http")
+    ? path
+    : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  try {
+    return await fetch(url, init);
+  } catch (err: unknown) {
+    if (err instanceof TypeError && err.message.toLowerCase().includes("fetch")) {
+      const targetDisplay = url || "(relative path)";
+      throw new Error(
+        `Failed to reach API at ${targetDisplay}. Check CORS on your AWS Lambda Function URL or verify your API endpoint.`
+      );
+    }
+    throw err;
+  }
+}
+
 export async function fetchDestinations(): Promise<DestinationItem[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/rates/destinations`);
+    const res = await apiFetch("/api/v1/rates/destinations");
     if (res.ok) {
       return await res.json();
     }
@@ -30,7 +107,7 @@ export async function fetchDestinations(): Promise<DestinationItem[]> {
 }
 
 export async function fetchLiveRates(payload: RateSearchRequest): Promise<RateSearchResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/rates/quote`, {
+  const res = await apiFetch("/api/v1/rates/quote", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -49,14 +126,18 @@ export async function fetchLiveRates(payload: RateSearchRequest): Promise<RateSe
 /**
  * Charges & Surcharges Management API Client
  */
-
 export async function fetchCharges(role?: string, activeOnly = false): Promise<ChargeRule[]> {
-  const url = new URL(`${API_BASE}/api/v1/charges`);
+  const base = getApiBase();
+  const rawPath = base ? `${base}/api/v1/charges` : "/api/v1/charges";
+  const url = new URL(
+    rawPath,
+    typeof window !== "undefined" ? window.location.origin : "http://localhost:8000"
+  );
   if (activeOnly) {
     url.searchParams.set("active_only", "true");
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     method: "GET",
     headers: getAdminHeaders(role),
     cache: "no-store",
@@ -71,7 +152,7 @@ export async function fetchCharges(role?: string, activeOnly = false): Promise<C
 }
 
 export async function fetchChargeById(id: string, role?: string): Promise<ChargeRule> {
-  const res = await fetch(`${API_BASE}/api/v1/charges/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/v1/charges/${encodeURIComponent(id)}`, {
     method: "GET",
     headers: getAdminHeaders(role),
     cache: "no-store",
@@ -86,7 +167,7 @@ export async function fetchChargeById(id: string, role?: string): Promise<Charge
 }
 
 export async function createCharge(charge: ChargeRuleCreate, role?: string): Promise<ChargeRule> {
-  const res = await fetch(`${API_BASE}/api/v1/charges`, {
+  const res = await apiFetch("/api/v1/charges", {
     method: "POST",
     headers: getAdminHeaders(role),
     body: JSON.stringify(charge),
@@ -105,7 +186,7 @@ export async function updateCharge(
   update: ChargeRuleUpdate,
   role?: string
 ): Promise<ChargeRule> {
-  const res = await fetch(`${API_BASE}/api/v1/charges/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/v1/charges/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: getAdminHeaders(role),
     body: JSON.stringify(update),
@@ -123,7 +204,7 @@ export async function deleteCharge(
   id: string,
   role?: string
 ): Promise<{ status: string; charge_id: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/charges/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/v1/charges/${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: getAdminHeaders(role),
   });
@@ -137,7 +218,7 @@ export async function deleteCharge(
 }
 
 export async function resetChargesToDefaults(role?: string): Promise<ChargeRule[]> {
-  const res = await fetch(`${API_BASE}/api/v1/charges/reset-defaults`, {
+  const res = await apiFetch("/api/v1/charges/reset-defaults", {
     method: "POST",
     headers: getAdminHeaders(role),
   });
@@ -154,7 +235,7 @@ export async function resetChargesToDefaults(role?: string): Promise<ChargeRule[
  * Air Cargo Tariff Registry & Circular API Client
  */
 export async function fetchTariffRegistry(): Promise<CarrierRegistryItem[]> {
-  const res = await fetch(`${API_BASE}/api/v1/tariffs/registry`, {
+  const res = await apiFetch("/api/v1/tariffs/registry", {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -171,7 +252,7 @@ export async function fetchCarrierRates(carrierCode: string): Promise<{
   parser_id: string;
   rates: CarrierRateRow[];
 }> {
-  const res = await fetch(`${API_BASE}/api/v1/tariffs/${encodeURIComponent(carrierCode)}/rates`, {
+  const res = await apiFetch(`/api/v1/tariffs/${encodeURIComponent(carrierCode)}/rates`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -197,7 +278,7 @@ export async function uploadTariffPdf(
   formData.append("carrier_code", carrierCode);
   formData.append("currency", currency);
 
-  const res = await fetch(`${API_BASE}/api/v1/tariffs/upload`, {
+  const res = await apiFetch("/api/v1/tariffs/upload", {
     method: "POST",
     headers: {
       "X-Admin-Key": ADMIN_API_KEY,
@@ -223,7 +304,7 @@ export async function deleteTariffCircular(
   message: string;
   carrier: CarrierRegistryItem;
 }> {
-  const res = await fetch(`${API_BASE}/api/v1/tariffs/${encodeURIComponent(carrierCode)}`, {
+  const res = await apiFetch(`/api/v1/tariffs/${encodeURIComponent(carrierCode)}`, {
     method: "DELETE",
     headers: {
       "X-Admin-Key": ADMIN_API_KEY,

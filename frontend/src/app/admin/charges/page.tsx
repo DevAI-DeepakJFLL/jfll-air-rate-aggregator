@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Layers,
+  Globe,
+  Settings,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 import { ChargeRule } from "@/types/charge";
@@ -18,6 +20,8 @@ import {
   updateCharge,
   deleteCharge,
   resetChargesToDefaults,
+  getApiBase,
+  setCustomApiUrl,
 } from "@/lib/api-client";
 import ChargesConfigTable from "@/components/admin/ChargesConfigTable";
 import AddChargeDrawer from "@/components/admin/AddChargeDrawer";
@@ -49,6 +53,30 @@ export default function AdminChargesPage() {
   // Reset confirmation state
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Runtime API Endpoint override state
+  const [showApiSettings, setShowApiSettings] = useState(false);
+  const [apiEndpointInput, setApiEndpointInput] = useState("");
+
+  useEffect(() => {
+    setApiEndpointInput(getApiBase());
+  }, []);
+
+  const handleSaveApiUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCustomApiUrl(apiEndpointInput);
+    setShowApiSettings(false);
+    showToast("API Endpoint saved to browser storage. Reconnecting...");
+    loadCharges();
+  };
+
+  const handleResetApiUrl = () => {
+    setCustomApiUrl("");
+    setApiEndpointInput(getApiBase());
+    setShowApiSettings(false);
+    showToast("Reset API Endpoint to default.");
+    loadCharges();
+  };
 
   // Show transient toast
   const showToast = useCallback((msg: string) => {
@@ -248,19 +276,74 @@ export default function AdminChargesPage() {
 
       {/* Error alert if load failed */}
       {errorMessage && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 flex items-start gap-2.5">
-          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <span className="font-bold">System Error: </span>
-            <span>{errorMessage}</span>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-bold">System Error: </span>
+              <span>{errorMessage}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={loadCharges}
+                className="text-xs font-bold text-rose-700 hover:text-rose-900 underline"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowApiSettings((prev) => !prev)}
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2 py-1 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <Settings className="h-3 w-3" />
+                <span>Configure API URL</span>
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={loadCharges}
-            className="text-xs font-bold text-rose-700 hover:text-rose-900 underline ml-2"
-          >
-            Retry
-          </button>
+
+          {showApiSettings && (
+            <form
+              onSubmit={handleSaveApiUrl}
+              className="mt-2 rounded-lg border border-rose-200 bg-white p-3 space-y-2 text-slate-800 shadow-2xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-blue-600" />
+                  API Endpoint Settings (Browser Override)
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Current: {getApiBase() || "(relative /)"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Enter your AWS Lambda Function URL (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">https://xxxx.lambda-url.ap-south-1.on.aws</code>).
+                Ensure Function URL CORS is enabled in AWS Console.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={apiEndpointInput}
+                  onChange={(e) => setApiEndpointInput(e.target.value)}
+                  placeholder="https://YOUR_LAMBDA_ID.lambda-url.ap-south-1.on.aws"
+                  className="flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                >
+                  Save &amp; Reconnect
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetApiUrl}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Reset Default
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
