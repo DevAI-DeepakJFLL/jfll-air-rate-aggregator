@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # Base storage paths
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-DEFAULT_CONFIG_PATH = DATA_DIR / "charges_config.json"
+IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+DEFAULT_CONFIG_PATH = Path("/tmp/charges_config.json") if IS_LAMBDA else (DATA_DIR / "charges_config.json")
 DEFAULT_SEED_PATH = DATA_DIR / "default_charges.json"
 
 # Fallback baseline charges for self-healing

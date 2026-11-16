@@ -74,7 +74,7 @@ jobs:
           cd lambda_pkg
           zip -r ../lambda-bundle.zip . -x "*__pycache__*" "*.dist-info/*"
           cd ..
-          zip -g -r lambda-bundle.zip lambda_handler.py app data -x "*__pycache__*"
+          zip -g -r lambda-bundle.zip lambda_handler.py lambda_function.py app data -x "*__pycache__*"
           ls -lh lambda-bundle.zip
 
       - name: Update Lambda Function Code
@@ -85,6 +85,18 @@ jobs:
           aws lambda update-function-code \
             --function-name "$FUNCTION_NAME" \
             --zip-file fileb://lambda-bundle.zip
+
+      - name: Update Lambda Function Configuration
+        continue-on-error: true
+        working-directory: ./backend
+        run: |
+          FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
+          echo "Optimizing Lambda configuration (timeout=30s, memory=512MB, handler=lambda_handler.handler)..."
+          aws lambda update-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --timeout 30 \
+            --memory-size 512 \
+            --handler "lambda_handler.handler" || echo "Note: Check Lambda configuration in AWS Console if needed."
 
       - name: Configure Lambda Function URL CORS
         continue-on-error: true
