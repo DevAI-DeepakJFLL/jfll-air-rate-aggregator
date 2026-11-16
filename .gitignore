@@ -48,6 +48,8 @@ env/
 venv/
 .venv/
 ENV/
+lambda_pkg/
+lambda-bundle.zip
 build/
 develop-eggs/
 dist/

@@ -63,37 +63,12 @@ jobs:
           aws configure set default.region "$REGION"
           echo "AWS credentials configured successfully for region $REGION."
 
-      - name: Package Backend Code & Dependencies
+      - name: Package Backend Code & Universal Dependencies
         working-directory: ./backend
         run: |
-          FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          echo "Detecting Lambda architecture..."
-          ARCH=$(aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --query "Architectures[0]" --output text 2>/dev/null || echo "x86_64")
-          if [ "$ARCH" = "None" ] || [ -z "$ARCH" ]; then ARCH="x86_64"; fi
-          echo "Detected architecture: $ARCH"
-          
-          if [ "$ARCH" = "arm64" ]; then
-            PLATFORM_TAG="manylinux2014_aarch64"
-          else
-            PLATFORM_TAG="manylinux2014_x86_64"
-          fi
-          echo "Using binary wheel platform: $PLATFORM_TAG"
-
-          echo "Installing Lambda dependencies for $PLATFORM_TAG and Python 3.11..."
+          echo "Building universal Lambda bundle with multi-ABI binary compatibility..."
           python -m pip install --upgrade pip
-          pip install \
-            --platform "$PLATFORM_TAG" \
-            --target ./lambda_pkg \
-            --implementation cp \
-            --python-version 3.11 \
-            --only-binary=:all: \
-            mangum fastapi uvicorn pydantic pydantic-core pydantic-settings sqlalchemy aiosqlite pypdf httpx python-multipart python-dotenv
-          
-          echo "Building Lambda bundle..."
-          cd lambda_pkg
-          zip -r ../lambda-bundle.zip . -x "*__pycache__*" "*.pyc"
-          cd ..
-          zip -g -r lambda-bundle.zip lambda_handler.py lambda_function.py app data -x "*__pycache__*" "*.pyc"
+          python bundle_lambda.py
           ls -lh lambda-bundle.zip
 
       - name: Update Lambda Function Code
