@@ -16,22 +16,23 @@ const STORAGE_KEY = "jfll_admin_role";
 const AdminRoleContext = createContext<AdminRoleContextType | undefined>(undefined);
 
 export function AdminRoleProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<AdminRole>("PRICING_HEAD");
+  const [role, setRoleState] = useState<AdminRole>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY) as AdminRole | null;
+        if (stored === "PRICING_HEAD" || stored === "COORDINATOR") {
+          return stored;
+        }
+      } catch {
+        // Storage unavailable
+      }
+    }
+    return "PRICING_HEAD";
+  });
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as AdminRole | null;
-      if (stored === "PRICING_HEAD" || stored === "COORDINATOR") {
-        setRoleState(stored);
-      } else {
-        localStorage.setItem(STORAGE_KEY, "COORDINATOR");
-        setRoleState("COORDINATOR");
-      }
-    } catch {
-      // LocalStorage unavailable (e.g. private browsing or security sandbox)
-    }
   }, []);
 
   const setRole = (newRole: AdminRole) => {

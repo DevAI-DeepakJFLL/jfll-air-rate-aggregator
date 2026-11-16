@@ -63,7 +63,14 @@ export function getCustomApiUrl(): string | null {
 export function setAdminApiKey(key: string): void {
   if (typeof window !== "undefined") {
     try {
-      sessionStorage.setItem("JFLL_ADMIN_API_KEY", key.trim());
+      const cleanKey = key.trim();
+      if (cleanKey) {
+        sessionStorage.setItem("JFLL_ADMIN_API_KEY", cleanKey);
+        localStorage.setItem("JFLL_ADMIN_API_KEY", cleanKey);
+      } else {
+        sessionStorage.removeItem("JFLL_ADMIN_API_KEY");
+        localStorage.removeItem("JFLL_ADMIN_API_KEY");
+      }
     } catch {
       // Storage unavailable
     }
@@ -76,16 +83,22 @@ export function getAdminApiKey(): string {
       const stored =
         sessionStorage.getItem("JFLL_ADMIN_API_KEY") ||
         localStorage.getItem("JFLL_ADMIN_API_KEY");
-      if (stored) return stored;
+      if (stored && stored.trim()) return stored.trim();
     } catch {
       // Storage unavailable
     }
   }
-  // Safe development fallback: available only in non-production builds
-  if (process.env.NODE_ENV !== "production") {
-    return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
-  }
-  return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
+  return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
+}
+
+let _chargesCache: ChargeRule[] | null = null;
+
+export function getCachedCharges(): ChargeRule[] | null {
+  return _chargesCache;
+}
+
+export function clearChargesCache(): void {
+  _chargesCache = null;
 }
 
 function getAdminHeaders(role?: string): HeadersInit {
@@ -174,7 +187,11 @@ export async function fetchCharges(role?: string, activeOnly = false): Promise<C
     throw new Error(errorBody.detail || `Failed to fetch charges (Status ${res.status})`);
   }
 
-  return res.json();
+  const data: ChargeRule[] = await res.json();
+  if (!activeOnly) {
+    _chargesCache = data;
+  }
+  return data;
 }
 
 export async function fetchChargeById(id: string, role?: string): Promise<ChargeRule> {
@@ -204,7 +221,11 @@ export async function createCharge(charge: ChargeRuleCreate, role?: string): Pro
     throw new Error(errorBody.detail || `Failed to create charge (Status ${res.status})`);
   }
 
-  return res.json();
+  const created: ChargeRule = await res.json();
+  if (_chargesCache) {
+    _chargesCache = [..._chargesCache, created];
+  }
+  return created;
 }
 
 export async function updateCharge(
@@ -223,7 +244,11 @@ export async function updateCharge(
     throw new Error(errorBody.detail || `Failed to update charge ${id} (Status ${res.status})`);
   }
 
-  return res.json();
+  const updated: ChargeRule = await res.json();
+  if (_chargesCache) {
+    _chargesCache = _chargesCache.map((c) => (c.id === updated.id ? updated : c));
+  }
+  return updated;
 }
 
 export async function deleteCharge(
@@ -240,6 +265,9 @@ export async function deleteCharge(
     throw new Error(errorBody.detail || `Failed to delete charge ${id} (Status ${res.status})`);
   }
 
+  if (_chargesCache) {
+    _chargesCache = _chargesCache.filter((c) => c.id !== id);
+  }
   return res.json();
 }
 
@@ -254,7 +282,9 @@ export async function resetChargesToDefaults(role?: string): Promise<ChargeRule[
     throw new Error(errorBody.detail || `Failed to reset charges to defaults (Status ${res.status})`);
   }
 
-  return res.json();
+  const resetList: ChargeRule[] = await res.json();
+  _chargesCache = resetList;
+  return resetList;
 }
 
 /**

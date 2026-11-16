@@ -22,6 +22,9 @@ import {
   resetChargesToDefaults,
   getApiBase,
   setCustomApiUrl,
+  getCachedCharges,
+  getAdminApiKey,
+  setAdminApiKey,
 } from "@/lib/api-client";
 import ChargesConfigTable from "@/components/admin/ChargesConfigTable";
 import AddChargeDrawer from "@/components/admin/AddChargeDrawer";
@@ -40,9 +43,9 @@ const BASELINE_CHARGE_IDS = new Set([
 export default function AdminChargesPage() {
   const { role, isPricingHead } = useAdminRole();
 
-  // Data state
-  const [charges, setCharges] = useState<ChargeRule[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Data state: Instant render from in-memory cache if returning to tab (0 ms load!)
+  const [charges, setCharges] = useState<ChargeRule[]>(() => getCachedCharges() || []);
+  const [isLoading, setIsLoading] = useState(() => !getCachedCharges());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -54,28 +57,33 @@ export default function AdminChargesPage() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Runtime API Endpoint override state
+  // Runtime API Endpoint & Admin Key override state
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [apiEndpointInput, setApiEndpointInput] = useState("");
+  const [adminKeyInput, setAdminKeyInput] = useState("");
 
   useEffect(() => {
     setApiEndpointInput(getApiBase());
+    setAdminKeyInput(getAdminApiKey());
   }, []);
 
-  const handleSaveApiUrl = (e: React.FormEvent) => {
+  const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     setCustomApiUrl(apiEndpointInput);
+    setAdminApiKey(adminKeyInput);
     setShowApiSettings(false);
-    showToast("API Endpoint saved to browser storage. Reconnecting...");
-    loadCharges();
+    showToast("Settings saved to browser storage. Reconnecting...");
+    loadCharges(false);
   };
 
-  const handleResetApiUrl = () => {
+  const handleResetSettings = () => {
     setCustomApiUrl("");
+    setAdminApiKey("");
     setApiEndpointInput(getApiBase());
+    setAdminKeyInput(getAdminApiKey());
     setShowApiSettings(false);
-    showToast("Reset API Endpoint to default.");
-    loadCharges();
+    showToast("Reset API settings to default.");
+    loadCharges(false);
   };
 
   // Show transient toast
@@ -86,9 +94,11 @@ export default function AdminChargesPage() {
     }, 4000);
   }, []);
 
-  // Fetch all charges
-  const loadCharges = useCallback(async () => {
-    setIsLoading(true);
+  // Fetch all charges (supports silent background revalidation without flashing skeleton)
+  const loadCharges = useCallback(async (silent = false) => {
+    if (!silent && !getCachedCharges()) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
     try {
       const data = await fetchCharges(role, false);
@@ -101,7 +111,8 @@ export default function AdminChargesPage() {
   }, [role]);
 
   useEffect(() => {
-    loadCharges();
+    const hasCache = !!getCachedCharges();
+    loadCharges(hasCache);
   }, [loadCharges]);
 
   // Handle open drawer for creation
@@ -250,7 +261,7 @@ export default function AdminChargesPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={loadCharges}
+                onClick={() => loadCharges(false)}
                 className="text-xs font-bold text-rose-700 hover:text-rose-900 underline"
               >
                 Retry
@@ -261,49 +272,67 @@ export default function AdminChargesPage() {
                 className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2 py-1 text-[11px] font-bold text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
               >
                 <Settings className="h-3 w-3" />
-                <span>Configure API URL</span>
+                <span>Configure API &amp; Key</span>
               </button>
             </div>
           </div>
 
           {showApiSettings && (
             <form
-              onSubmit={handleSaveApiUrl}
-              className="mt-2 rounded-lg border border-rose-200 bg-white p-3 space-y-2 text-slate-800 shadow-2xs"
+              onSubmit={handleSaveSettings}
+              className="mt-2 rounded-lg border border-rose-200 bg-white p-3.5 space-y-3 text-slate-800 shadow-2xs"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <Globe className="h-3.5 w-3.5 text-blue-600" />
-                  API Endpoint Settings (Browser Override)
+                  API Endpoint &amp; Admin Key Settings
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
                   Current: {getApiBase() || "(relative /)"}
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Enter your AWS Lambda Function URL (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">https://xxxx.lambda-url.ap-south-1.on.aws</code>).
-                Ensure Function URL CORS is enabled in AWS Console.
+                Configure your backend API base URL and authorization X-Admin-Key stored in browser storage.
               </p>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={apiEndpointInput}
-                  onChange={(e) => setApiEndpointInput(e.target.value)}
-                  placeholder="https://YOUR_LAMBDA_ID.lambda-url.ap-south-1.on.aws"
-                  className="flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:border-blue-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  Save &amp; Reconnect
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    API Endpoint URL
+                  </label>
+                  <input
+                    type="url"
+                    value={apiEndpointInput}
+                    onChange={(e) => setApiEndpointInput(e.target.value)}
+                    placeholder="https://YOUR_LAMBDA_ID.lambda-url.ap-south-1.on.aws"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Admin API Key (X-Admin-Key)
+                  </label>
+                  <input
+                    type="password"
+                    value={adminKeyInput}
+                    onChange={(e) => setAdminKeyInput(e.target.value)}
+                    placeholder="Enter Admin API Key"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={handleResetApiUrl}
+                  onClick={handleResetSettings}
                   className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
-                  Reset Default
+                  Reset Defaults
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                >
+                  Save &amp; Reconnect
                 </button>
               </div>
             </form>
