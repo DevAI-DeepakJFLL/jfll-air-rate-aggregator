@@ -31,21 +31,14 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        {/* Current Active Role Pill */}
+        {/* Current Access Level Pill */}
         <div className="mt-5 pt-4 border-t border-obsidian-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-medium">Active Role:</span>
-            {isPricingHead ? (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400/20 px-2.5 py-1 font-bold text-amber-300 border border-amber-400/30">
-                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                Pricing Team Head
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/20 px-2.5 py-1 font-bold text-sky-200 border border-sky-400/30">
-                <span className="h-2 w-2 rounded-full bg-sky-400" />
-                Pricing Coordinator
-              </span>
-            )}
+            <span className="text-slate-400 font-medium">Access Level:</span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400/20 px-2.5 py-1 font-bold text-amber-300 border border-amber-400/30">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              Admin Portal
+            </span>
           </div>
         </div>
       </div>

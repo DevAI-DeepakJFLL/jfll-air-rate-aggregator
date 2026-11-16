@@ -42,12 +42,12 @@ export default function AdminSecurityPage() {
             {isPricingHead ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-400/30">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                PRICING_HEAD (Full Access)
+                Admin Portal (Full Access)
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-800 border border-sky-300">
                 <span className="h-2 w-2 rounded-full bg-sky-500" />
-                COORDINATOR (Read-Only)
+                Quoting Desk (Read-Only)
               </span>
             )}
           </div>
@@ -106,8 +106,8 @@ export default function AdminSecurityPage() {
             <thead className="bg-slate-50 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3">Capability / Operation</th>
-                <th className="px-4 py-3">Pricing Team Head</th>
-                <th className="px-4 py-3">Pricing Coordinator</th>
+                <th className="px-4 py-3">Admin Portal</th>
+                <th className="px-4 py-3">Public Quoting Client</th>
                 <th className="px-4 py-3">Enforcement Layer</th>
               </tr>
             </thead>

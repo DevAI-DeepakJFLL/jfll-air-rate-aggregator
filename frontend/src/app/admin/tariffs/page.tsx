@@ -90,7 +90,7 @@ export default function AdminTariffsPage() {
   // Delete circular handler
   const handleDeleteConfirm = async (carrierCode: string) => {
     if (!isPricingHead) {
-      alert("Unauthorized: Pricing Team Head authorization required.");
+      alert("Unauthorized: Admin authorization required.");
       return;
     }
 

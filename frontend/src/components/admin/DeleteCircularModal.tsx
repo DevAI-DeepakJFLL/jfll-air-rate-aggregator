@@ -60,7 +60,7 @@ export function DeleteCircularModal({
                 Clear Active Rate Circular
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Pricing Head Authorization Required
+                Admin Authorization Required
               </p>
             </div>
           </div>

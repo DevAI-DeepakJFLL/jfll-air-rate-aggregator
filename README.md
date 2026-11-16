@@ -63,7 +63,7 @@ This tool solves all three with automated circular ingestion, IATA TACT complian
 - **Live Corridor Discovery:** Instant rates for 100+ global destinations out of BOM with non-stop and connecting flight schedules.
 - **Dynamic Gateway Charges:** Fully configurable statutory and terminal surcharges with corridor, commodity, carrier, and minimum weight filters.
 - **Commercial Margin Desk:** Side-by-side comparison of pure buy cost and client sell price with rapid preset chips (+₹5, +₹10, +₹15, +₹20 per kg).
-- **Two-Tier RBAC:** Pricing Team Head (master tariff activation, fee rules, resets) versus Pricing Coordinator (quote generation, margin tuning, rate discovery).
+- **Two-Tier RBAC:** Admin Portal (master tariff activation, fee rules, resets) versus Quoting Client (quote generation, margin tuning, rate discovery).
 
 ---
 
@@ -167,7 +167,7 @@ Located at `/admin/tariffs`:
 - Lists all active carriers operating out of BOM with active circular status, validity windows, and parser signatures.
 - Drag-and-drop replacement of airline circular PDFs.
 - Corridors preview drawer displaying extracted rate matrices with instant destination search.
-- Deletion protection guarded by the Pricing Team Head role.
+- Deletion protection guarded by the Administrator role.
 </details>
 
 <details>
@@ -184,9 +184,9 @@ Located at `/admin/charges`:
 <summary><strong>4. Role-Based Governance (RBAC)</strong> (Click to expand)</summary>
 
 Located at `/admin/security`:
-- **Pricing Team Head:** Full write access. Can upload or clear active airline circulars, create custom fees, edit tax rates, and reset configurations.
-- **Pricing Coordinator:** Read-only admin access. Can test tariff parsing, run spot quotes, adjust customer margin overlays, and preview corridors.
-- Simulated dynamically via the header switcher using the `X-Admin-Role` header.
+- **Admin Portal:** Full write access. Can upload or clear active airline circulars, create custom fees, edit tax rates, and reset configurations.
+- **Quoting Client:** Read-only access. Can test tariff parsing, run spot quotes, adjust customer margin overlays, and preview corridors.
+- Authenticated dynamically using the `X-Admin-Role` header.
 </details>
 
 ---

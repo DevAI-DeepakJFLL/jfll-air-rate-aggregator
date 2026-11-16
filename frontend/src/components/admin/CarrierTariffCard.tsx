@@ -364,7 +364,7 @@ export function CarrierTariffCard({
             disabled={!isPricingHead}
             title={
               !isPricingHead
-                ? "Pricing Team Head authorization required to clear circulars"
+                ? "Admin authorization required to clear circulars"
                 : `Clear active circular for ${carrier.carrier_name}`
             }
             className="p-1.5 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40 disabled:hover:text-slate-500 disabled:hover:bg-transparent"

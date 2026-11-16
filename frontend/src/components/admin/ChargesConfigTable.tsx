@@ -387,7 +387,7 @@ export default function ChargesConfigTable({
                               ? charge.is_active
                                 ? "Click to deactivate charge"
                                 : "Click to activate charge"
-                              : "Read-only: Pricing Head required to toggle"
+                              : "Read-only: Admin access required to toggle"
                           }
                           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 ${
                             charge.is_active ? "bg-emerald-600" : "bg-slate-300"
@@ -426,7 +426,7 @@ export default function ChargesConfigTable({
                             <button
                               type="button"
                               disabled
-                              title="Delete restricted to Pricing Team Head"
+                              title="Delete restricted to Admin Portal"
                               className="rounded-lg p-1.5 text-slate-300 cursor-not-allowed"
                             >
                               <Lock className="h-3.5 w-3.5" />
