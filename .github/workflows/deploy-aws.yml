@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "Installing Lambda dependencies..."
           python -m pip install --upgrade pip
-          pip install --target ./lambda_pkg mangum fastapi uvicorn pydantic pydantic-settings sqlalchemy aiosqlite httpx python-multipart python-dotenv
+          pip install --target ./lambda_pkg mangum fastapi uvicorn pydantic pydantic-settings sqlalchemy aiosqlite pypdf httpx python-multipart python-dotenv
           
           echo "Building Lambda bundle..."
           cd lambda_pkg
@@ -86,6 +86,9 @@ jobs:
             --function-name "$FUNCTION_NAME" \
             --zip-file fileb://lambda-bundle.zip
 
+          echo "Waiting for Lambda function update to complete..."
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME" || sleep 5
+
       - name: Update Lambda Function Configuration
         continue-on-error: true
         working-directory: ./backend
@@ -98,6 +101,9 @@ jobs:
             --memory-size 512 \
             --handler "lambda_handler.handler" || echo "Note: Check Lambda configuration in AWS Console if needed."
 
+          echo "Waiting for configuration update to settle..."
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME" || sleep 3
+
       - name: Configure Lambda Function URL CORS
         continue-on-error: true
         working-directory: ./backend
@@ -107,6 +113,21 @@ jobs:
           aws lambda update-function-url-config \
             --function-name "$FUNCTION_NAME" \
             --cors 'AllowOrigins=["*"],AllowMethods=["GET","POST","PUT","DELETE","OPTIONS"],AllowHeaders=["*"],MaxAge=86400' || echo "Note: Check Function URL CORS in AWS Console if needed."
+
+      - name: Verify Lambda Health via Invocation
+        continue-on-error: true
+        working-directory: ./backend
+        run: |
+          FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
+          echo "=== Testing Lambda Health Check Invocation ==="
+          aws lambda invoke \
+            --function-name "$FUNCTION_NAME" \
+            --payload '{"version":"2.0","rawPath":"/api/v1/health","requestContext":{"http":{"method":"GET","path":"/api/v1/health"}}}' \
+            test_response.json \
+            --log-type Tail \
+            --query "LogResult" --output text | base64 -d || true
+          echo "Lambda Response:"
+          cat test_response.json || true
 
   # =========================================================================
   # JOB 2: Build & Deploy Frontend to S3 + CloudFront

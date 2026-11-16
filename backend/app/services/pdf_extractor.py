@@ -1,7 +1,12 @@
 import os
 from typing import Dict, Any, Tuple
-import pypdf
-from pypdf.errors import PdfReadError
+
+try:
+    import pypdf
+    from pypdf.errors import PdfReadError
+except ImportError:
+    pypdf = None
+    PdfReadError = Exception
 
 
 def validate_pdf_file_signature(pdf_path: str) -> None:
@@ -31,6 +36,9 @@ def extract_text_from_pdf(pdf_path: str, max_pages: int = 50) -> Tuple[str, bool
     validate_pdf_file_signature(pdf_path)
 
     # Step 2: Safe parsing with page boundary check
+    if pypdf is None:
+        raise ValueError("pypdf dependency is not installed in runtime environment.")
+
     try:
         reader = pypdf.PdfReader(pdf_path)
     except PdfReadError as e:
