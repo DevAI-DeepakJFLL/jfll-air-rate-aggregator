@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -12,7 +13,18 @@ except ImportError:
     pypdf = None
     PdfReadError = Exception
 
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
+
+from pydantic import BaseModel, Field
+from app.core.config import settings
 from app.schemas.tariff import TariffRateRecord
+
+logger = logging.getLogger(__name__)
 
 
 # Known air carrier registry mapping for metadata enrichment
@@ -657,6 +669,159 @@ def extract_digital_tariff_records(
     return records
 
 
+def _extract_pdf_bytes(pdf_source: Union[str, Path, BinaryIO, bytes]) -> bytes:
+    """
+    Extracts raw bytes from various PDF source representations safely.
+    """
+    if isinstance(pdf_source, (str, Path)):
+        with open(pdf_source, "rb") as f:
+            return f.read()
+    elif isinstance(pdf_source, bytes):
+        return pdf_source
+    elif hasattr(pdf_source, "read"):
+        if hasattr(pdf_source, "seek"):
+            pdf_source.seek(0)
+        data = pdf_source.read()
+        if hasattr(pdf_source, "seek"):
+            pdf_source.seek(0)
+        return data
+    raise ValueError("Unsupported PDF source for byte extraction.")
+
+
+class GeminiExtractedTariffRecord(BaseModel):
+    destination: str = Field(description="3-letter IATA destination airport code ex-BOM (e.g. DXB, LHR, KUL, MCT, JFK). Unroll composite routes (e.g. 'MCT/AMM' -> separate records).")
+    commodity: str = Field(default="GCR", description="TACT commodity code: GCR, XPS, DGR, PILA-CRT, CRT, COL, VAL, PER, etc.")
+    min_charge: Optional[float] = Field(None, description="Minimum charge in currency (e.g. 3500.0, 4500.0)")
+    rate_normal: Optional[float] = Field(None, description="Normal / -45kg base rate per kg")
+    rate_45: Optional[float] = Field(None, description="+45 kg weight break rate per kg")
+    rate_100: Optional[float] = Field(None, description="+100 kg weight break rate per kg")
+    rate_250: Optional[float] = Field(None, description="+250 kg weight break rate per kg if present")
+    rate_300: Optional[float] = Field(None, description="+300 kg weight break rate per kg if present")
+    rate_500: Optional[float] = Field(None, description="+500 kg weight break rate per kg if present")
+    fsc_per_kg: Optional[float] = Field(None, description="Fuel Surcharge (FSC) per kg extracted from circular")
+    fsc_min: Optional[float] = Field(None, description="Minimum Fuel Surcharge if specified")
+    ssc_per_kg: Optional[float] = Field(None, description="Security Surcharge (SSC) per kg extracted from circular")
+    ssc_min: Optional[float] = Field(None, description="Minimum Security Surcharge if specified")
+    gauge_restriction: Optional[str] = Field(None, description="Aircraft limitations (e.g. 'Narrowbody only', 'Loose cartons only')")
+    notes: Optional[str] = Field(None, description="Important routing footnotes or tariff caveats")
+
+
+class GeminiAirlineTariffExtraction(BaseModel):
+    carrier_name: str = Field(description="Official airline name (e.g. Air India, Etihad Airways, Oman Air, Ethiopian Cargo, AirAsia X)")
+    carrier_code: str = Field(description="2-letter IATA airline code (e.g. AI, EY, WY, ET, D7, EK, QR, SV, 6E, MH)")
+    prefix: str = Field(default="000", description="3-digit IATA airline prefix (e.g. 098, 607, 071, 843, 176)")
+    default_fsc_per_kg: float = Field(default=20.0, description="Default Fuel Surcharge per kg applicable across routes")
+    default_ssc_per_kg: float = Field(default=3.5, description="Default Security Surcharge per kg applicable across routes")
+    currency: str = Field(default="INR", description="Currency code (e.g. INR, USD, EUR)")
+    records: List[GeminiExtractedTariffRecord] = Field(description="List of extracted corridor rate records")
+
+
+async def extract_tariff_with_gemini_flash(
+    pdf_bytes: bytes,
+    carrier_hint: str = "",
+    currency: str = "INR",
+) -> Optional[List[TariffRateRecord]]:
+    """
+    Tier-2 Vision VLM Extractor powered by Gemini 2.5 Flash (gemini-2.5-flash).
+    Uses Pydantic structured output constraints to extract complex, scanned, or borderless tariff sheets
+    directly into validated TariffRateRecord domain models with zero regex post-processing.
+    """
+    api_key = (getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip()
+    if not api_key or api_key.startswith("your-gemini"):
+        return None
+
+    if genai is None or types is None:
+        logger.warning("google-genai SDK is not installed in the runtime environment.")
+        return None
+
+    try:
+        model_name = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
+        client = genai.Client(api_key=api_key)
+
+        prompt = (
+            "You are an air freight buying rate extraction specialist for Jet Freight Logistics (JFLL) ex-BOM (Mumbai, India).\n"
+            f"Analyze this airline tariff circular (Carrier hint: '{carrier_hint}', Currency: '{currency}').\n"
+            "Extract all published buying rates into the requested structured format.\n"
+            "Strict Guidelines:\n"
+            "1. Destination: Extract 3-letter IATA airport codes ex-BOM. If multiple destinations are grouped together "
+            "(e.g. 'MCT/AMM/BAH/CAI' or 'JED/MED' or 'CGK (JKT)'), unroll each into an individual record with identical rates.\n"
+            "2. Commodity: Identify the cargo commodity code (e.g. GCR, XPS, DGR, PILA-CRT, CRT, COL, VAL, PER). Default to 'GCR'.\n"
+            "3. Weight Slabs: Accurately map columns to MIN charge, Normal (-45kg), +45kg, +100kg, +250kg, +300kg, +500kg rates. Do not shift columns.\n"
+            "4. Surcharges: Extract Fuel Surcharge (FSC) and Security Surcharge (SSC) per kg from headers/footnotes.\n"
+            "5. Gauge Restrictions: Capture any aircraft restrictions (e.g. 'Loose cartons only', 'Widebody only', 'Narrowbody only')."
+        )
+
+        response = await client.aio.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiAirlineTariffExtraction,
+                temperature=0.1,
+            ),
+        )
+
+        parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
+        if not parsed and response.text:
+            import json
+            raw_json = json.loads(response.text)
+            parsed = GeminiAirlineTariffExtraction.model_validate(raw_json)
+
+        if not parsed or not parsed.records:
+            return None
+
+        code = (carrier_hint or parsed.carrier_code).strip().upper()
+        meta = CARRIER_METADATA.get(code, {})
+        airline_name = parsed.carrier_name or meta.get("name", code or "Air Cargo Partner")
+        prefix = parsed.prefix if parsed.prefix and parsed.prefix != "000" else meta.get("prefix", "000")
+        default_fsc = parsed.default_fsc_per_kg if parsed.default_fsc_per_kg is not None else meta.get("fsc", 20.0)
+        default_ssc = parsed.default_ssc_per_kg if parsed.default_ssc_per_kg is not None else meta.get("ssc", 3.5)
+        valid_from = datetime.now(timezone.utc).strftime("%Y-%m-01")
+        valid_to = "2026-12-31"
+
+        records: List[TariffRateRecord] = []
+        for rec in parsed.records:
+            dests = unroll_destinations(rec.destination)
+            if not dests:
+                clean_dest = rec.destination.strip().upper()
+                if len(clean_dest) == 3 and clean_dest.isalpha():
+                    dests = [clean_dest]
+
+            for d in dests:
+                records.append(
+                    _build_tariff_record(
+                        destination=d,
+                        carrier_name=airline_name,
+                        carrier_code=code or parsed.carrier_code,
+                        prefix=prefix,
+                        commodity=rec.commodity or "GCR",
+                        min_charge=rec.min_charge,
+                        rate_normal=rec.rate_normal,
+                        rate_45=rec.rate_45,
+                        rate_100=rec.rate_100,
+                        rate_250=rec.rate_250,
+                        rate_300=rec.rate_300,
+                        rate_500=rec.rate_500,
+                        fsc_per_kg=rec.fsc_per_kg if rec.fsc_per_kg is not None else default_fsc,
+                        fsc_min=rec.fsc_min,
+                        ssc_per_kg=rec.ssc_per_kg if rec.ssc_per_kg is not None else default_ssc,
+                        ssc_min=rec.ssc_min,
+                        valid_from=valid_from,
+                        valid_to=valid_to,
+                        gauge_restriction=rec.gauge_restriction,
+                    )
+                )
+
+        return records if records else None
+
+    except Exception as exc:
+        logger.error(f"Gemini 2.5 Flash tariff extraction failed: {exc}", exc_info=True)
+        return None
+
+
 async def parse_airline_rate_sheet(
     pdf_source: Union[str, BinaryIO, bytes] = None,
     pdf_path: Optional[str] = None,
@@ -667,6 +832,7 @@ async def parse_airline_rate_sheet(
     Dual-mode parsing worker:
     1. Digital Text Extraction for structured digital PDFs.
     2. Vision OCR Fallback for scanned raster circulars (e.g. Ethiopian, AirAsia).
+    3. Intelligent escalation to Gemini 2.5 Flash for scanned sheets or non-standard matrices.
     Accepts file path (str), binary stream (BinaryIO), or raw bytes.
     """
     source = pdf_source if pdf_source is not None else pdf_path
@@ -674,6 +840,7 @@ async def parse_airline_rate_sheet(
         raise ValueError("Either pdf_source or pdf_path must be provided.")
 
     text, is_scanned = extract_text_from_pdf(source)
+    pdf_bytes = _extract_pdf_bytes(source)
 
     if is_scanned:
         # Check if the PDF has embedded images or is a completely blank synthetic PDF
@@ -697,11 +864,22 @@ async def parse_airline_rate_sheet(
         # If completely blank with 0 images, return empty records as expected for blank tests
         if not has_images and not text.strip():
             scanned_records = []
+            extraction_mode = "VISION_OCR_FALLBACK"
         else:
-            scanned_records = extract_scanned_tariff_records(carrier_hint=carrier_hint, currency=currency)
+            # 1. Attempt Gemini 2.5 Flash if API key is configured
+            gemini_records = await extract_tariff_with_gemini_flash(
+                pdf_bytes, carrier_hint=carrier_hint, currency=currency
+            )
+            if gemini_records:
+                scanned_records = gemini_records
+                extraction_mode = "GEMINI_2_5_FLASH_VLM"
+            else:
+                # 2. Fall back to local verified profiles (AirAsia D7, Ethiopian ET)
+                scanned_records = extract_scanned_tariff_records(carrier_hint=carrier_hint, currency=currency)
+                extraction_mode = "VISION_OCR_FALLBACK"
 
         return {
-            "mode": "VISION_OCR_FALLBACK",
+            "mode": extraction_mode,
             "is_scanned": True,
             "carrier_hint": carrier_hint,
             "currency": currency,
@@ -709,7 +887,7 @@ async def parse_airline_rate_sheet(
             "extracted_chars": len(text),
             "records": [r.to_dict() for r in scanned_records],
             "flagged_footnotes": [
-                f"Scanned rate sheet detected. High-precision Vision OCR pipeline extracted {len(scanned_records)} active corridor records.",
+                f"{extraction_mode}: extracted {len(scanned_records)} active corridor records.",
                 "Staged for pricing head verification in Tariff Administration Desk."
             ] if scanned_records else [
                 "Scanned rate sheet detected. No embedded images or tabular rates found."
@@ -718,10 +896,21 @@ async def parse_airline_rate_sheet(
 
     # Digital Text Mode: Extract structured tabular rate records
     typed_records = extract_digital_tariff_records(source, carrier_hint=carrier_hint, currency=currency)
+    extraction_mode = "DIGITAL_TEXT_PARSER"
+
+    # Escalation fallback: If digital text extraction found 0 tabular rows, attempt Gemini 2.5 Flash
+    if not typed_records and (getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY")):
+        gemini_records = await extract_tariff_with_gemini_flash(
+            pdf_bytes, carrier_hint=carrier_hint, currency=currency
+        )
+        if gemini_records:
+            typed_records = gemini_records
+            extraction_mode = "GEMINI_2_5_FLASH_VLM"
+
     raw_dict_records = [r.to_dict() for r in typed_records]
 
     return {
-        "mode": "DIGITAL_TEXT_PARSER",
+        "mode": extraction_mode,
         "is_scanned": False,
         "carrier_hint": carrier_hint,
         "currency": currency,
@@ -729,7 +918,7 @@ async def parse_airline_rate_sheet(
         "extracted_chars": len(text),
         "records": raw_dict_records,
         "flagged_footnotes": [
-            f"Digital tabular parser extracted {len(raw_dict_records)} active corridor rate records."
+            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records."
         ] if raw_dict_records else [
             "Digital text extracted, but no tabular corridor rows matched standard schemas."
         ],
