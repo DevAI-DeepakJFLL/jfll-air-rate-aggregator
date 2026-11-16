@@ -40,7 +40,7 @@ jobs:
           SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
           
           # Auto-detect region from NEXT_PUBLIC_API_URL if AWS_REGION is unset
-          API_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL }}"
+          API_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL || 'https://cpabd6mxetljtjy52euopdle540kzscr.lambda-url.ap-southeast-2.on.aws' }}"
           if [ -n "${{ vars.AWS_REGION || secrets.AWS_REGION }}" ]; then
             REGION="${{ vars.AWS_REGION || secrets.AWS_REGION }}"
           elif [[ "$API_URL" =~ lambda-url\.([a-z0-9-]+)\.on\.aws ]]; then
@@ -176,7 +176,7 @@ jobs:
           SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
           
           # Auto-detect region from NEXT_PUBLIC_API_URL if AWS_REGION is unset
-          API_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL }}"
+          API_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL || 'https://cpabd6mxetljtjy52euopdle540kzscr.lambda-url.ap-southeast-2.on.aws' }}"
           if [ -n "${{ vars.AWS_REGION || secrets.AWS_REGION }}" ]; then
             REGION="${{ vars.AWS_REGION || secrets.AWS_REGION }}"
           elif [[ "$API_URL" =~ lambda-url\.([a-z0-9-]+)\.on\.aws ]]; then
@@ -204,7 +204,7 @@ jobs:
       - name: Build Next.js Production Bundle
         working-directory: ./frontend
         run: |
-          RAW_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL }}"
+          RAW_URL="${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL || 'https://cpabd6mxetljtjy52euopdle540kzscr.lambda-url.ap-southeast-2.on.aws' }}"
           CLEAN_URL=$(echo "$RAW_URL" | grep -o -E 'https://[a-zA-Z0-9.-]+\.on\.aws' | head -n 1)
           if [ -z "$CLEAN_URL" ]; then
             CLEAN_URL="$RAW_URL"
