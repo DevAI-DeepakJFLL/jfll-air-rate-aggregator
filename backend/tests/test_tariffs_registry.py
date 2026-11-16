@@ -188,3 +188,126 @@ async def test_digital_rate_sheet_extraction_real_files():
         assert len(result_wy["records"]) >= 100
         mct_records = [r for r in result_wy["records"] if r["destination"] == "MCT"]
         assert len(mct_records) > 0
+
+
+def test_map_numeric_slabs_boundary_safety():
+    """Verify numeric mapper guards against IndexError and eliminates column shift."""
+    from app.services.pdf_extractor import map_numeric_slabs
+
+    # 1. Test 3 numbers without upfront MIN (Normal, +45, +100)
+    # Previously crashed with IndexError: list index out of range
+    min_c, n, r45, r100, r300, r500 = map_numeric_slabs([160.0, 140.0, 120.0])
+    assert min_c == 3500.0
+    assert n == 160.0
+    assert r45 == 140.0
+    assert r100 == 120.0
+    assert r300 == 120.0
+    assert r500 is None
+
+    # 2. Test 3 numbers with upfront MIN (MIN >= 1000, +45, +100)
+    min_c, n, r45, r100, r300, r500 = map_numeric_slabs([4500.0, 140.0, 120.0])
+    assert min_c == 4500.0
+    assert n == 140.0
+    assert r45 == 140.0
+    assert r100 == 120.0
+
+    # 3. Test 4 numbers without upfront MIN (Normal, +45, +100, +300)
+    min_c, n, r45, r100, r300, r500 = map_numeric_slabs([180.0, 160.0, 140.0, 120.0])
+    assert min_c == 3500.0
+    assert n == 180.0
+    assert r45 == 160.0
+    assert r100 == 140.0
+    assert r300 == 120.0
+
+    # 4. Test 4 numbers with upfront MIN (MIN, Normal, +45, +100)
+    min_c, n, r45, r100, r300, r500 = map_numeric_slabs([5000.0, 180.0, 160.0, 140.0])
+    assert min_c == 5000.0
+    assert n == 180.0
+    assert r45 == 160.0
+    assert r100 == 140.0
+    assert r300 == 140.0
+
+
+def test_tariff_rate_record_schema():
+    """Verify TariffRateRecord Pydantic schema validation and serialization."""
+    from app.schemas.tariff import TariffRateRecord
+
+    rec = TariffRateRecord(
+        origin="BOM",
+        destination="DXB",
+        airline="Emirates SkyCargo",
+        carrier_code="EK",
+        prefix="176",
+        commodity="GCR",
+        min_charge=4000.0,
+        rate_normal=180.0,
+        rate_45=150.0,
+        rate_100=130.0,
+        rate_300=115.0,
+        fsc_per_kg=24.0,
+        ssc_per_kg=4.5,
+    )
+    d = rec.to_dict()
+    assert d["origin"] == "BOM"
+    assert d["destination"] == "DXB"
+    assert d["carrier_code"] == "EK"
+    assert d["min_charge"] == 4000.0
+
+
+@pytest.mark.anyio
+async def test_scanned_circular_ocr_fallback_populates_records():
+    """Verify scanned circular with embedded images extracts populated records via OCR fallback."""
+    from pathlib import Path
+    from app.services.pdf_extractor import parse_airline_rate_sheet
+    repo_root = Path(__file__).resolve().parents[2]
+    airasia_pdf = repo_root / "rates" / "air asis rate sheet.pdf"
+
+    if airasia_pdf.exists():
+        result = await parse_airline_rate_sheet(pdf_path=str(airasia_pdf), carrier_hint="D7")
+        assert result["is_scanned"] is True
+        assert result["mode"] == "VISION_OCR_FALLBACK"
+        assert len(result["records"]) > 0
+        kul = [r for r in result["records"] if r["destination"] == "KUL"]
+        assert len(kul) > 0
+        assert kul[0]["min_charge"] == 3000.0
+        assert kul[0]["rate_normal"] == 160.0
+
+
+def test_tariff_registry_service_live_corridor_index_cache():
+    """Verify thread-safe corridor index caching and generation invalidation in service."""
+    from app.services.tariff_registry_service import tariff_registry_service
+
+    idx1, tariffs1 = tariff_registry_service.get_live_corridor_index()
+    assert idx1 is not None
+    assert len(tariffs1) > 0
+
+    # Calling again without generation bump returns cached object reference
+    idx2, tariffs2 = tariff_registry_service.get_live_corridor_index()
+    assert idx1 is idx2
+    assert tariffs1 is tariffs2
+
+    # Uploading a new circular bumps generation and invalidates cache
+    tariff_registry_service.register_circular_upload(
+        carrier_code="D7",
+        filename="air_asia_test.pdf",
+        extracted_records=[
+            {
+                "origin": "BOM",
+                "destination": "KUL",
+                "airline": "AirAsia X",
+                "carrier_code": "D7",
+                "prefix": "843",
+                "min_charge": 3000.0,
+                "rate_normal": 160.0,
+                "rate_45": 140.0,
+                "rate_100": 120.0,
+                "fsc_per_kg": 16.0,
+                "ssc_per_kg": 3.0,
+            }
+        ],
+    )
+    idx3, tariffs3 = tariff_registry_service.get_live_corridor_index()
+    assert idx3 is not idx1
+    # Check that new corridor is present in index
+    d7_corridors = idx3.get_corridor_tariffs("BOM", "KUL")
+    assert any(t.get("carrier_code") == "D7" for t in d7_corridors)

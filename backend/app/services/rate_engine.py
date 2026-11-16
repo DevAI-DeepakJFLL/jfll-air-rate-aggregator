@@ -3,7 +3,7 @@ import heapq
 import re
 from typing import List, Dict, Any, Optional, Tuple, Set
 from collections import defaultdict, OrderedDict
-from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown
+from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown, PackagingType
 from app.schemas.charge import (
     CalculationType,
     ChargeCategory,
@@ -571,6 +571,61 @@ def get_airline_schedule(carrier_code: str) -> Dict[str, str]:
     })
 
 
+def evaluate_regulatory_and_operational_directives(
+    carrier_code: str,
+    destination: str,
+    commodity: str,
+    actual_weight_kg: float,
+    total_pieces: int,
+    dimensions: Optional[List[Any]] = None,
+    packaging_type: Optional[PackagingType] = None,
+) -> Tuple[List[str], bool]:
+    """
+    Evaluates regulatory compliance directives and carrier operational equipment rules ex-BOM.
+    Consolidates corridor-specific customs mandates, carrier piece limits, pharma dimensional caps,
+    and packaging material restrictions.
+    """
+    notes: List[str] = []
+    packaging_restricted = False
+    dest_norm = destination.upper().strip()
+    country_code = AIRPORT_TO_COUNTRY.get(dest_norm)
+    piece_weight = actual_weight_kg / max(total_pieces, 1)
+
+    # 1. Nigeria Form 'M' Requirement
+    if dest_norm in ("LOS", "ABV", "KAN", "ENU"):
+        notes.append("Mandatory Form 'M' number must be declared and typed on AWB.")
+
+    # 2. Manila Destination Terminal Charge
+    if dest_norm == "MNL":
+        notes.append("Destination Terminal Charge (TC) of INR 0.50/kg applicable at Manila.")
+
+    # 3. North America Customs Manifest Transmission
+    if country_code in ("US", "CA"):
+        notes.append("Customs AMS / ACI electronic security manifest transmission required.")
+
+    # 4. Bulk Aircraft Feasibility / Piece Weight Limits (Malaysia Airlines & narrowbodies)
+    if carrier_code == "MH" and piece_weight > 60.0:
+        notes.append("Piece weight exceeds 60 kg bulk aircraft loading limit (check equipment type).")
+
+    # 5. Oman Air Pharma Carton Dimension Limits (< 100x80x60 cm and < 100 kg)
+    if carrier_code == "WY" and any(k in commodity.lower() for k in ("pharma", "crt", "cold", "col")):
+        has_oversize = False
+        if dimensions:
+            for dim in dimensions:
+                if dim.length_cm > 100 or dim.width_cm > 80 or dim.height_cm > 60:
+                    has_oversize = True
+                    break
+        if has_oversize or piece_weight > 100.0:
+            notes.append("Loose cartons exceeding 100x80x60 cm or 100 kg require carrier sales pre-clearance.")
+
+    # 6. AirAsia Packaging Restriction (Wooden boxes/pallets strictly prohibited)
+    if carrier_code in ("D7", "AK") and packaging_type == PackagingType.WOODEN_BOX_OR_PALLET:
+        packaging_restricted = True
+        notes.append("Wooden boxes and pallets are prohibited on AirAsia (loose corrugated cartons only).")
+
+    return notes, packaging_restricted
+
+
 def build_rate_quote(
     tariff: Dict[str, Any],
     cw: float,
@@ -591,51 +646,21 @@ def build_rate_quote(
     sched = get_airline_schedule(carrier_code)
     transit_str = sched['transit']
 
-    # Operational & Regulatory Notes Evaluation
-    regulatory_notes: List[str] = []
-    dest_norm = dest.upper().strip()
-    country_code = AIRPORT_TO_COUNTRY.get(dest_norm)
-
-    # 1. Nigeria Form 'M' Requirement
-    if dest_norm in ("LOS", "ABV", "KAN", "ENU"):
-        regulatory_notes.append("Mandatory Form 'M' number must be declared and typed on AWB.")
-
-    # 2. Manila Destination Terminal Charge
-    if dest_norm == "MNL":
-        regulatory_notes.append("Destination Terminal Charge (TC) of INR 0.50/kg applicable at Manila.")
-
-    # 3. North America Customs Manifest Transmission
-    if country_code in ("US", "CA"):
-        regulatory_notes.append("Customs AMS / ACI electronic security manifest transmission required.")
-
-    # 4. Bulk Aircraft Feasibility / Piece Weight Limits (Malaysia Airlines & narrowbodies)
     total_pieces = 1
     if request and request.dimensions:
         total_pieces = sum(d.pieces for d in request.dimensions)
     elif request and request.pieces:
         total_pieces = request.pieces
 
-    piece_weight = (request.actual_weight_kg / max(total_pieces, 1)) if request else cw
-    if carrier_code == "MH" and piece_weight > 60.0:
-        regulatory_notes.append("Piece weight exceeds 60 kg bulk aircraft loading limit (check equipment type).")
-
-    # 5. Oman Air Pharma Carton Dimension Limits (< 100x80x60 cm and < 100 kg)
-    if carrier_code == "WY" and any(k in commodity.lower() for k in ("pharma", "crt", "cold", "col")):
-        has_oversize_box = False
-        if request and request.dimensions:
-            for dim in request.dimensions:
-                if dim.length_cm > 100 or dim.width_cm > 80 or dim.height_cm > 60:
-                    has_oversize_box = True
-                    break
-        if has_oversize_box or piece_weight > 100.0:
-            regulatory_notes.append("Loose cartons exceeding 100x80x60 cm or 100 kg require carrier sales pre-clearance.")
-
-    # 6. AirAsia Packaging Restriction (Wooden boxes/pallets strictly prohibited)
-    packaging_restricted = False
-    pkg = (request.packaging_type or "").lower() if request else ""
-    if carrier_code in ("D7", "AK") and ("wood" in pkg or "pallet" in pkg or "crate" in pkg):
-        packaging_restricted = True
-        regulatory_notes.append("Wooden boxes and pallets are prohibited on AirAsia (loose corrugated cartons only).")
+    regulatory_notes, packaging_restricted = evaluate_regulatory_and_operational_directives(
+        carrier_code=carrier_code,
+        destination=dest,
+        commodity=commodity,
+        actual_weight_kg=request.actual_weight_kg if request else cw,
+        total_pieces=total_pieces,
+        dimensions=request.dimensions if request else None,
+        packaging_type=request.packaging_type if request else None,
+    )
 
     return RateQuoteItem(
         id=f"quote-{carrier_code}-{idx}",
@@ -666,6 +691,47 @@ def build_rate_quote(
         regulatory_notes=regulatory_notes,
         packaging_restricted=packaging_restricted,
     )
+
+
+def is_commodity_match(tariff_comm: Optional[str], requested_comm: Optional[str]) -> bool:
+    """
+    Evaluates whether a circular tariff's commodity matches the requested commodity search tier.
+    Handles IATA aliases and category equivalences:
+      - Pharma CRT: PILA, CRT, PHARMA, PILA-CRT
+      - Cold Chain: COL, 2 TO 8, COOL
+      - Dangerous Goods: DGR, DG PAX, DG CAO
+      - Express Courier: XPS, COU
+      - Valuable: VAL
+      - General: GCR, GEN, GENERAL
+    """
+    if not tariff_comm or not requested_comm:
+        return True
+
+    t = tariff_comm.upper().strip()
+    r = requested_comm.upper().strip()
+
+    if t == r:
+        return True
+
+    if r in ("GENERAL CARGO", "GCR", "GEN"):
+        return t in ("GCR", "GEN", "GENERAL", "GENERAL CARGO")
+
+    if "PHARMA" in r or "CRT" in r or "PILA" in r:
+        return any(k in t for k in ("PILA", "CRT", "PHARMA"))
+
+    if "COL" in r or "COLD" in r:
+        return any(k in t for k in ("COL", "2 TO 8"))
+
+    if "DGR" in r or "DANGEROUS" in r or "DG" in r:
+        return any(k in t for k in ("DGR", "DG"))
+
+    if "XPS" in r or "EXPRESS" in r or "COU" in r:
+        return any(k in t for k in ("XPS", "COU", "EXPRESS"))
+
+    if "VAL" in r:
+        return "VAL" in t
+
+    return t in r or r in t
 
 
 def process_rate_search(
@@ -716,7 +782,27 @@ def process_rate_search(
     active_charges = get_active_charges()
     total_pieces = sum(d.pieces for d in request.dimensions) if request.dimensions else 1
 
-    for idx, tariff in enumerate(candidate_tariffs):
+    # Filter and match candidate tariffs by commodity preference per carrier
+    carrier_tariff_map: Dict[str, List[Dict[str, Any]]] = {}
+    for t in candidate_tariffs:
+        c_code = (t.get('carrier_code') or 'XX').upper().strip()
+        carrier_tariff_map.setdefault(c_code, []).append(t)
+
+    matched_candidates: List[Dict[str, Any]] = []
+    for c_code, c_tariffs in carrier_tariff_map.items():
+        # Look for circular tariffs specifically matching requested commodity
+        specific = [t for t in c_tariffs if is_commodity_match(t.get('commodity'), request.commodity)]
+        if specific:
+            matched_candidates.extend(specific)
+        else:
+            # Fall back to carrier standard GCR / general tariff
+            gcr = [t for t in c_tariffs if is_commodity_match(t.get('commodity'), "General Cargo")]
+            if gcr:
+                matched_candidates.extend(gcr)
+            else:
+                matched_candidates.extend(c_tariffs)
+
+    for idx, tariff in enumerate(matched_candidates):
         tiers = tariff.get('_cached_tiers') or extract_active_weight_tiers(tariff)
         min_charge = float(tariff.get('min_charge') or 0.0)
         pivot_res = optimize_break_even_pivot(cw, tiers, min_charge)

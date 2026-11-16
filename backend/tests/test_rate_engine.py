@@ -492,6 +492,61 @@ def test_regulatory_and_operational_directives(sample_tariffs):
     assert any("Wooden boxes" in n for n in res_d7.rates[0].regulatory_notes)
 
 
+def test_packaging_type_enum_validation():
+    """Verify PackagingType enum deserializes strings and validates correctly."""
+    from app.schemas.rate import PackagingType, RateSearchRequest
+
+    req_carton = RateSearchRequest(
+        origin="BOM", destination="DXB", actual_weight_kg=50.0,
+        packaging_type=PackagingType.CARTON
+    )
+    assert req_carton.packaging_type == PackagingType.CARTON
+    assert req_carton.packaging_type == "Carton"
+
+    req_wood = RateSearchRequest(
+        origin="BOM", destination="DXB", actual_weight_kg=50.0,
+        packaging_type="Wooden Box/Pallet"
+    )
+    assert req_wood.packaging_type == PackagingType.WOODEN_BOX_OR_PALLET
+
+
+def test_commodity_specific_tariff_matching():
+    """Verify search selects specific commodity tariff when available instead of generic GCR."""
+    from app.services.rate_engine import process_rate_search
+
+    ai_gcr = {
+        "origin": "BOM", "destination": "LHR", "airline": "Air India",
+        "carrier_code": "AI", "prefix": "098", "commodity": "GCR",
+        "min_charge": 5000.0, "rate_normal": 220.0, "rate_45": 190.0,
+        "rate_100": 170.0, "rate_300": 150.0, "fsc_per_kg": 22.0, "ssc_per_kg": 4.0,
+    }
+    ai_crt = {
+        "origin": "BOM", "destination": "LHR", "airline": "Air India",
+        "carrier_code": "AI", "prefix": "098", "commodity": "CRT",
+        "min_charge": 7000.0, "rate_normal": 310.0, "rate_45": 280.0,
+        "rate_100": 260.0, "rate_300": 240.0, "fsc_per_kg": 22.0, "ssc_per_kg": 4.0,
+    }
+
+    # When searching for Pharma CRT, carrier's CRT tariff should be matched
+    req_pharma = RateSearchRequest(
+        origin="BOM", destination="LHR", actual_weight_kg=100.0,
+        commodity="Pharma CRT"
+    )
+    res_pharma = process_rate_search(req_pharma, [ai_gcr, ai_crt])
+    assert len(res_pharma.rates) == 1
+    # Base rate for CRT at +100kg is 260.0 (GCR is 170.0)
+    assert res_pharma.rates[0].breakdown.base_rate_per_kg == 260.0
+
+    # When searching for General Cargo, carrier's GCR tariff should be matched
+    req_gcr = RateSearchRequest(
+        origin="BOM", destination="LHR", actual_weight_kg=100.0,
+        commodity="General Cargo"
+    )
+    res_gcr = process_rate_search(req_gcr, [ai_gcr, ai_crt])
+    assert len(res_gcr.rates) == 1
+    assert res_gcr.rates[0].breakdown.base_rate_per_kg == 170.0
+
+
 
 
 

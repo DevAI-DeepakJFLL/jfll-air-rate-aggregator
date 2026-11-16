@@ -1,7 +1,7 @@
 import logging
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from app.data.tariffs import AIRLINE_TARIFFS
 
 logger = logging.getLogger(__name__)
@@ -118,11 +118,14 @@ class TariffRegistryService:
     """
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._registry: Dict[str, Dict[str, Any]] = {}
         self._custom_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._baseline_carrier_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._generation: int = 1
+        self._cached_index: Optional[Any] = None
+        self._cached_generation: int = -1
+        self._cached_tariffs: List[Dict[str, Any]] = []
         self._initialize_registry()
 
     def get_generation(self) -> int:
@@ -227,6 +230,21 @@ class TariffRegistryService:
                 else:
                     all_tariffs.extend(self._baseline_carrier_rates.get(code, []))
             return [dict(t) for t in all_tariffs]
+
+    def get_live_corridor_index(self) -> Tuple[Any, List[Dict[str, Any]]]:
+        """
+        Thread-safe retrieval of CorridorRateIndex and active tariff list.
+        Rebuilds index in O(N) only when registry generation increments, otherwise O(1).
+        Encapsulates cache lifecycle to prevent Feature Envy in API endpoint modules.
+        """
+        from app.services.rate_engine import CorridorRateIndex
+
+        with self._lock:
+            if self._cached_index is None or self._cached_generation != self._generation:
+                self._cached_tariffs = self.get_all_active_tariffs()
+                self._cached_index = CorridorRateIndex(self._cached_tariffs)
+                self._cached_generation = self._generation
+            return self._cached_index, self._cached_tariffs
 
     def register_circular_upload(
         self,

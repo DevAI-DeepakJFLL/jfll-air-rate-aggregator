@@ -1,5 +1,12 @@
+from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+
+
+class PackagingType(str, Enum):
+    """Packaging material types evaluated against airline equipment circular rules."""
+    CARTON = "Carton"
+    WOODEN_BOX_OR_PALLET = "Wooden Box/Pallet"
 
 
 class CargoDimension(BaseModel):
@@ -49,8 +56,8 @@ class RateSearchRequest(BaseModel):
         max_length=64,
         description="Commodity type: General Cargo, DGR - PAX, Pharma CRT, Cold Chain, Express Courier, etc."
     )
-    packaging_type: Optional[str] = Field(
-        default="Carton",
+    packaging_type: Optional[PackagingType] = Field(
+        default=PackagingType.CARTON,
         description="Packaging material type: Carton or Wooden Box/Pallet (evaluates circular equipment rules)"
     )
     pieces: Optional[int] = Field(
