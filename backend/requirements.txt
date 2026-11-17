@@ -5,8 +5,10 @@ mangum>=0.17.0
 pydantic>=2.9.2
 pydantic-settings>=2.6.0
 
-# PDF Extraction
+# PDF Extraction & Rasterization
 pypdf>=5.1.0
+pypdfium2>=5.0.0
+pillow>=11.0.0
 
 # Multimodal AI SDK (for scanned image PDF extraction fallback)
 google-genai>=0.1.1

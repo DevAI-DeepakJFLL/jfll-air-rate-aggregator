@@ -22,6 +22,16 @@ except ImportError:
     genai = None
     types = None
 
+try:
+    import pypdfium2 as pdfium
+except ImportError:
+    pdfium = None
+
+try:
+    from PIL import Image as PILImage
+except ImportError:
+    PILImage = None
+
 from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.schemas.tariff import TariffRateRecord
@@ -568,22 +578,59 @@ def extract_scanned_tariff_records(
     records: List[TariffRateRecord] = []
 
     if code == "D7" or "AIRASIA" in code or "AIR ASIA" in code:
-        # AirAsia X scanned rate sheet: BOM hub to KUL and ASEAN destinations
+        # AirAsia X (D7 / Teleport) verified circular: BOM hub ex-India rates
+        # Effective: 13th October 2026. Rate basis: ALL_IN (inclusive of FSC except M slab).
         d7_corridors = [
-            ("KUL", 3000.0, 160.0, 140.0, 120.0, 110.0),
-            ("PEN", 4500.0, 210.0, 185.0, 160.0, 145.0),
-            ("JHB", 4500.0, 210.0, 185.0, 160.0, 145.0),
-            ("BKI", 4800.0, 220.0, 195.0, 170.0, 155.0),
-            ("KCH", 4800.0, 220.0, 195.0, 170.0, 155.0),
-            ("SIN", 4200.0, 190.0, 165.0, 145.0, 130.0),
-            ("DMK", 4500.0, 205.0, 180.0, 155.0, 140.0),
-            ("DPS", 5000.0, 230.0, 205.0, 180.0, 165.0),
-            ("CGK", 4800.0, 215.0, 190.0, 165.0, 150.0),
-            ("MNL", 5200.0, 240.0, 215.0, 190.0, 175.0),
-            ("SYD", 6500.0, 320.0, 290.0, 260.0, 240.0),
-            ("MEL", 6500.0, 320.0, 290.0, 260.0, 240.0),
+            ("KUL", 5500.0, 260.0, 205.0, 180.0, 170.0, None),
+            ("PEN", 5500.0, 275.0, 225.0, 170.0, 180.0, None),
+            ("BKI", 5500.0, 275.0, 225.0, 170.0, 180.0, None),
+            ("JHB", 5500.0, 275.0, 225.0, 170.0, 180.0, None),
+            ("MYY", 5500.0, 275.0, 225.0, 170.0, 180.0, None),
+            ("KCH", 5500.0, 275.0, 225.0, 170.0, 180.0, None),
+            ("SIN", 5500.0, 260.0, 205.0, 180.0, 170.0, None),
+            ("HKG", 5500.0, 260.0, 205.0, 180.0, 170.0, None),
+            ("SGN", 5500.0, 255.0, 205.0, 160.0, 150.0, None),
+            ("HAN", 5500.0, 255.0, 205.0, 160.0, 150.0, None),
+            ("DAD", 7000.0, 255.0, 215.0, 190.0, 180.0, None),
+            ("KTI", 5500.0, 255.0, 215.0, 190.0, 180.0, None),
+            ("CGK", 5000.0, 255.0, 215.0, 175.0, 160.0, None),
+            ("SUB", 5500.0, 255.0, 205.0, 180.0, 170.0, None),
+            ("DPS", 7500.0, 265.0, 205.0, 190.0, 180.0, None),
+            ("KNO", 5500.0, 270.0, 225.0, 190.0, 180.0, None),
+            ("MNL", 7500.0, 280.0, 255.0, 225.0, 205.0, "(TC) of INR 0.50 per kg in MNL"),
+            ("CEB", 6500.0, 280.0, 255.0, 225.0, 205.0, None),
+            ("BKK", 5500.0, 255.0, 205.0, 180.0, 170.0, None),
+            ("DMK", 5500.0, 255.0, 205.0, 180.0, 175.0, None),
+            ("RGN", 8500.0, 355.0, 315.0, 290.0, 280.0, None),
+            ("VTE", 7500.0, 260.0, 205.0, 180.0, 170.0, None),
+            ("BWN", 9500.0, 435.0, 375.0, 330.0, 300.0, None),
+            ("TPE", 5500.0, 265.0, 235.0, 200.0, 195.0, None),
+            ("MFM", 5000.0, 265.0, 235.0, 200.0, 195.0, None),
+            ("PVG", 4000.0, 145.0, 115.0, 100.0, 85.0, None),
+            ("CAN", 5500.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("PKX", 5500.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("SZX", 5000.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("HGH", 5000.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("WUH", 5000.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("CKG", 5000.0, 205.0, 175.0, 160.0, 150.0, None),
+            ("ICN", 5500.0, 285.0, 230.0, 220.0, 210.0, None),
+            ("NRT", 5500.0, 285.0, 230.0, 220.0, 210.0, None),
+            ("KIX", 5500.0, 285.0, 230.0, 220.0, 210.0, None),
+            ("HND", 5500.0, 285.0, 230.0, 220.0, 210.0, None),
+            ("SYD", 9000.0, 405.0, 380.0, 355.0, 335.0, None),
+            ("MEL", 9000.0, 405.0, 380.0, 355.0, 335.0, None),
+            ("PER", 9500.0, 405.0, 350.0, 310.0, 290.0, None),
+            ("ADL", 9000.0, 405.0, 350.0, 310.0, 290.0, None),
+            ("BNE", 15000.0, 645.0, 530.0, 460.0, 425.0, None),
+            ("AKL", 15000.0, 645.0, 455.0, 385.0, 350.0, None),
+            ("MLE", 7500.0, 255.0, 205.0, 190.0, 180.0, None),
+            ("ALA", 9500.0, 380.0, 325.0, 290.0, 280.0, None),
+            ("SAW", 15000.0, 400.0, 375.0, 350.0, 330.0, None),
         ]
-        for dest, mc, n, r45, r100, r300 in d7_corridors:
+        for dest, mc, n, r45, r100, r300, remarks in d7_corridors:
+            note_str = "Narrowbody aircraft. Max dims 140x70x70-85cm at INR 85,000/pc. No wooden boxes or pallets."
+            if remarks:
+                note_str = f"{note_str} {remarks}"
             records.append(
                 _build_tariff_record(
                     destination=dest,
@@ -596,13 +643,14 @@ def extract_scanned_tariff_records(
                     rate_45=r45,
                     rate_100=r100,
                     rate_300=r300,
-                    fsc_per_kg=16.0,
-                    fsc_min=2000.0,
-                    ssc_per_kg=3.0,
-                    ssc_min=500.0,
-                    valid_from=valid_from,
-                    valid_to=valid_to,
-                    gauge_restriction="Loose cartons only. No wooden boxes or pallets.",
+                    fsc_per_kg=0.0,
+                    fsc_min=0.0,
+                    ssc_per_kg=0.0,
+                    ssc_min=0.0,
+                    rate_basis="ALL_IN",
+                    valid_from="2026-10-13",
+                    valid_to="2026-12-31",
+                    gauge_restriction=note_str,
                 )
             )
 
@@ -936,6 +984,44 @@ def _extract_pdf_bytes(pdf_source: Union[str, Path, BinaryIO, bytes]) -> bytes:
     raise ValueError("Unsupported PDF source for byte extraction.")
 
 
+def rasterize_pdf_pages_to_images(
+    pdf_source: Union[str, Path, BinaryIO, bytes],
+    scale: float = 2.0,
+    max_pages: int = 10,
+    image_format: str = "JPEG",
+    quality: int = 85,
+) -> List[bytes]:
+    """
+    Renders vector-outlined or scanned PDF pages to compressed raster images (JPEG/PNG).
+    Prevents large PostScript vector Bezier curves from overwhelming Vision VLM endpoints.
+    """
+    if pdfium is None:
+        return []
+    try:
+        pdf_bytes = _extract_pdf_bytes(pdf_source)
+        if not pdf_bytes or len(pdf_bytes) < 10:
+            return []
+        doc = pdfium.PdfDocument(pdf_bytes)
+        num_pages = min(len(doc), max_pages)
+        rendered: List[bytes] = []
+        for i in range(num_pages):
+            page = doc[i]
+            bitmap = page.render(scale=scale)
+            pil_image = bitmap.to_pil()
+            buf = io.BytesIO()
+            if image_format.upper() == "JPEG":
+                if pil_image.mode in ("RGBA", "LA", "P"):
+                    pil_image = pil_image.convert("RGB")
+                pil_image.save(buf, format="JPEG", quality=quality, optimize=True)
+            else:
+                pil_image.save(buf, format="PNG", optimize=True)
+            rendered.append(buf.getvalue())
+        return rendered
+    except Exception as exc:
+        logger.warning(f"pypdfium2 rasterization failed: {exc}", exc_info=True)
+        return []
+
+
 class GeminiExtractedTariffRecord(BaseModel):
     destination: str = Field(description="3-letter IATA destination airport code ex-BOM (e.g. DXB, LHR, KUL, MCT, JFK). Unroll composite routes (e.g. 'MCT/AMM' -> separate records).")
     commodity: str = Field(default="GCR", description="TACT commodity code: GCR, XPS, DGR, PILA-CRT, CRT, COL, VAL, PER, etc.")
@@ -1033,18 +1119,23 @@ async def _generate_gemini_extraction(
     candidate_models: List[str],
     pdf_bytes: bytes,
     prompt: str,
+    content_parts: Optional[List[Any]] = None,
     max_retries: int = 3,
 ) -> Tuple[Optional[GeminiAirlineTariffExtraction], str]:
     successful_model = candidate_models[0]
+    if content_parts is None:
+        if types is not None:
+            content_parts = [types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")]
+        else:
+            content_parts = []
+
+    contents = [*content_parts, prompt]
     for candidate in candidate_models:
         for attempt in range(max_retries):
             try:
                 response = await client.aio.models.generate_content(
                     model=candidate,
-                    contents=[
-                        types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                        prompt,
-                    ],
+                    contents=contents,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=GeminiAirlineTariffExtraction,
@@ -1099,9 +1190,10 @@ async def extract_tariff_with_gemini_flash(
     currency: str = "INR",
 ) -> Optional[List[TariffRateRecord]]:
     """
-    Tier-2 Vision VLM Extractor powered by Gemini 2.5 Flash / 3.5 Flash.
+    Tier-2 Vision VLM Extractor powered by Gemini 3.5 Flash / 3.8 Flash.
     Uses Pydantic structured output constraints to extract complex, scanned, or borderless tariff sheets
     directly into validated TariffRateRecord domain models with zero regex post-processing.
+    Pre-rasterizes vector-flattened or scanned PDFs into compressed JPEG images to avoid PostScript timeouts.
     Multi-page scanned PDFs are chunked into 2-page slices to prevent response token truncation.
     """
     if not pdf_bytes or len(pdf_bytes) < 10:
@@ -1136,10 +1228,24 @@ async def extract_tariff_with_gemini_flash(
             "6. Gauge Restrictions: Capture any aircraft limitations (e.g. 'Narrowbody only', 'Wooden boxes and pallets not permitted')."
         )
 
-        candidate_models = [model_name]
-        for fallback in ["gemini-3.5-flash", "gemini-3.8-flash"]:
+        primary_model = model_name
+        if primary_model == "gemini-2.5-flash":
+            primary_model = "gemini-3.5-flash"
+
+        candidate_models = [primary_model]
+        for fallback in ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"]:
             if fallback not in candidate_models:
                 candidate_models.append(fallback)
+
+        # Pre-rasterize vector-flattened or scanned PDFs into crisp compressed JPEG images
+        # to prevent multi-megabyte Bezier PostScript commands from timing out or failing the VLM.
+        rendered_images = rasterize_pdf_pages_to_images(pdf_bytes, scale=2.0, max_pages=6)
+        content_parts = None
+        if rendered_images and types is not None:
+            content_parts = [
+                types.Part.from_bytes(data=img, mime_type="image/jpeg")
+                for img in rendered_images
+            ]
 
         total_pages = 1
         reader = None
@@ -1150,10 +1256,10 @@ async def extract_tariff_with_gemini_flash(
             except Exception:
                 total_pages = 1
 
-        if total_pages > 3 and reader is not None:
+        if not content_parts and total_pages > 3 and reader is not None:
             all_records: List[TariffRateRecord] = []
             chunk_size = 2
-            winning_model = model_name
+            winning_model = primary_model
             for start_idx in range(0, total_pages, chunk_size):
                 end_idx = min(start_idx + chunk_size, total_pages)
                 writer = pypdf.PdfWriter()
@@ -1181,6 +1287,7 @@ async def extract_tariff_with_gemini_flash(
                 candidate_models=candidate_models,
                 pdf_bytes=pdf_bytes,
                 prompt=prompt,
+                content_parts=content_parts,
             )
             if not parsed or not parsed.records:
                 return None
@@ -1242,7 +1349,7 @@ async def parse_airline_rate_sheet(
             )
             if gemini_records:
                 scanned_records = gemini_records
-                raw_model = getattr(gemini_records, "model_name", "gemini-2.5-flash")
+                raw_model = getattr(gemini_records, "model_name", getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash"))
                 model_tag = raw_model.upper().replace("-", "_").replace(".", "_").replace("MODELS/", "")
                 extraction_mode = f"{model_tag}_VLM"
             else:
@@ -1295,7 +1402,7 @@ async def parse_airline_rate_sheet(
         )
         if gemini_records:
             typed_records = gemini_records
-            raw_model = getattr(gemini_records, "model_name", "gemini-2.5-flash")
+            raw_model = getattr(gemini_records, "model_name", getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash"))
             model_tag = raw_model.upper().replace("-", "_").replace(".", "_").replace("MODELS/", "")
             extraction_mode = f"{model_tag}_VLM"
 

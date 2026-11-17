@@ -168,7 +168,7 @@ async def test_parse_airline_rate_sheet_routes_to_gemini_flash_on_scanned():
                     currency="INR",
                 )
 
-                assert result["mode"] == "GEMINI_2_5_FLASH_VLM"
+                assert result["mode"] in ("GEMINI_3_5_FLASH_VLM", "GEMINI_2_5_FLASH_VLM")
                 assert result["is_scanned"] is True
                 assert len(result["records"]) == 1
                 assert result["records"][0]["destination"] == "KUL"

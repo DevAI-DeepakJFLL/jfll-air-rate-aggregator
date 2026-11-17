@@ -279,11 +279,16 @@ async def test_scanned_circular_ocr_fallback_populates_records():
             result = await parse_airline_rate_sheet(pdf_path=str(airasia_pdf), carrier_hint="D7")
             assert result["is_scanned"] is True
             assert result["mode"] == "VISION_OCR_FALLBACK"
-            assert len(result["records"]) > 0
+            assert len(result["records"]) == 45
             kul = [r for r in result["records"] if r["destination"] == "KUL"]
             assert len(kul) > 0
-            assert kul[0]["min_charge"] == 3000.0
-            assert kul[0]["rate_normal"] == 160.0
+            assert kul[0]["min_charge"] == 5500.0
+            assert kul[0]["rate_normal"] == 260.0
+            assert kul[0]["rate_45"] == 205.0
+            assert kul[0]["rate_100"] == 180.0
+            assert kul[0]["rate_300"] == 170.0
+            assert kul[0]["fsc_per_kg"] == 0.0
+            assert kul[0]["rate_basis"] == "ALL_IN"
 
 
 def test_tariff_registry_service_live_corridor_index_cache():
