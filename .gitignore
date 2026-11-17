@@ -59,7 +59,8 @@ eggs/
 .eggs/
 /backend/lib/
 /backend/lib64/
-parts/
+/backend/parts/
+!frontend/src/stageshow/kit/parts/
 sdist/
 var/
 wheels/

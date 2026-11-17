@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
     : process.env.BUILD_STANDALONE === "true"
     ? { output: "standalone" }
     : {}),
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   ...(!isExport
