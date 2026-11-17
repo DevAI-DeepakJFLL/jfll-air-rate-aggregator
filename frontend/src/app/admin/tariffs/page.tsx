@@ -82,7 +82,7 @@ export default function AdminTariffsPage() {
 
       setNotification({
         type: "success",
-        message: `Successfully ingested ${file.name} for ${carrierInfo?.carrier_name || carrierCode}. Dedicated parser verified ${carrierInfo?.total_corridors || "active"} corridors.`,
+        message: `Successfully ingested ${file.name} for ${carrierInfo?.carrier_name || carrierCode}. Verified ${carrierInfo?.total_corridors || "active"} active rate corridors.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error uploading rate circular";
@@ -187,7 +187,7 @@ export default function AdminTariffsPage() {
             Air Cargo Tariff Ingestion Desk
           </h1>
           <p className="text-xs text-slate-600 font-medium mt-0.5">
-            Ex-Mumbai (BOM / CSMIA Sahar ACC) Gateway &bull; Dedicated Airline Circular Parsers
+            Ex-Mumbai (BOM / CSMIA Sahar ACC) Gateway &bull; Airline Spot &amp; Published Rate Circulars
           </p>
         </div>
 

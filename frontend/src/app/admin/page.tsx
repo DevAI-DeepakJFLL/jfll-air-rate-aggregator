@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="text-2xl font-black text-slate-900 font-mono">10 Carriers</div>
           <p className="text-[11px] text-slate-500 font-medium">
-            Rate circulars and dedicated parsers ex-BOM
+            Rate circulars &amp; spot tariff matrices ex-BOM
           </p>
         </div>
 
@@ -88,12 +88,12 @@ export default function AdminDashboardPage() {
         {/* Metric 4: Calculation Engine */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            <span>Rate Engine</span>
+            <span>Rate Calculation</span>
             <ShieldCheck className="h-4 w-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 font-mono">Live</div>
           <p className="text-[11px] text-slate-500 font-medium">
-            Sub-millisecond pure buy rate discovery
+            Instant landed buy rate discovery
           </p>
         </div>
       </div>
@@ -137,12 +137,12 @@ export default function AdminDashboardPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
-                  Charges &amp; Surcharges Engine
+                  Charges &amp; Surcharges
                 </h3>
                 <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Configure baseline and airline-specific dynamic fees (Fuel, Security, Screening, X-Ray) dynamically evaluated by the pure buy rate engine.
+                Configure baseline and airline-specific dynamic fees (Fuel, Security, Screening, X-Ray) automatically factored into landed buy rates.
               </p>
             </div>
           </Link>

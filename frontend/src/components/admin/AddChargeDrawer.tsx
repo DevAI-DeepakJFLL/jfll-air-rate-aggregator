@@ -542,7 +542,7 @@ export default function AddChargeDrawer({
                   )}
                 </div>
                 <p className="text-xs text-slate-400 font-medium mt-1 truncate">
-                  {isEditing ? `Modifying ID: ${chargeToEdit?.id}` : "MIAL Gateway & Pure Buy Engine Surcharge"}
+                  {isEditing ? `Modifying ID: ${chargeToEdit?.id}` : "MIAL Gateway & Landed Air Freight Surcharge"}
                 </p>
               </div>
             </div>

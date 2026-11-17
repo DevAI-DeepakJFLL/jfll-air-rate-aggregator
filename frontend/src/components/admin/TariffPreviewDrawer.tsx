@@ -183,10 +183,10 @@ export function TariffPreviewDrawer({
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
                 <span className="text-[11px] font-semibold text-slate-500 block">
-                  Parser Signature
+                  AWB Prefix
                 </span>
-                <span className="font-mono text-slate-700 block mt-0.5 text-[11px] truncate">
-                  {carrier.parser_id}
+                <span className="font-mono font-bold text-slate-900 block mt-0.5 text-[11px]">
+                  {carrier.prefix} ({carrier.carrier_code})
                 </span>
               </div>
             </div>

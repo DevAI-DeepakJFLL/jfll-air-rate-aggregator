@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Cpu,
+  Globe,
   X,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
@@ -220,16 +220,16 @@ export function CarrierTariffCard({
           <div className="shrink-0">{renderStatusBadge()}</div>
         </div>
 
-        {/* Operational Parser & Coverage Strip */}
+        {/* Cargo Network & Coverage Strip */}
         <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-slate-100/80 text-xs">
           <div className="flex items-center gap-1.5 min-w-0">
-            <Cpu className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="text-slate-600 font-medium">Engine:</span>
-            <span className="font-mono font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-200/80 text-xs truncate">
-              {carrier.parser_id}
+            <Globe className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <span className="text-slate-600 font-medium">AWB Prefix:</span>
+            <span className="font-mono font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80 text-xs">
+              {carrier.prefix}
             </span>
           </div>
-          <span className="text-xs font-medium text-slate-600 shrink-0">
+          <span className="text-xs font-semibold text-slate-700 shrink-0">
             {hasCircular && circular ? `${circular.corridor_count} active routes` : "0 active routes"}
           </span>
         </div>
