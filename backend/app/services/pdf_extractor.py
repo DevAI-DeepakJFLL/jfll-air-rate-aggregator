@@ -751,18 +751,41 @@ async def extract_tariff_with_gemini_flash(
             "5. Gauge Restrictions: Capture any aircraft restrictions (e.g. 'Loose cartons only', 'Widebody only', 'Narrowbody only')."
         )
 
-        response = await client.aio.models.generate_content(
-            model=model_name,
-            contents=[
-                types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                prompt,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=GeminiAirlineTariffExtraction,
-                temperature=0.1,
-            ),
-        )
+        candidate_models = [model_name]
+        for fallback in ["gemini-3.5-flash", "gemini-3.8-flash"]:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
+
+        response = None
+        for candidate in candidate_models:
+            try:
+                response = await client.aio.models.generate_content(
+                    model=candidate,
+                    contents=[
+                        types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                        prompt,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=GeminiAirlineTariffExtraction,
+                        temperature=0.1,
+                    ),
+                )
+                break
+            except Exception as e:
+                err_str = str(e).lower()
+                is_recoverable = (
+                    "not_found" in err_str
+                    or "no longer available" in err_str
+                    or "404" in err_str
+                    or "unavailable" in err_str
+                    or "503" in err_str
+                    or "high demand" in err_str
+                )
+                if is_recoverable and candidate != candidate_models[-1]:
+                    logger.warning(f"Model {candidate} returned recoverable error ({e}). Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
+                    continue
+                raise
 
         parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
         if not parsed and response.text:

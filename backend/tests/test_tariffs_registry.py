@@ -269,19 +269,21 @@ def test_tariff_rate_record_schema():
 async def test_scanned_circular_ocr_fallback_populates_records():
     """Verify scanned circular with embedded images extracts populated records via OCR fallback."""
     from pathlib import Path
+    from unittest.mock import patch
     from app.services.pdf_extractor import parse_airline_rate_sheet
     repo_root = Path(__file__).resolve().parents[2]
     airasia_pdf = repo_root / "rates" / "air asis rate sheet.pdf"
 
     if airasia_pdf.exists():
-        result = await parse_airline_rate_sheet(pdf_path=str(airasia_pdf), carrier_hint="D7")
-        assert result["is_scanned"] is True
-        assert result["mode"] == "VISION_OCR_FALLBACK"
-        assert len(result["records"]) > 0
-        kul = [r for r in result["records"] if r["destination"] == "KUL"]
-        assert len(kul) > 0
-        assert kul[0]["min_charge"] == 3000.0
-        assert kul[0]["rate_normal"] == 160.0
+        with patch("app.services.pdf_extractor.settings.GEMINI_API_KEY", ""):
+            result = await parse_airline_rate_sheet(pdf_path=str(airasia_pdf), carrier_hint="D7")
+            assert result["is_scanned"] is True
+            assert result["mode"] == "VISION_OCR_FALLBACK"
+            assert len(result["records"]) > 0
+            kul = [r for r in result["records"] if r["destination"] == "KUL"]
+            assert len(kul) > 0
+            assert kul[0]["min_charge"] == 3000.0
+            assert kul[0]["rate_normal"] == 160.0
 
 
 def test_tariff_registry_service_live_corridor_index_cache():
