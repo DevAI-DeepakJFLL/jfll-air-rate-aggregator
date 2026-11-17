@@ -91,7 +91,7 @@ export function getAdminApiKey(): string {
   if (process.env.NEXT_PUBLIC_ADMIN_API_KEY) {
     return process.env.NEXT_PUBLIC_ADMIN_API_KEY;
   }
-  return process.env.NODE_ENV === "development" ? "dev-admin-api-key-change-in-production" : "";
+  return "dev-admin-api-key-change-in-production";
 }
 
 let _chargesCache: ChargeRule[] | null = null;

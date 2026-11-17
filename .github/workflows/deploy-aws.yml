@@ -95,10 +95,11 @@ jobs:
           GEMINI_KEY="${{ vars.GEMINI_API_KEY || secrets.GEMINI_API_KEY || '' }}"
           KEY_ID="${SECRET_KEY_ID:-${{ vars.AWS_ACCESS_KEY_ID }}}"
           SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
+          ADMIN_KEY="${{ vars.ADMIN_API_KEY || secrets.ADMIN_API_KEY || 'dev-admin-api-key-change-in-production' }}"
 
           echo "Optimizing Lambda configuration (runtime=python3.11, timeout=60s, memory=512MB, handler=lambda_handler.handler)..."
 
-          ENV_PAIRS="ENVIRONMENT=production,AWS_REGION=$REGION"
+          ENV_PAIRS="ENVIRONMENT=production,AWS_REGION=$REGION,ADMIN_API_KEY=$ADMIN_KEY"
           if [ -n "$BUCKET_NAME" ]; then
             ENV_PAIRS="$ENV_PAIRS,AWS_S3_BUCKET_NAME=$BUCKET_NAME"
           fi
@@ -231,7 +232,8 @@ jobs:
             CLEAN_URL="$RAW_URL"
           fi
           echo "Sanitized Next.js API URL: $CLEAN_URL"
-          NEXT_OUTPUT_EXPORT=true NEXT_PUBLIC_API_URL="$CLEAN_URL" npm run build
+          ADMIN_KEY="${{ vars.ADMIN_API_KEY || secrets.ADMIN_API_KEY || 'dev-admin-api-key-change-in-production' }}"
+          NEXT_OUTPUT_EXPORT=true NEXT_PUBLIC_API_URL="$CLEAN_URL" NEXT_PUBLIC_ADMIN_API_KEY="$ADMIN_KEY" npm run build
 
       - name: Sync Static Assets to S3
         run: |

@@ -10,6 +10,7 @@ import {
   X,
   TableProperties,
   LayoutGrid,
+  Key,
 } from "lucide-react";
 import { useAdminRole } from "@/context/AdminRoleContext";
 import { CarrierRegistryItem } from "@/types/tariff";
@@ -22,6 +23,8 @@ import {
   uploadTariffPdf,
   deleteTariffCircular,
   getCachedTariffRegistry,
+  getAdminApiKey,
+  setAdminApiKey,
 } from "@/lib/api-client";
 
 export default function AdminTariffsPage() {
@@ -39,6 +42,10 @@ export default function AdminTariffsPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  // Admin API Key configuration state
+  const [showKeySettings, setShowKeySettings] = useState(false);
+  const [adminKeyInput, setAdminKeyInput] = useState("");
 
   // Pagination State for Carrier Circulars
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +69,7 @@ export default function AdminTariffsPage() {
   useEffect(() => {
     const hasCache = Boolean(getCachedTariffRegistry());
     fetchRegistry(hasCache);
+    setAdminKeyInput(getAdminApiKey());
   }, []);
 
   // Upload handler bound to carrier code
@@ -85,11 +93,22 @@ export default function AdminTariffsPage() {
         message: `Successfully ingested ${file.name} for ${carrierInfo?.carrier_name || carrierCode}. Verified ${carrierInfo?.total_corridors || "active"} active rate corridors.`,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error uploading rate circular";
+      const rawMsg = err instanceof Error ? err.message : "Error uploading rate circular";
+      const isAuthError =
+        rawMsg.toLowerCase().includes("unauthorized") ||
+        rawMsg.toLowerCase().includes("x-admin-key");
+      const msg = isAuthError
+        ? "Unauthorized: Invalid or missing X-Admin-Key. Click 'API Key' above to configure your access key."
+        : rawMsg;
+
       setNotification({
         type: "error",
         message: msg,
       });
+
+      if (isAuthError) {
+        setShowKeySettings(true);
+      }
     } finally {
       setUploadingCarrier(null);
     }
@@ -236,8 +255,82 @@ export default function AdminTariffsPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh Registry
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowKeySettings(!showKeySettings)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-jfll-blue"
+            title="Configure Admin API Key"
+          >
+            <Key className="h-3.5 w-3.5 text-slate-500" />
+            API Key
+          </button>
         </div>
       </div>
+
+      {/* Admin API Key Configuration Drawer */}
+      {showKeySettings && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm animate-in fade-in space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Key className="h-4 w-4 text-jfll-blue" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Admin API Key Configuration
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowKeySettings(false)}
+              className="text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Close API Key Configuration"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-600">
+            The X-Admin-Key is required to authorize rate sheet circular uploads and deletions ex-BOM.
+          </p>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input
+              type="password"
+              value={adminKeyInput}
+              onChange={(e) => setAdminKeyInput(e.target.value)}
+              placeholder="Enter Admin API Key (X-Admin-Key)"
+              className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-jfll-blue bg-white"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminApiKey(adminKeyInput);
+                  setShowKeySettings(false);
+                  setNotification({
+                    type: "success",
+                    message: "Admin API Key successfully saved to browser storage.",
+                  });
+                }}
+                className="px-4 py-2 bg-jfll-blue text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+              >
+                Save Key
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminApiKey("");
+                  setAdminKeyInput(getAdminApiKey());
+                  setNotification({
+                    type: "success",
+                    message: "Admin API Key reset to environment default.",
+                  });
+                }}
+                className="px-3 py-2 border border-slate-300 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Reset Default
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Banner */}
       {notification && (
