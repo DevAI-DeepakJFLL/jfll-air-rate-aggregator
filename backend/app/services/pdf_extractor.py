@@ -191,6 +191,7 @@ def _build_tariff_record(
     valid_to: Optional[str] = None,
     gauge_restriction: Optional[str] = None,
     rate_basis: str = "NET_NET_PLUS_PLUS",
+    surcharge_source: str = "CIRCULAR",
 ) -> TariffRateRecord:
     """
     Factory helper to instantiate a validated TariffRateRecord.
@@ -235,6 +236,7 @@ def _build_tariff_record(
         valid_from=v_from,
         valid_to=v_to,
         gauge_restriction=gauge_restriction,
+        surcharge_source=surcharge_source,
         validation_warnings=warnings,
         is_flagged=is_flagged,
         confidence_score=confidence,
@@ -244,22 +246,39 @@ def _build_tariff_record(
 def extract_validity_dates_from_text(text: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Extracts effective start and end dates from rate sheet header or footnote text.
-    Handles ranges like 'Effective 12 Jul to 30 Sep 2026' or 'Effected 13th OCTOBER 2026'.
+    Handles ranges like 'Effective 12 Jul to 30 Sep 2026', 'EFFECTIVE: 01OCT 2026 TO 31OCT 2026',
+    or 'Effected 13th OCTOBER 2026'.
     Returns (valid_from, valid_to) in YYYY-MM-DD format.
     """
     if not text:
         return None, None
 
-    # Pattern 1: 'Effective 12 Jul [2026] to 30 Sep 2026'
-    m1 = re.search(
+    # Pattern 1A: 'EFFECTIVE: 01OCT 2026 TO 31OCT 2026' or 'Effective 12 Jul to 30 Sep 2026'
+    m1a = re.search(
+        r"Effect(?:ed|ive)[\s:]+(\d{1,2})\s*([A-Za-z]{3,9})(?:\s*(\d{4}))?\s+(?:to|-|until)\s+(\d{1,2})\s*([A-Za-z]{3,9})\s+(\d{4})",
+        text,
+        re.IGNORECASE,
+    )
+    if m1a:
+        try:
+            d1, m1_str, y1, d2, m2_str, y2 = m1a.groups()
+            y1 = y1 or y2
+            dt1 = datetime.strptime(f"{d1} {m1_str[:3].title()} {y1}", "%d %b %Y")
+            dt2 = datetime.strptime(f"{d2} {m2_str[:3].title()} {y2}", "%d %b %Y")
+            return dt1.strftime("%Y-%m-%d"), dt2.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+    # Pattern 1B: Legacy 'Effective 12 Jul [2026] to 30 Sep 2026'
+    m1b = re.search(
         r"Effective\s+(\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?)\s+to\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
         text,
         re.IGNORECASE,
     )
-    if m1:
+    if m1b:
         try:
-            start_raw = m1.group(1).strip()
-            end_raw = m1.group(2).strip()
+            start_raw = m1b.group(1).strip()
+            end_raw = m1b.group(2).strip()
             end_parts = re.sub(r"\s+", " ", end_raw).split()
             fmt_end = "%d %b %Y" if len(end_parts[1]) == 3 else "%d %B %Y"
             end_dt = datetime.strptime(" ".join(end_parts), fmt_end)
@@ -390,13 +409,19 @@ def map_numeric_slabs(
             return (3500.0, nums[0], nums[0], nums[0], nums[0], None)
 
 
-def scan_surcharges_from_text(full_text: str, default_fsc: float, default_ssc: float) -> Tuple[float, float]:
+def scan_surcharges_from_text(
+    full_text: str, default_fsc: float, default_ssc: float
+) -> Tuple[float, float, str, Optional[str]]:
     """
     Scans PDF text for dynamic carrier surcharge directives (FSC and SSC).
-    Falls back gracefully to known carrier metadata defaults if not found in circular text.
+    Returns (fsc_rate, ssc_rate, surcharge_source, surcharge_notice).
+    Falls back gracefully to known carrier metadata defaults if not found in circular text,
+    and documents whether surcharges were extracted from document text or populated from BOM gateway baseline.
     """
     fsc = default_fsc
     ssc = default_ssc
+    fsc_found = False
+    ssc_found = False
 
     fsc_match = re.search(
         r"(?:FSC|Fuel(?:\s*Surcharge)?)\s*[:=\-]?\s*(?:INR|Rs\.?)?\s*([0-9]+(?:\.[0-9]+)?)",
@@ -408,6 +433,7 @@ def scan_surcharges_from_text(full_text: str, default_fsc: float, default_ssc: f
             val = float(fsc_match.group(1))
             if 5.0 <= val <= 100.0:
                 fsc = val
+                fsc_found = True
         except (ValueError, TypeError):
             pass
 
@@ -421,10 +447,32 @@ def scan_surcharges_from_text(full_text: str, default_fsc: float, default_ssc: f
             val = float(ssc_match.group(1))
             if 1.0 <= val <= 30.0:
                 ssc = val
+                ssc_found = True
         except (ValueError, TypeError):
             pass
 
-    return fsc, ssc
+    excludes_fsc = bool(re.search(r"exclud(?:ing|e|es)\s+(?:fsc|fuel)", full_text, re.IGNORECASE))
+
+    if fsc_found and ssc_found:
+        surcharge_source = "CIRCULAR"
+        surcharge_notice = None
+    elif fsc_found and not ssc_found:
+        surcharge_source = "PARTIAL_DEFAULT"
+        surcharge_notice = (
+            f"FSC (₹{fsc:.2f}/kg) extracted from circular; standard BOM gateway default applied for SSC (₹{ssc:.2f}/kg)."
+        )
+    else:
+        surcharge_source = "GATEWAY_DEFAULT"
+        if excludes_fsc:
+            surcharge_notice = (
+                f"Circular specifies 'Excluding FSC' with no numeric surcharge table; standard BOM gateway defaults applied (FSC: ₹{fsc:.2f}/kg, SSC: ₹{ssc:.2f}/kg)."
+            )
+        else:
+            surcharge_notice = (
+                f"Surcharge table not printed in circular; standard BOM gateway defaults applied (FSC: ₹{fsc:.2f}/kg, SSC: ₹{ssc:.2f}/kg)."
+            )
+
+    return fsc, ssc, surcharge_source, surcharge_notice
 
 
 def validate_pdf_file_signature(pdf_source: Union[str, BinaryIO, bytes]) -> None:
@@ -598,6 +646,20 @@ def extract_scanned_tariff_records(
     return records
 
 
+class DigitalExtractedList(list):
+    """List subclass preserving surcharge origin audit metadata."""
+
+    def __init__(
+        self,
+        items,
+        surcharge_source: str = "CIRCULAR",
+        surcharge_notice: Optional[str] = None,
+    ):
+        super().__init__(items)
+        self.surcharge_source = surcharge_source
+        self.surcharge_notice = surcharge_notice
+
+
 def extract_digital_tariff_records(
     pdf_source: Union[str, BinaryIO, bytes],
     carrier_hint: str = "",
@@ -641,7 +703,9 @@ def extract_digital_tariff_records(
         if t:
             full_text_list.append(t)
     doc_text = "\n".join(full_text_list)
-    fsc_rate, ssc_rate = scan_surcharges_from_text(doc_text, default_fsc, default_ssc)
+    fsc_rate, ssc_rate, surcharge_source, surcharge_notice = scan_surcharges_from_text(
+        doc_text, default_fsc, default_ssc
+    )
     dyn_from, dyn_to = extract_validity_dates_from_text(doc_text)
     valid_from = dyn_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
     valid_to = dyn_to or "2026-12-31"
@@ -720,11 +784,14 @@ def extract_digital_tariff_records(
                             ssc_min=500.0,
                             valid_from=valid_from,
                             valid_to=valid_to,
+                            surcharge_source=surcharge_source,
                         )
                     )
 
         if records:
-            return records
+            return DigitalExtractedList(
+                records, surcharge_source=surcharge_source, surcharge_notice=surcharge_notice
+            )
 
     # General tabular parsing across all pages
     current_commodity = "GCR"
@@ -785,6 +852,7 @@ def extract_digital_tariff_records(
                             ssc_min=500.0,
                             valid_from=valid_from,
                             valid_to=valid_to,
+                            surcharge_source=surcharge_source,
                         )
                     )
                 continue
@@ -840,10 +908,13 @@ def extract_digital_tariff_records(
                                 ssc_min=500.0,
                                 valid_from=valid_from,
                                 valid_to=valid_to,
+                                surcharge_source=surcharge_source,
                             )
                         )
 
-    return records
+    return DigitalExtractedList(
+        records, surcharge_source=surcharge_source, surcharge_notice=surcharge_notice
+    )
 
 
 def _extract_pdf_bytes(pdf_source: Union[str, Path, BinaryIO, bytes]) -> bytes:
@@ -1194,11 +1265,15 @@ async def parse_airline_rate_sheet(
             "extracted_chars": len(text),
             "total_records": total_recs,
             "flagged_count": flagged_cnt,
+            "surcharge_source": "CIRCULAR",
+            "surcharge_notice": None,
             "validation_summary": {
                 "total_extracted": total_recs,
                 "clean_records": total_recs - flagged_cnt,
                 "flagged_for_review": flagged_cnt,
                 "quality_score": quality_score,
+                "surcharge_source": "CIRCULAR",
+                "surcharge_notice": None,
             },
             "records": raw_dict_records,
             "flagged_footnotes": [
@@ -1230,6 +1305,21 @@ async def parse_airline_rate_sheet(
     flagged_cnt = len(flagged_records)
     quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
 
+    surcharge_source = getattr(typed_records, "surcharge_source", "CIRCULAR")
+    surcharge_notice = getattr(typed_records, "surcharge_notice", None)
+
+    flagged_footnotes = []
+    if raw_dict_records:
+        flagged_footnotes.append(
+            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records ({quality_score}% verified)."
+        )
+        if surcharge_notice:
+            flagged_footnotes.append(surcharge_notice)
+    else:
+        flagged_footnotes.append(
+            "Digital text extracted, but no tabular corridor rows matched standard schemas."
+        )
+
     return {
         "mode": extraction_mode,
         "is_scanned": False,
@@ -1239,16 +1329,16 @@ async def parse_airline_rate_sheet(
         "extracted_chars": len(text),
         "total_records": total_recs,
         "flagged_count": flagged_cnt,
+        "surcharge_source": surcharge_source,
+        "surcharge_notice": surcharge_notice,
         "validation_summary": {
             "total_extracted": total_recs,
             "clean_records": total_recs - flagged_cnt,
             "flagged_for_review": flagged_cnt,
             "quality_score": quality_score,
+            "surcharge_source": surcharge_source,
+            "surcharge_notice": surcharge_notice,
         },
         "records": raw_dict_records,
-        "flagged_footnotes": [
-            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records ({quality_score}% verified)."
-        ] if raw_dict_records else [
-            "Digital text extracted, but no tabular corridor rows matched standard schemas."
-        ],
+        "flagged_footnotes": flagged_footnotes,
     }

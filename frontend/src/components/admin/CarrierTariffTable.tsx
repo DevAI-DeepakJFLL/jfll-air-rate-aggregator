@@ -405,8 +405,16 @@ export function CarrierTariffTable({
                     <td className="py-3.5 px-4">
                       {hasCircular && circular ? (
                         <div className="space-y-1">
-                          <div className="font-bold text-xs text-slate-900">
-                            {circular.corridor_count} active routes
+                          <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5 flex-wrap">
+                            <span>{circular.corridor_count} active routes</span>
+                            {circular.surcharge_source === "GATEWAY_DEFAULT" && (
+                              <span
+                                className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+                                title={circular.surcharge_notice || "BOM Gateway Baseline defaults applied"}
+                              >
+                                BOM Baseline
+                              </span>
+                            )}
                           </div>
                           {carrier.corridors_sample && carrier.corridors_sample.length > 0 && (
                             <div className="flex items-center gap-1 flex-wrap max-w-[240px]">

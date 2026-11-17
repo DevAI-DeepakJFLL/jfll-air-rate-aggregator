@@ -271,6 +271,18 @@ export function CarrierTariffCard({
                 </div>
               </div>
 
+              {circular.surcharge_source === "GATEWAY_DEFAULT" && (
+                <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                  <span className="text-slate-500 text-xs">Surcharges:</span>
+                  <span
+                    className="font-bold text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200"
+                    title={circular.surcharge_notice || "BOM Gateway Baseline defaults applied"}
+                  >
+                    BOM Baseline Defaults
+                  </span>
+                </div>
+              )}
+
               {carrier.corridors_sample && carrier.corridors_sample.length > 0 && (
                 <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-xs">
                   <span className="text-slate-500 shrink-0">Coverage:</span>

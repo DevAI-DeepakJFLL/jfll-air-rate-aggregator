@@ -11,7 +11,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
-import { CarrierRegistryItem, CarrierRateRow } from "@/types/tariff";
+import { CarrierRegistryItem, CarrierRateRow, ActiveCircular } from "@/types/tariff";
 import { fetchCarrierRates, getCarrierPdfUrl } from "@/lib/api-client";
 
 interface TariffPreviewDrawerProps {
@@ -26,6 +26,7 @@ export function TariffPreviewDrawer({
   onClose,
 }: TariffPreviewDrawerProps) {
   const [rates, setRates] = useState<CarrierRateRow[]>([]);
+  const [activeCircular, setActiveCircular] = useState<ActiveCircular | null>(carrier?.active_circular || null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCommodity, setSelectedCommodity] = useState<string>("ALL");
@@ -37,6 +38,7 @@ export function TariffPreviewDrawer({
   useEffect(() => {
     if (!isOpen || !carrier) {
       setRates([]);
+      setActiveCircular(null);
       setSearchQuery("");
       setSelectedCommodity("ALL");
       setShowFlaggedOnly(false);
@@ -50,6 +52,11 @@ export function TariffPreviewDrawer({
       try {
         const data = await fetchCarrierRates(carrier.carrier_code);
         setRates(data.rates || []);
+        if (data.active_circular) {
+          setActiveCircular(data.active_circular);
+        } else {
+          setActiveCircular(carrier.active_circular);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Error fetching rates";
         setError(msg);
@@ -124,7 +131,8 @@ export function TariffPreviewDrawer({
 
   if (!isOpen || !carrier) return null;
 
-  const circular = carrier.active_circular;
+  const circular = activeCircular || carrier.active_circular;
+  const isGatewayDefault = circular?.surcharge_source === "GATEWAY_DEFAULT" || rates[0]?.surcharge_source === "GATEWAY_DEFAULT";
 
   return (
     <div
@@ -211,11 +219,15 @@ export function TariffPreviewDrawer({
                   <span className="font-mono font-bold text-slate-900 block">
                     {rates.length} active routes
                   </span>
-                  {rates[0]?.rate_basis === "ALL_IN" && (
+                  {rates[0]?.rate_basis === "ALL_IN" ? (
                     <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       ALL-IN
                     </span>
-                  )}
+                  ) : isGatewayDefault ? (
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200" title="FSC/SSC defaulted from BOM gateway standards">
+                      BOM SURCHARGES
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -254,6 +266,19 @@ export function TariffPreviewDrawer({
                 </div>
               </div>
             </div>
+
+            {/* Surcharge Baseline Audit Notice */}
+            {(circular?.surcharge_notice || isGatewayDefault) && rates.length > 0 && (
+              <div className="mt-3 p-3 rounded-xl bg-amber-50/90 border border-amber-200/90 flex items-start gap-2.5 text-xs text-amber-950 animate-in fade-in">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-amber-900 block">Surcharge Baseline Notice:</span>
+                  <span className="text-amber-800 leading-relaxed font-sans">
+                    {circular?.surcharge_notice || "Surcharge table not printed in circular; standard BOM gateway defaults applied (FSC: ₹18.00/kg, SSC: ₹3.50/kg)."}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Quick Filter Search & Commodity Section Filter */}
             <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -352,8 +377,18 @@ export function TariffPreviewDrawer({
                       <th className="px-3 py-2.5 text-right">+100kg</th>
                       <th className="px-3 py-2.5 text-right">+250kg</th>
                       <th className="px-3 py-2.5 text-right">+300kg</th>
-                      <th className="px-3 py-2.5 text-right">FSC/kg</th>
-                      <th className="px-3 py-2.5 text-right">SSC/kg</th>
+                      <th className="px-3 py-2.5 text-right">
+                        FSC/kg
+                        {isGatewayDefault && (
+                          <span className="text-amber-600 font-bold ml-0.5" title="Populated from standard BOM gateway fallback defaults">*</span>
+                        )}
+                      </th>
+                      <th className="px-3 py-2.5 text-right">
+                        SSC/kg
+                        {isGatewayDefault && (
+                          <span className="text-amber-600 font-bold ml-0.5" title="Populated from standard BOM gateway fallback defaults">*</span>
+                        )}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
@@ -408,6 +443,12 @@ export function TariffPreviewDrawer({
                     ))}
                   </tbody>
                 </table>
+                {isGatewayDefault && (
+                  <div className="px-4 py-2 bg-amber-50/50 border-t border-amber-200/60 text-[11px] text-amber-900 flex items-center gap-1.5 font-sans">
+                    <span className="text-amber-600 font-bold">*</span>
+                    <span>Notice: FSC and SSC values populated from BOM gateway baseline defaults (rates exclude FSC in circular).</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

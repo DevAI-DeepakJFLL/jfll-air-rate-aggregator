@@ -474,3 +474,30 @@ def test_carrier_pdf_endpoint_success_and_404():
         assert resp404.status_code == 404
     finally:
         tariff_registry_service.clear_carrier_circular("AI")
+
+
+@pytest.mark.anyio
+async def test_malaysia_airlines_surcharge_source_and_audit_transparency():
+    """Verify that circulars with 'Excluding FSC' or omitted surcharges flag GATEWAY_DEFAULT source and audit notice."""
+    from app.services.pdf_extractor import parse_airline_rate_sheet
+    import os
+
+    pdf_path = "rates/Malaysia Airlines.pdf"
+    if not os.path.exists(pdf_path):
+        pytest.skip("Malaysia Airlines.pdf rate circular not found in rates/")
+
+    result = await parse_airline_rate_sheet(pdf_path=pdf_path, carrier_hint="MH")
+    assert result["mode"] == "DIGITAL_TEXT_PARSER"
+    assert result["surcharge_source"] == "GATEWAY_DEFAULT"
+    assert "Excluding FSC" in (result["surcharge_notice"] or "")
+    assert any("Excluding FSC" in fn for fn in result["flagged_footnotes"])
+    assert result["total_records"] > 0
+
+    first_rec = result["records"][0]
+    assert first_rec["carrier_code"] == "MH"
+    assert first_rec["surcharge_source"] == "GATEWAY_DEFAULT"
+    assert first_rec["valid_from"] == "2026-10-01"
+    assert first_rec["valid_to"] == "2026-10-31"
+    assert first_rec["fsc_per_kg"] == 18.0
+    assert first_rec["ssc_per_kg"] == 3.5
+

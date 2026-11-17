@@ -1,6 +1,6 @@
 import { RateSearchRequest, RateSearchResponse, DestinationItem } from "../types/rate";
 import { ChargeRule, ChargeRuleCreate, ChargeRuleUpdate } from "../types/charge";
-import { CarrierRegistryItem, CarrierRateRow } from "../types/tariff";
+import { CarrierRegistryItem, CarrierRateRow, ActiveCircular } from "../types/tariff";
 import { RATE_SHEET_DESTINATIONS } from "./rate-destinations";
 
 /**
@@ -334,6 +334,8 @@ export async function fetchCarrierRates(carrierCode: string): Promise<{
   carrier_name: string;
   prefix: string;
   parser_id: string;
+  active_circular?: ActiveCircular | null;
+  total_corridors?: number;
   rates: CarrierRateRow[];
 }> {
   const res = await apiFetch(`/api/v1/tariffs/${encodeURIComponent(carrierCode)}/rates`, {

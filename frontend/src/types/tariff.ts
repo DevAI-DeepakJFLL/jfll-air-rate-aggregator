@@ -6,6 +6,8 @@ export interface ActiveCircular {
   currency: string;
   corridor_count: number;
   status: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "NO_CIRCULAR";
+  surcharge_source?: "CIRCULAR" | "GATEWAY_DEFAULT" | "PARTIAL_DEFAULT" | string | null;
+  surcharge_notice?: string | null;
 }
 
 export interface CarrierRegistryItem {
@@ -42,6 +44,7 @@ export interface CarrierRateRow {
   valid_from?: string;
   valid_to?: string;
   gauge_restriction?: string;
+  surcharge_source?: "CIRCULAR" | "GATEWAY_DEFAULT" | "PARTIAL_DEFAULT" | string | null;
   validation_warnings?: string[];
   is_flagged?: boolean;
   confidence_score?: number;

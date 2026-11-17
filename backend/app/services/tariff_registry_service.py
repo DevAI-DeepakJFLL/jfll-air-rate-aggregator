@@ -400,6 +400,8 @@ class TariffRegistryService:
         valid_from: Optional[str] = None,
         valid_to: Optional[str] = None,
         pdf_bytes: Optional[bytes] = None,
+        surcharge_source: Optional[str] = None,
+        surcharge_notice: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Register a newly parsed PDF circular for a carrier.
@@ -433,6 +435,10 @@ class TariffRegistryService:
 
             v_from = valid_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
             v_to = valid_to or "2026-12-31"
+
+            # Derive surcharge source from records if not explicitly passed
+            if not surcharge_source and extracted_records:
+                surcharge_source = extracted_records[0].get("surcharge_source", "CIRCULAR")
 
             # If parser returned records, store them as custom rates
             if extracted_records:
@@ -470,6 +476,8 @@ class TariffRegistryService:
                 "currency": currency.upper().strip(),
                 "corridor_count": corridor_count,
                 "status": "ACTIVE",
+                "surcharge_source": surcharge_source or "CIRCULAR",
+                "surcharge_notice": surcharge_notice,
             }
             self._generation += 1
             self._persist_uploads()

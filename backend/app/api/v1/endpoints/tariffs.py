@@ -140,6 +140,8 @@ async def upload_rate_sheet(
             extracted_records=extracted,
             currency=currency.strip().upper(),
             pdf_bytes=pdf_bytes,
+            surcharge_source=result.get("surcharge_source"),
+            surcharge_notice=result.get("surcharge_notice"),
         )
         result["registry_status"] = carrier_info
 
