@@ -322,3 +322,54 @@ def test_tariff_registry_service_live_corridor_index_cache():
     # Check that new corridor is present in index
     d7_corridors = idx3.get_corridor_tariffs("BOM", "KUL")
     assert any(t.get("carrier_code") == "D7" for t in d7_corridors)
+    # Cleanup so test doesn't mutate persistent singleton state
+    tariff_registry_service.clear_carrier_circular("D7")
+
+
+def test_tariff_registry_service_persistence_across_restarts(tmp_path):
+    """Verify that uploaded circulars are persisted atomically and restored across service restarts."""
+    from app.services.tariff_registry_service import TariffRegistryService
+
+    test_uploads_file = tmp_path / "tariff_uploads_test.json"
+
+    # 1. First service instance records an upload
+    svc1 = TariffRegistryService(uploads_path=test_uploads_file)
+    svc1.register_circular_upload(
+        carrier_code="D7",
+        filename="d7_circular_2026.pdf",
+        extracted_records=[
+            {
+                "origin": "BOM",
+                "destination": "PEN",
+                "airline": "AirAsia X",
+                "carrier_code": "D7",
+                "prefix": "843",
+                "min_charge": 4500.0,
+                "rate_normal": 210.0,
+                "rate_45": 185.0,
+                "rate_100": 160.0,
+                "fsc_per_kg": 16.0,
+                "ssc_per_kg": 3.0,
+            }
+        ],
+    )
+    assert test_uploads_file.exists()
+
+    # 2. Simulate server restart with a new service instance reading the same persistence path
+    svc2 = TariffRegistryService(uploads_path=test_uploads_file)
+    info2 = svc2.get_carrier_info("D7")
+    assert info2 is not None
+    assert info2["has_active_circular"] is True
+    assert info2["active_circular"]["filename"] == "d7_circular_2026.pdf"
+
+    rates2 = svc2.get_carrier_rates("D7")
+    assert len(rates2) == 1
+    assert rates2[0]["destination"] == "PEN"
+    assert rates2[0]["min_charge"] == 4500.0
+
+    # 3. Deactivate circular and verify persistence updates
+    svc2.clear_carrier_circular("D7")
+    svc3 = TariffRegistryService(uploads_path=test_uploads_file)
+    info3 = svc3.get_carrier_info("D7")
+    assert info3["has_active_circular"] is False
+    assert len(svc3.get_carrier_rates("D7")) == 0

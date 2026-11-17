@@ -23,9 +23,6 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/rate_aggregator.db"
-
     # Air Cargo Smalls Ceiling
     MAX_CHARGEABLE_WEIGHT_KG: float = 500.0
 

@@ -13,6 +13,8 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { RATE_SHEET_DESTINATIONS } from "@/lib/rate-destinations";
+import { fetchDestinations } from "@/lib/api-client";
+import { DestinationItem } from "@/types/rate";
 import { StandardSelect, StandardSelectOption } from "@/components/common/StandardSelect";
 
 const REGION_CARRIERS: Record<string, string[]> = {
@@ -34,22 +36,27 @@ const PAGE_SIZE_OPTIONS: StandardSelectOption<number>[] = [
 ];
 
 export default function AdminCorridorsPage() {
+  const [destinations, setDestinations] = useState<DestinationItem[]>(RATE_SHEET_DESTINATIONS);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
 
+  useEffect(() => {
+    fetchDestinations().then(setDestinations).catch(() => {});
+  }, []);
+
   // Derive unique regions list
   const regions = useMemo(() => {
     const set = new Set<string>();
-    RATE_SHEET_DESTINATIONS.forEach((d) => set.add(d.region));
+    destinations.forEach((d) => set.add(d.region));
     return Array.from(set).sort();
-  }, []);
+  }, [destinations]);
 
   // Filter corridors based on search and region selection
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
-    return RATE_SHEET_DESTINATIONS.filter((c) => {
+    return destinations.filter((c) => {
       if (selectedRegion !== "ALL" && c.region !== selectedRegion) {
         return false;
       }
@@ -61,7 +68,7 @@ export default function AdminCorridorsPage() {
         c.region.toLowerCase().includes(q)
       );
     });
-  }, [searchTerm, selectedRegion]);
+  }, [destinations, searchTerm, selectedRegion]);
 
   // Reset to page 1 on filter or page size changes
   useEffect(() => {

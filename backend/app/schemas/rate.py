@@ -136,25 +136,6 @@ class RateSearchResponse(BaseModel):
     rates: List[RateQuoteItem] = []
 
 
-class FlightLegSchema(BaseModel):
-    origin: str
-    destination: str
-    carrier_code: str
-    flight_number: str
-    transit_minutes: int
-    base_rate_per_kg: float
-
-
-class RoutingPathResponse(BaseModel):
-    origin: str
-    destination: str
-    is_direct: bool
-    stops: int
-    total_transit_minutes: int
-    total_rate_per_kg: float
-    legs: List[FlightLegSchema]
-
-
 class DestinationItemSchema(BaseModel):
     code: str
     city: str

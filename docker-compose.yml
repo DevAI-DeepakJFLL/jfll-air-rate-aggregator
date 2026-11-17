@@ -10,7 +10,6 @@ services:
       - "8000:8000"
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=sqlite+aiosqlite:///./data/rate_aggregator.db
       - CORS_ORIGINS=["http://localhost:3000"]
     volumes:
       - ./backend/app:/app/app

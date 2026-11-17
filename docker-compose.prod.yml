@@ -32,7 +32,6 @@ services:
     restart: always
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/rate_aggregator.db}
       - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=${CORS_ORIGINS}
       - AWS_REGION=${AWS_REGION:-ap-south-1}

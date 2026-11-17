@@ -100,30 +100,6 @@ def test_dsa_parse_transit_minutes():
     assert parse_transit_minutes("Unknown transit") == 9999
 
 
-def test_dsa_dijkstra_shortest_routing():
-    from app.services.routing_graph import GLOBAL_CARGO_GRAPH
-
-    # 1. Direct Route: BOM -> DXB
-    route_dxb = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "DXB", criterion="fastest")
-    assert route_dxb is not None
-    assert route_dxb.is_direct is True
-    assert route_dxb.stops == 0
-    assert route_dxb.origin == "BOM"
-    assert route_dxb.destination == "DXB"
-
-    # 2. Multi-Hop Transshipment Route: BOM -> ORD (via AUH, DXB, or DOH)
-    route_ord = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "ORD", criterion="fastest")
-    assert route_ord is not None
-    assert route_ord.stops == 1  # 1 transshipment stop
-    assert route_ord.legs[0].origin == "BOM"
-    assert route_ord.legs[-1].destination == "ORD"
-    assert route_ord.total_transit_minutes > 0
-
-    # 3. Disconnected / Unknown corridor
-    route_unknown = GLOBAL_CARGO_GRAPH.find_shortest_route("BOM", "XYZ_UNKNOWN")
-    assert route_unknown is None
-
-
 def test_dsa_pure_buy_rate_lru_cache_hit(sample_tariffs):
     from app.services.rate_engine import (
         calculate_pure_buy_rate,
@@ -184,24 +160,6 @@ def test_dsa_lru_cache_ordered_dict_eviction(sample_tariffs):
     finally:
         rate_engine._CACHE_MAX_ENTRIES = original_max
         clear_pure_buy_rate_cache()
-
-
-def test_dsa_transshipment_routing_api(client):
-    # Test valid multi-leg corridor: BOM -> ORD
-    res = client.get("/api/v1/rates/routing/BOM/ORD?criterion=fastest")
-    assert res.status_code == 200
-    data = res.json()
-    assert data["origin"] == "BOM"
-    assert data["destination"] == "ORD"
-    assert data["is_direct"] is False
-    assert data["stops"] == 1
-    assert len(data["legs"]) == 2
-    assert data["legs"][0]["origin"] == "BOM"
-    assert data["legs"][-1]["destination"] == "ORD"
-
-    # Test unknown corridor -> 404
-    res_unknown = client.get("/api/v1/rates/routing/BOM/ZZZ")
-    assert res_unknown.status_code == 404
 
 
 def test_dsa_charges_service_o1_lookup():

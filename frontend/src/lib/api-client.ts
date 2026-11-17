@@ -290,6 +290,16 @@ export async function resetChargesToDefaults(role?: string): Promise<ChargeRule[
 /**
  * Air Cargo Tariff Registry & Circular API Client
  */
+let _tariffRegistryCache: CarrierRegistryItem[] | null = null;
+
+export function getCachedTariffRegistry(): CarrierRegistryItem[] | null {
+  return _tariffRegistryCache;
+}
+
+export function clearTariffRegistryCache(): void {
+  _tariffRegistryCache = null;
+}
+
 export async function fetchTariffRegistry(): Promise<CarrierRegistryItem[]> {
   const res = await apiFetch("/api/v1/tariffs/registry", {
     cache: "no-store",
@@ -298,7 +308,9 @@ export async function fetchTariffRegistry(): Promise<CarrierRegistryItem[]> {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.detail || `Failed to fetch tariff registry (Status ${res.status})`);
   }
-  return res.json();
+  const data: CarrierRegistryItem[] = await res.json();
+  _tariffRegistryCache = data;
+  return data;
 }
 
 export async function fetchCarrierRates(carrierCode: string): Promise<{
@@ -349,7 +361,13 @@ export async function uploadTariffPdf(
     throw new Error(errorBody.detail || `Failed to upload rate sheet (Status ${res.status})`);
   }
 
-  return res.json();
+  const result = await res.json();
+  if (_tariffRegistryCache && result.registry_status) {
+    _tariffRegistryCache = _tariffRegistryCache.map((c) =>
+      c.carrier_code === result.carrier_code ? { ...c, ...result.registry_status } : c
+    );
+  }
+  return result;
 }
 
 export async function deleteTariffCircular(
@@ -374,5 +392,11 @@ export async function deleteTariffCircular(
     throw new Error(errorBody.detail || `Failed to clear circular (Status ${res.status})`);
   }
 
-  return res.json();
+  const result = await res.json();
+  if (_tariffRegistryCache && result.carrier) {
+    _tariffRegistryCache = _tariffRegistryCache.map((c) =>
+      c.carrier_code === carrierCode ? { ...c, ...result.carrier } : c
+    );
+  }
+  return result;
 }

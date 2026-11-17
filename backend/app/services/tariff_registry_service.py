@@ -1,10 +1,53 @@
+import json
 import logging
+import os
+from pathlib import Path
+import tempfile
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from app.data.tariffs import AIRLINE_TARIFFS
 
 logger = logging.getLogger(__name__)
+
+# Base storage paths for uploaded tariff sheets
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+DEFAULT_UPLOADS_PATH = Path("/tmp/tariff_uploads.json") if IS_LAMBDA else (DATA_DIR / "tariff_uploads.json")
+
+
+def _atomic_write_json(file_path: Path, data: Any) -> None:
+    """
+    Atomically writes data to file_path using a temporary file and atomic replace.
+    Ensures readers never read partially written or corrupted files.
+    """
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = tempfile.NamedTemporaryFile(
+        mode="w",
+        dir=str(file_path.parent),
+        delete=False,
+        encoding="utf-8",
+    )
+    temp_path = Path(temp_file.name)
+    try:
+        json.dump(data, temp_file, indent=2, ensure_ascii=False)
+        temp_file.flush()
+        os.fsync(temp_file.fileno())
+        temp_file.close()
+        try:
+            os.chmod(temp_path, 0o644)
+        except OSError:
+            pass
+        os.replace(temp_path, file_path)
+    except (OSError, TypeError, ValueError) as err:
+        logger.error(f"Failed to atomically write tariff uploads to {file_path}: {err}")
+        temp_file.close()
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+        raise
 
 # Known scheduled carriers operating ex-Mumbai (BOM / CSMIA Sahar Air Cargo Complex)
 KNOWN_CARRIERS = [
@@ -117,8 +160,9 @@ class TariffRegistryService:
     Thread-safe in-memory state with baseline seeding from AIRLINE_TARIFFS.
     """
 
-    def __init__(self):
+    def __init__(self, uploads_path: Optional[Union[str, Path]] = None):
         self._lock = threading.RLock()
+        self.uploads_path = Path(uploads_path) if uploads_path else DEFAULT_UPLOADS_PATH
         self._registry: Dict[str, Dict[str, Any]] = {}
         self._custom_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._baseline_carrier_rates: Dict[str, List[Dict[str, Any]]] = {}
@@ -127,6 +171,47 @@ class TariffRegistryService:
         self._cached_generation: int = -1
         self._cached_tariffs: List[Dict[str, Any]] = []
         self._initialize_registry()
+        self._load_persisted_uploads()
+
+    def _load_persisted_uploads(self) -> None:
+        """Loads previously uploaded circular rates and registry state from atomic disk storage."""
+        if not self.uploads_path.exists():
+            return
+        try:
+            with open(self.uploads_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            custom_rates = data.get("custom_rates", {})
+            for code, rates in custom_rates.items():
+                if isinstance(rates, list):
+                    self._custom_rates[code] = rates
+
+            registry_overrides = data.get("registry_overrides", {})
+            for code, info in registry_overrides.items():
+                if code in self._registry and isinstance(info, dict):
+                    self._registry[code].update(info)
+            self._generation += 1
+        except Exception as e:
+            logger.warning(f"Failed to load persisted tariff uploads from {self.uploads_path}: {e}")
+
+    def _persist_uploads(self) -> None:
+        """Persists custom circular rates and active status overrides to disk atomically."""
+        try:
+            payload = {
+                "custom_rates": self._custom_rates,
+                "registry_overrides": {
+                    code: {
+                        "has_active_circular": info.get("has_active_circular"),
+                        "active_circular": info.get("active_circular"),
+                        "total_corridors": info.get("total_corridors"),
+                        "corridors_sample": info.get("corridors_sample"),
+                    }
+                    for code, info in self._registry.items()
+                    if code in self._custom_rates or not info.get("has_active_circular")
+                },
+            }
+            _atomic_write_json(self.uploads_path, payload)
+        except Exception as e:
+            logger.error(f"Failed to persist tariff uploads: {e}")
 
     def get_generation(self) -> int:
         """Returns the current registry cache generation counter."""
@@ -305,6 +390,7 @@ class TariffRegistryService:
                 "status": "ACTIVE",
             }
             self._generation += 1
+            self._persist_uploads()
 
             return dict(self._registry[code])
 
@@ -327,6 +413,7 @@ class TariffRegistryService:
             self._registry[code]["total_corridors"] = 0
             self._registry[code]["corridors_sample"] = []
             self._generation += 1
+            self._persist_uploads()
 
             return dict(self._registry[code])
 

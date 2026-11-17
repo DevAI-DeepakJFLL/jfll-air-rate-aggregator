@@ -283,7 +283,9 @@ export function RatesGrid({ rates }: RatesGridProps) {
   const stats = useMemo(() => {
     if (rates.length === 0) return null;
     let minBuy = Infinity;
+    let maxBuy = -Infinity;
     let minSell = Infinity;
+    let maxSell = -Infinity;
     let fastestMinutes = Infinity;
     let bestCarrier = "";
 
@@ -292,10 +294,16 @@ export function RatesGrid({ rates }: RatesGridProps) {
         minBuy = r.breakdown.total_landed_buy;
         bestCarrier = r.carrier_name;
       }
+      if (r.breakdown.total_landed_buy > maxBuy) {
+        maxBuy = r.breakdown.total_landed_buy;
+      }
       const m = marginMap.get(r.id);
       const effectiveSell = m ? m.sellTotal : r.breakdown.total_landed_buy;
       if (effectiveSell < minSell) {
         minSell = effectiveSell;
+      }
+      if (effectiveSell > maxSell) {
+        maxSell = effectiveSell;
       }
       if (r.transit_minutes && r.transit_minutes < fastestMinutes) {
         fastestMinutes = r.transit_minutes;
@@ -303,8 +311,10 @@ export function RatesGrid({ rates }: RatesGridProps) {
     }
 
     return {
-      minBuy,
-      minSell,
+      minBuy: minBuy < Infinity ? minBuy : 0,
+      maxBuy: maxBuy > -Infinity ? maxBuy : 0,
+      minSell: minSell < Infinity ? minSell : 0,
+      maxSell: maxSell > -Infinity ? maxSell : 0,
       bestCarrier,
       fastestHours: fastestMinutes < Infinity ? `${Math.floor(fastestMinutes / 60)}h ${fastestMinutes % 60}m` : "N/A",
     };
@@ -938,12 +948,12 @@ export function RatesGrid({ rates }: RatesGridProps) {
             <span className="text-[11px] font-mono">
               Net Buy Baseline:{" "}
               <strong className="text-slate-700 font-bold">
-                {stats ? formatINR(stats.minBuy) : "0"} - {formatINR(rates[rates.length - 1]?.breakdown.total_landed_buy ?? 0)}
+                {stats ? `${formatINR(stats.minBuy)} - ${formatINR(stats.maxBuy)}` : "0"}
               </strong>
             </span>
             {isGlobalMarginActive && stats && (
               <span className="text-[11px] font-mono font-bold text-emerald-700">
-                Sell Range: {formatINR(stats.minSell)}
+                Sell Range: {formatINR(stats.minSell)} - {formatINR(stats.maxSell)}
               </span>
             )}
           </div>

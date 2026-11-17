@@ -21,12 +21,13 @@ import {
   fetchTariffRegistry,
   uploadTariffPdf,
   deleteTariffCircular,
+  getCachedTariffRegistry,
 } from "@/lib/api-client";
 
 export default function AdminTariffsPage() {
   const { isPricingHead, role } = useAdminRole();
-  const [carriers, setCarriers] = useState<CarrierRegistryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [carriers, setCarriers] = useState<CarrierRegistryItem[]>(() => getCachedTariffRegistry() || []);
+  const [loading, setLoading] = useState(() => !getCachedTariffRegistry());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "ACTIVE" | "PENDING">("ALL");
   const [viewMode, setViewMode] = useState<"TABLE" | "CARDS">("TABLE");
@@ -39,9 +40,11 @@ export default function AdminTariffsPage() {
     message: string;
   } | null>(null);
 
-  // Fetch carriers registry
-  const fetchRegistry = async () => {
-    setLoading(true);
+  // Fetch carriers registry (supports silent background revalidation without flashing skeleton)
+  const fetchRegistry = async (silent = false) => {
+    if (!silent && !getCachedTariffRegistry()) {
+      setLoading(true);
+    }
     try {
       const data = await fetchTariffRegistry();
       setCarriers(data);
@@ -53,7 +56,8 @@ export default function AdminTariffsPage() {
   };
 
   useEffect(() => {
-    fetchRegistry();
+    const hasCache = Boolean(getCachedTariffRegistry());
+    fetchRegistry(hasCache);
   }, []);
 
   // Upload handler bound to carrier code
@@ -205,7 +209,7 @@ export default function AdminTariffsPage() {
 
           <button
             type="button"
-            onClick={fetchRegistry}
+            onClick={() => fetchRegistry(false)}
             disabled={loading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-jfll-blue"
           >

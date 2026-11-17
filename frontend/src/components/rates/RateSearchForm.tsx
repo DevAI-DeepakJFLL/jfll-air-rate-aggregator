@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { RateSearchRequest, CargoDimension } from "../../types/rate";
 import { RATE_SHEET_DESTINATIONS } from "../../lib/rate-destinations";
+import { fetchDestinations } from "../../lib/api-client";
 import { SearchableDestinationSelect } from "./SearchableDestinationSelect";
 import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 import {
@@ -121,8 +122,13 @@ export function RateSearchForm({
 }: RateSearchFormProps) {
   // Origin is strictly fixed at BOM (Mumbai Gateway Hub)
   const origin = "BOM";
+  const [destinations, setDestinations] = useState(RATE_SHEET_DESTINATIONS);
   const [destination, setDestination] = useState(initialDestination || "");
   const [actualWeight, setActualWeight] = useState("");
+
+  React.useEffect(() => {
+    fetchDestinations().then(setDestinations).catch(() => {});
+  }, []);
   const [commodity, setCommodity] = useState("General Cargo");
 
   // Tariff & Equipment Verification State
@@ -266,7 +272,7 @@ export function RateSearchForm({
             id="dest-select"
             value={destination}
             onChange={setDestination}
-            destinations={RATE_SHEET_DESTINATIONS}
+            destinations={destinations}
           />
         </div>
 
