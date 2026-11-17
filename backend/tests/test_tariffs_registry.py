@@ -182,7 +182,7 @@ async def test_digital_rate_sheet_extraction_real_files():
     repo_root = Path(__file__).resolve().parents[2]
     rates_dir = repo_root / "rates"
 
-    mh_pdf = rates_dir / "BOM RATE 01OCT-31OCT.pdf"
+    mh_pdf = rates_dir / "Malaysia Airlines.pdf"
     if mh_pdf.exists():
         result = await parse_airline_rate_sheet(pdf_path=str(mh_pdf), carrier_hint="MH")
         assert result["is_scanned"] is False
@@ -192,7 +192,7 @@ async def test_digital_rate_sheet_extraction_real_files():
         assert len(kul_records) > 0
         assert kul_records[0]["min_charge"] == 3300.0
 
-    wy_pdf = rates_dir / "WY Tariff Effective 01st Nov 2026 to 31st March 2027 (1).pdf"
+    wy_pdf = rates_dir / "Oman Air.pdf"
     if wy_pdf.exists():
         result_wy = await parse_airline_rate_sheet(pdf_path=str(wy_pdf), carrier_hint="WY")
         assert result_wy["is_scanned"] is False
@@ -272,7 +272,7 @@ async def test_scanned_circular_ocr_fallback_populates_records():
     from unittest.mock import patch
     from app.services.pdf_extractor import parse_airline_rate_sheet
     repo_root = Path(__file__).resolve().parents[2]
-    airasia_pdf = repo_root / "rates" / "air asis rate sheet.pdf"
+    airasia_pdf = repo_root / "rates" / "AirAsia X.pdf"
 
     if airasia_pdf.exists():
         with patch("app.services.pdf_extractor.settings.GEMINI_API_KEY", ""):
