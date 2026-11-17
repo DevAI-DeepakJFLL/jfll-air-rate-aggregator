@@ -14,11 +14,20 @@ def isolate_tariff_uploads(tmp_path):
     Ensures unit tests don't pollute live dev data and live UI actions don't break tests.
     """
     from app.services.tariff_registry_service import tariff_registry_service
+    from app.data.tariffs import AIRLINE_TARIFFS
     original_path = tariff_registry_service.uploads_path
     temp_uploads = tmp_path / "tariff_uploads_test.json"
     tariff_registry_service.uploads_path = temp_uploads
     tariff_registry_service._last_mtime = None
     tariff_registry_service._initialize_registry()
+    ey_rates = [t for t in AIRLINE_TARIFFS if t.get("carrier_code") == "EY"]
+    if ey_rates:
+        tariff_registry_service.register_circular_upload(
+            carrier_code="EY",
+            filename="Etihad Airways.pdf",
+            extracted_records=ey_rates,
+            currency="INR"
+        )
     yield
     tariff_registry_service.uploads_path = original_path
     tariff_registry_service._last_mtime = None
