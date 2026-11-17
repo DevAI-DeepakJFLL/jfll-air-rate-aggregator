@@ -6,6 +6,24 @@ from app.main import app
 def client():
     return TestClient(app)
 
+
+@pytest.fixture(autouse=True)
+def isolate_tariff_uploads(tmp_path):
+    """
+    Hermetic test isolation: isolates tariff_uploads disk mutations from live dev data.
+    Ensures unit tests don't pollute live dev data and live UI actions don't break tests.
+    """
+    from app.services.tariff_registry_service import tariff_registry_service
+    original_path = tariff_registry_service.uploads_path
+    temp_uploads = tmp_path / "tariff_uploads_test.json"
+    tariff_registry_service.uploads_path = temp_uploads
+    tariff_registry_service._last_mtime = None
+    tariff_registry_service._initialize_registry()
+    yield
+    tariff_registry_service.uploads_path = original_path
+    tariff_registry_service._last_mtime = None
+    tariff_registry_service._load_persisted_uploads()
+
 @pytest.fixture
 def sample_tariffs():
     return [
