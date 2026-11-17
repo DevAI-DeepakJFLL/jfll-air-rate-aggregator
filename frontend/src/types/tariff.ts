@@ -28,6 +28,7 @@ export interface CarrierRateRow {
   carrier_code?: string;
   prefix?: string;
   commodity?: string;
+  rate_basis?: string;
   min_charge: number;
   rate_normal: number;
   rate_45: number;

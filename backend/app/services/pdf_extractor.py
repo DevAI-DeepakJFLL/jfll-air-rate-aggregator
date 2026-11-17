@@ -98,6 +98,7 @@ def _build_tariff_record(
     valid_from: Optional[str] = None,
     valid_to: Optional[str] = None,
     gauge_restriction: Optional[str] = None,
+    rate_basis: str = "NET_NET_PLUS_PLUS",
 ) -> TariffRateRecord:
     """
     Factory helper to instantiate a typed TariffRateRecord.
@@ -110,7 +111,7 @@ def _build_tariff_record(
         carrier_code=carrier_code.strip().upper(),
         prefix=prefix,
         commodity=commodity.strip().upper(),
-        rate_basis="NET_NET_PLUS_PLUS",
+        rate_basis=rate_basis,
         min_charge=min_charge,
         rate_normal=rate_normal,
         rate_45=rate_45,
@@ -126,6 +127,56 @@ def _build_tariff_record(
         valid_to=valid_to,
         gauge_restriction=gauge_restriction,
     )
+
+
+def extract_validity_dates_from_text(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extracts effective start and end dates from rate sheet header or footnote text.
+    Handles ranges like 'Effective 12 Jul to 30 Sep 2026' or 'Effected 13th OCTOBER 2026'.
+    Returns (valid_from, valid_to) in YYYY-MM-DD format.
+    """
+    if not text:
+        return None, None
+
+    # Pattern 1: 'Effective 12 Jul [2026] to 30 Sep 2026'
+    m1 = re.search(
+        r"Effective\s+(\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?)\s+to\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
+        text,
+        re.IGNORECASE,
+    )
+    if m1:
+        try:
+            start_raw = m1.group(1).strip()
+            end_raw = m1.group(2).strip()
+            end_parts = re.sub(r"\s+", " ", end_raw).split()
+            fmt_end = "%d %b %Y" if len(end_parts[1]) == 3 else "%d %B %Y"
+            end_dt = datetime.strptime(" ".join(end_parts), fmt_end)
+            year = end_dt.year
+            if not re.search(r"\d{4}", start_raw):
+                start_raw = f"{start_raw} {year}"
+            start_parts = re.sub(r"\s+", " ", start_raw).split()
+            fmt_start = "%d %b %Y" if len(start_parts[1]) == 3 else "%d %B %Y"
+            start_dt = datetime.strptime(" ".join(start_parts), fmt_start)
+            return start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+    # Pattern 2: 'Effected 13th OCTOBER 2026'
+    m2 = re.search(
+        r"Effect(?:ed|ive)\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})",
+        text,
+        re.IGNORECASE,
+    )
+    if m2:
+        try:
+            day, month, year = m2.groups()
+            month_clean = month[:3].title()
+            dt = datetime.strptime(f"{day} {month_clean} {year}", "%d %b %Y")
+            return dt.strftime("%Y-%m-%d"), f"{year}-12-31"
+        except Exception:
+            pass
+
+    return None, None
 
 
 def parse_rate_number(val: Any) -> Optional[float]:
@@ -215,9 +266,16 @@ def map_numeric_slabs(
             # Normal, +45, +100
             return (3500.0, nums[0], nums[1], nums[2], nums[2], None)
     elif len(nums) == 2:
-        return (3500.0, nums[0], nums[0], nums[1], nums[1], None)
+        if first_is_min:
+            # MIN charge, Normal rate (e.g. Emirates HUM table: Amount=8600, N=430)
+            return (nums[0], nums[1], nums[1], nums[1], nums[1], None)
+        else:
+            return (3500.0, nums[0], nums[0], nums[1], nums[1], None)
     else:
-        return (3500.0, nums[0], nums[0], nums[0], nums[0], None)
+        if first_is_min:
+            return (nums[0], 0.0, 0.0, 0.0, None, None)
+        else:
+            return (3500.0, nums[0], nums[0], nums[0], nums[0], None)
 
 
 def scan_surcharges_from_text(full_text: str, default_fsc: float, default_ssc: float) -> Tuple[float, float]:
@@ -464,10 +522,7 @@ def extract_digital_tariff_records(
     prefix = meta.get("prefix", "000")
     default_fsc = meta.get("fsc", 20.0)
     default_ssc = meta.get("ssc", 3.5)
-    valid_from = datetime.now(timezone.utc).strftime("%Y-%m-01")
-    valid_to = "2026-12-31"
-
-    # Scan entire text for dynamic surcharges
+    # Scan entire text for dynamic surcharges and validity window
     full_text_list = []
     for p in reader.pages:
         t = p.extract_text() or ""
@@ -475,6 +530,9 @@ def extract_digital_tariff_records(
             full_text_list.append(t)
     doc_text = "\n".join(full_text_list)
     fsc_rate, ssc_rate = scan_surcharges_from_text(doc_text, default_fsc, default_ssc)
+    dyn_from, dyn_to = extract_validity_dates_from_text(doc_text)
+    valid_from = dyn_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
+    valid_to = dyn_to or "2026-12-31"
 
     records: List[TariffRateRecord] = []
 
@@ -565,12 +623,19 @@ def extract_digital_tariff_records(
 
         for line in lines:
             # Standalone commodity section header
-            if line in (
+            clean_hdr = line.strip()
+            base_comm = clean_hdr.split("/")[0].strip()
+            if base_comm in (
                 "GCR", "XPS", "DGR", "COL", "CRT", "VAL", "PET",
-                "HUM", "COU", "PXS", "PXD", "AOG", "AVI", "AXS-CRT / VUN",
-                "AXS-COL / DG PAX / AXM", "AOG / AXT", "GCR - Offline Tariff"
+                "HUM", "COU", "PXS", "PXD", "AOG", "AVI", "AXA", "DG CAO",
+                "AXD-CRT", "AXD-COL", "AXS-CRT", "AXS-COL",
+                "GCR - Offline Tariff", "OFFLINE"
+            ) or clean_hdr in (
+                "AXS-CRT / VUN", "AXS-COL / DG PAX / AXM", "AOG / AXT",
+                "GCR - Offline Tariff", "DG CAO", "AXD-CRT", "AXD-COL", "AXA"
             ):
-                current_commodity = line.split("/")[0].strip()
+                if clean_hdr != "OFFLINE":
+                    current_commodity = base_comm
                 continue
 
             if "COMMODITY" in line.upper() and ("DEST" in line.upper() or "NORMAL" in line.upper()):
@@ -710,15 +775,18 @@ class GeminiAirlineTariffExtraction(BaseModel):
     carrier_name: str = Field(description="Official airline name (e.g. Air India, Etihad Airways, Oman Air, Ethiopian Cargo, AirAsia X)")
     carrier_code: str = Field(description="2-letter IATA airline code (e.g. AI, EY, WY, ET, D7, EK, QR, SV, 6E, MH)")
     prefix: str = Field(default="000", description="3-digit IATA airline prefix (e.g. 098, 607, 071, 843, 176)")
-    default_fsc_per_kg: float = Field(default=20.0, description="Default Fuel Surcharge per kg applicable across routes")
-    default_ssc_per_kg: float = Field(default=3.5, description="Default Security Surcharge per kg applicable across routes")
+    rate_basis: str = Field(default="NET_NET_PLUS_PLUS", description="Rate basis: 'ALL_IN' if published rates explicitly include FSC / surcharges, or 'NET_NET_PLUS_PLUS' if FSC/SSC are added on top")
+    default_fsc_per_kg: float = Field(default=20.0, description="Default Fuel Surcharge per kg applicable across routes (0.0 if ALL_IN)")
+    default_ssc_per_kg: float = Field(default=3.5, description="Default Security Surcharge per kg applicable across routes (0.0 if ALL_IN)")
+    valid_from: Optional[str] = Field(None, description="Start date of validity extracted from circular text in YYYY-MM-DD format")
+    valid_to: Optional[str] = Field(None, description="End date / expiry extracted from circular text in YYYY-MM-DD format")
     currency: str = Field(default="INR", description="Currency code (e.g. INR, USD, EUR)")
     records: List[GeminiExtractedTariffRecord] = Field(description="List of extracted corridor rate records")
 
 
 class GeminiExtractedList(list):
     """List subclass preserving the exact Gemini model identifier that succeeded."""
-    def __init__(self, items, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, items, model_name: str = "gemini-3.5-flash"):
         super().__init__(items)
         self.model_name = model_name
 
@@ -745,7 +813,7 @@ async def extract_tariff_with_gemini_flash(
         return None
 
     try:
-        model_name = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
+        model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
         client = genai.Client(api_key=api_key)
 
         prompt = (
@@ -755,10 +823,14 @@ async def extract_tariff_with_gemini_flash(
             "Strict Guidelines:\n"
             "1. Destination: Extract 3-letter IATA airport codes ex-BOM. If multiple destinations are grouped together "
             "(e.g. 'MCT/AMM/BAH/CAI' or 'JED/MED' or 'CGK (JKT)'), unroll each into an individual record with identical rates.\n"
-            "2. Commodity: Identify the cargo commodity code (e.g. GCR, XPS, DGR, PILA-CRT, CRT, COL, VAL, PER). Default to 'GCR'.\n"
+            "2. Commodity: Identify cargo commodity code (e.g. GCR, XPS, DGR, PILA-CRT, CRT, COL, VAL, PER). Default to 'GCR'.\n"
             "3. Weight Slabs: Accurately map columns to MIN charge, Normal (-45kg), +45kg, +100kg, +250kg, +300kg, +500kg rates. Do not shift columns.\n"
-            "4. Surcharges: Extract Fuel Surcharge (FSC) and Security Surcharge (SSC) per kg from headers/footnotes.\n"
-            "5. Gauge Restrictions: Capture any aircraft restrictions (e.g. 'Loose cartons only', 'Widebody only', 'Narrowbody only')."
+            "   For AirAsia (D7): Column 'M' is MIN charge, 'N' is Normal (-45kg), '45' is +45kg, '100' is +100kg, '300' is +300kg.\n"
+            "4. Rate Basis & Surcharges: Check notes for whether rates are inclusive of FSC/surcharges. "
+            "If the sheet states 'inclusive of FSC' or similar, set rate_basis='ALL_IN' and default_fsc_per_kg=0.0. "
+            "Otherwise, set rate_basis='NET_NET_PLUS_PLUS' and extract published FSC and SSC per kg.\n"
+            "5. Validity: Extract effective date and validity window into valid_from and valid_to (YYYY-MM-DD).\n"
+            "6. Gauge Restrictions: Capture any aircraft limitations (e.g. 'Narrowbody only', 'Wooden boxes and pallets not permitted')."
         )
 
         candidate_models = [model_name]
@@ -812,10 +884,11 @@ async def extract_tariff_with_gemini_flash(
         meta = CARRIER_METADATA.get(code, {})
         airline_name = parsed.carrier_name or meta.get("name", code or "Air Cargo Partner")
         prefix = parsed.prefix if parsed.prefix and parsed.prefix != "000" else meta.get("prefix", "000")
-        default_fsc = parsed.default_fsc_per_kg if parsed.default_fsc_per_kg is not None else meta.get("fsc", 20.0)
-        default_ssc = parsed.default_ssc_per_kg if parsed.default_ssc_per_kg is not None else meta.get("ssc", 3.5)
-        valid_from = datetime.now(timezone.utc).strftime("%Y-%m-01")
-        valid_to = "2026-12-31"
+        rate_basis = parsed.rate_basis if parsed.rate_basis in ("ALL_IN", "NET_NET_PLUS_PLUS") else "NET_NET_PLUS_PLUS"
+        default_fsc = parsed.default_fsc_per_kg if parsed.default_fsc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("fsc", 20.0))
+        default_ssc = parsed.default_ssc_per_kg if parsed.default_ssc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("ssc", 3.5))
+        valid_from = parsed.valid_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
+        valid_to = parsed.valid_to or "2026-12-31"
 
         records: List[TariffRateRecord] = []
         for rec in parsed.records:
@@ -847,6 +920,7 @@ async def extract_tariff_with_gemini_flash(
                         valid_from=valid_from,
                         valid_to=valid_to,
                         gauge_restriction=rec.gauge_restriction,
+                        rate_basis=rate_basis,
                     )
                 )
 

@@ -363,7 +363,12 @@ class TariffRegistryService:
                     "total_corridors": 0,
                 }
 
-            # Update or fallback dates
+            # Extract dynamic validity window from records if available
+            if not valid_from and extracted_records and extracted_records[0].get("valid_from"):
+                valid_from = extracted_records[0].get("valid_from")
+            if not valid_to and extracted_records and extracted_records[0].get("valid_to"):
+                valid_to = extracted_records[0].get("valid_to")
+
             v_from = valid_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
             v_to = valid_to or "2026-12-31"
 

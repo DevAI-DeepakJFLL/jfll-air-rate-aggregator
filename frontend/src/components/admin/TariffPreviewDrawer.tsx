@@ -25,6 +25,7 @@ export function TariffPreviewDrawer({
   const [rates, setRates] = useState<CarrierRateRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCommodity, setSelectedCommodity] = useState<string>("ALL");
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
@@ -33,6 +34,7 @@ export function TariffPreviewDrawer({
     if (!isOpen || !carrier) {
       setRates([]);
       setSearchQuery("");
+      setSelectedCommodity("ALL");
       setError(null);
       return;
     }
@@ -65,25 +67,38 @@ export function TariffPreviewDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // DSA Optimization: Memoized Corridor Search Index
-  // Caches normalized tokens and evaluates in O(N) only when query or rates change.
-  // Placed unconditionally before early returns to strictly adhere to React's Rules of Hooks.
-  const filteredRates: CarrierRateRow[] = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return rates;
+  // DSA Optimization: Precomputed Commodity Partition Index
+  const availableCommodities = useMemo(() => {
+    const counts: Record<string, number> = {};
+    rates.forEach((r) => {
+      const comm = r.commodity || "General Cargo";
+      counts[comm] = (counts[comm] || 0) + 1;
+    });
+    return counts;
+  }, [rates]);
 
-    return rates.filter((r) => {
+  // DSA Optimization: Memoized Corridor Search & Section Index
+  // Evaluates in O(N) only when query, section, or rates change.
+  const filteredRates: CarrierRateRow[] = useMemo(() => {
+    let list = rates;
+    if (selectedCommodity !== "ALL") {
+      list = list.filter((r) => (r.commodity || "General Cargo") === selectedCommodity);
+    }
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return list;
+
+    return list.filter((r) => {
       const dest = r.destination.toLowerCase();
       if (dest.includes(q)) return true;
       if (r.commodity && r.commodity.toLowerCase().includes(q)) return true;
       return false;
     });
-  }, [rates, searchQuery]);
+  }, [rates, selectedCommodity, searchQuery]);
 
-  // Reset pagination when search query or active carrier changes
+  // Reset pagination when search query, section filter, or active carrier changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, carrier]);
+  }, [searchQuery, selectedCommodity, carrier]);
 
   const totalRates = filteredRates.length;
   const totalRatePages = Math.max(1, Math.ceil(totalRates / pageSize));
@@ -167,9 +182,16 @@ export function TariffPreviewDrawer({
                 <span className="text-[11px] font-semibold text-slate-500 block">
                   Total Corridors
                 </span>
-                <span className="font-mono font-bold text-slate-900 block mt-0.5">
-                  {rates.length} active routes
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="font-mono font-bold text-slate-900 block">
+                    {rates.length} active routes
+                  </span>
+                  {rates[0]?.rate_basis === "ALL_IN" && (
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ALL-IN
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
@@ -191,25 +213,46 @@ export function TariffPreviewDrawer({
               </div>
             </div>
 
-            {/* Quick Filter Search */}
-            <div className="mt-4 relative">
-              <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search destination IATA (e.g. DXB, AUH, LHR, FRA)..."
-                className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-white"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
-                  aria-label="Clear destination search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            {/* Quick Filter Search & Commodity Section Filter */}
+            <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search destination IATA (e.g. DXB, AUH, LHR, FRA)..."
+                  className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-300 text-xs font-semibold placeholder:text-slate-500 focus-ring bg-white"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                    aria-label="Clear destination search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {Object.keys(availableCommodities).length > 1 && (
+                <div className="shrink-0 flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-3 h-10 shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-500 shrink-0">Section:</span>
+                  <select
+                    value={selectedCommodity}
+                    onChange={(e) => setSelectedCommodity(e.target.value)}
+                    className="text-xs font-bold text-slate-800 bg-transparent cursor-pointer focus:outline-hidden max-w-[170px] truncate"
+                    aria-label="Filter by cargo commodity section"
+                  >
+                    <option value="ALL">All Sections ({rates.length})</option>
+                    {Object.entries(availableCommodities).map(([comm, count]) => (
+                      <option key={comm} value={comm}>
+                        {comm} ({count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
           </div>
