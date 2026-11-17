@@ -409,3 +409,68 @@ def test_dynamic_destinations_includes_uploaded_corridors():
         assert "ABZ" in updated_codes
     finally:
         tariff_registry_service.clear_carrier_circular("EK")
+
+
+def test_tariff_registry_service_persists_raw_pdf_bytes_and_serves_via_api(tmp_path):
+    """Verify that uploaded raw PDF bytes are persisted to disk and retrievable via GET /tariffs/{code}/pdf."""
+    from app.services.tariff_registry_service import TariffRegistryService
+
+    test_uploads_file = tmp_path / "tariff_uploads_test.json"
+    test_pdf_dir = tmp_path / "uploads_dir"
+    test_pdf_dir.mkdir(parents=True, exist_ok=True)
+
+    dummy_pdf_content = b"%PDF-1.4 simulated pdf circular bytes for carrier MH"
+
+    svc = TariffRegistryService(uploads_path=test_uploads_file, pdf_dir=test_pdf_dir)
+    svc.register_circular_upload(
+        carrier_code="MH",
+        filename="Malaysia Airlines.pdf",
+        extracted_records=[],
+        currency="INR",
+        pdf_bytes=dummy_pdf_content,
+    )
+
+    # 1. Verify file exists in pdf_dir
+    saved_pdf = svc.get_carrier_pdf_path("MH")
+    assert saved_pdf is not None
+    assert saved_pdf.exists()
+    assert saved_pdf.read_bytes() == dummy_pdf_content
+
+    # 2. Verify persistence across service restarts
+    svc_restarted = TariffRegistryService(uploads_path=test_uploads_file, pdf_dir=test_pdf_dir)
+    info = svc_restarted.get_carrier_info("MH")
+    assert info is not None
+    assert info["has_active_circular"] is True
+    assert info["active_circular"]["filename"] == "Malaysia Airlines.pdf"
+
+    restarted_pdf = svc_restarted.get_carrier_pdf_path("MH")
+    assert restarted_pdf is not None
+    assert restarted_pdf.exists()
+    assert restarted_pdf.read_bytes() == dummy_pdf_content
+
+
+def test_carrier_pdf_endpoint_success_and_404():
+    """Verify that /api/v1/tariffs/{carrier_code}/pdf serves uploaded PDFs and returns 404 for missing circulars."""
+    from app.services.tariff_registry_service import tariff_registry_service
+
+    dummy_pdf = b"%PDF-1.4 test endpoint circular bytes"
+    tariff_registry_service.register_circular_upload(
+        carrier_code="AI",
+        filename="Air India.pdf",
+        extracted_records=[],
+        currency="INR",
+        pdf_bytes=dummy_pdf,
+    )
+
+    try:
+        # 1. Endpoint returns 200 and exact PDF bytes
+        resp = client.get("/api/v1/tariffs/AI/pdf")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "application/pdf"
+        assert resp.content == dummy_pdf
+
+        # 2. Unknown carrier returns 404
+        resp404 = client.get("/api/v1/tariffs/UNKNOWN/pdf")
+        assert resp404.status_code == 404
+    finally:
+        tariff_registry_service.clear_carrier_circular("AI")

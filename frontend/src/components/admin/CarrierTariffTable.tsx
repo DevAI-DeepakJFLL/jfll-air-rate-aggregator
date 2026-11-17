@@ -13,10 +13,12 @@ import {
   ArrowDown,
   X,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
 import { CarrierRegistryItem } from "@/types/tariff";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { getCarrierPdfUrl } from "@/lib/api-client";
 
 interface CarrierTariffTableProps {
   carriers: CarrierRegistryItem[];
@@ -370,6 +372,20 @@ export function CarrierTariffTable({
                           <div className="font-mono text-xs text-slate-900 font-semibold">
                             {circular.valid_from || "Current"} &rarr; {circular.valid_to || "Open"}
                           </div>
+                          {circular.filename && (
+                            <div>
+                              <a
+                                href={getCarrierPdfUrl(carrier.carrier_code)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-jfll-blue hover:underline font-medium inline-flex items-center gap-1 truncate max-w-[200px]"
+                                title={`View or download ${circular.filename}`}
+                              >
+                                <span className="truncate">{circular.filename}</span>
+                                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                              </a>
+                            </div>
+                          )}
                           <div className="text-[11px] text-slate-600 font-medium">
                             {status.daysRemaining !== null && status.daysRemaining >= 0
                               ? `${status.daysRemaining} days remaining in cycle`

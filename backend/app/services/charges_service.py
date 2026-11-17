@@ -13,6 +13,7 @@ from app.schemas.charge import (
     ChargeRuleCreate,
     ChargeRuleUpdate,
 )
+from app.services.s3_storage_service import s3_storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -334,12 +335,17 @@ class ChargesService:
 
     def _ensure_initialized(self) -> None:
         """
-        Initializes the configuration file if it does not exist by copying from seed data.
+        Initializes the configuration file if it does not exist by checking S3 or copying from seed data.
         """
         with self._lock:
             if not self.config_path.exists():
                 seed_data = None
-                if self.seed_path.exists():
+                if s3_storage_service.is_enabled:
+                    seed_data = s3_storage_service.download_json("data/charges_config.json")
+                    if seed_data:
+                        logger.info("Restored charges_config.json from S3 into local cache.")
+
+                if not seed_data and self.seed_path.exists():
                     try:
                         with open(self.seed_path, "r", encoding="utf-8") as f:
                             seed_data = json.load(f)
@@ -392,7 +398,7 @@ class ChargesService:
 
     def _write_charges(self, charges: List[ChargeRule]) -> None:
         """
-        Persists charge rules atomically to disk and refreshes memory indexes.
+        Persists charge rules atomically to disk, refreshes memory indexes, and syncs to S3.
         """
         with self._lock:
             serialized = [c.model_dump() for c in charges]
@@ -403,6 +409,9 @@ class ChargesService:
             except OSError:
                 self._last_mtime = 0.0
             self._notify_mutation()
+
+            if s3_storage_service.is_enabled:
+                s3_storage_service.upload_json("data/charges_config.json", serialized)
 
     def get_all_charges(self) -> List[ChargeRule]:
         """

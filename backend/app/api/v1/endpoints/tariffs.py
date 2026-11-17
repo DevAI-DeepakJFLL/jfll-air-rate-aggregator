@@ -124,6 +124,14 @@ async def upload_rate_sheet(
         result["filename"] = safe_filename
         result["carrier_code"] = resolved_code
 
+        # Extract full raw PDF bytes for permanent persistence
+        pdf_bytes = None
+        if isinstance(pdf_source, io.BytesIO):
+            pdf_bytes = pdf_source.getvalue()
+        elif tmp_path and os.path.exists(tmp_path):
+            with open(tmp_path, "rb") as f_tmp:
+                pdf_bytes = f_tmp.read()
+
         # 5. Register circular in registry service
         extracted = result.get("records", [])
         carrier_info = tariff_registry_service.register_circular_upload(
@@ -131,6 +139,7 @@ async def upload_rate_sheet(
             filename=safe_filename,
             extracted_records=extracted,
             currency=currency.strip().upper(),
+            pdf_bytes=pdf_bytes,
         )
         result["registry_status"] = carrier_info
 
@@ -148,6 +157,32 @@ async def upload_rate_sheet(
                 os.remove(tmp_path)
             except OSError:
                 pass
+
+
+@router.get("/{carrier_code}/pdf")
+async def get_carrier_pdf(carrier_code: str):
+    """
+    Download or view the active airline rate circular PDF for a carrier.
+    """
+    from fastapi.responses import FileResponse
+
+    code = carrier_code.strip().upper()
+    pdf_path = tariff_registry_service.get_carrier_pdf_path(code)
+    if not pdf_path or not pdf_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No PDF rate circular currently available for carrier '{code}'.",
+        )
+
+    info = tariff_registry_service.get_carrier_info(code)
+    circ = (info and info.get("active_circular")) or {}
+    download_filename = circ.get("filename") or f"{code}_rate_circular.pdf"
+
+    return FileResponse(
+        path=str(pdf_path),
+        media_type="application/pdf",
+        filename=download_filename,
+    )
 
 
 @router.delete("/{carrier_code}")

@@ -8,10 +8,11 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
 import { CarrierRegistryItem, CarrierRateRow } from "@/types/tariff";
-import { fetchCarrierRates } from "@/lib/api-client";
+import { fetchCarrierRates, getCarrierPdfUrl } from "@/lib/api-client";
 
 interface TariffPreviewDrawerProps {
   carrier: CarrierRegistryItem | null;
@@ -184,9 +185,22 @@ export function TariffPreviewDrawer({
                 <span className="text-[11px] font-semibold text-slate-500 block">
                   Active Circular
                 </span>
-                <span className="font-medium text-slate-900 truncate block mt-0.5" title={circular?.filename || "No active circular"}>
-                  {circular?.filename || "No active circular"}
-                </span>
+                {circular?.filename ? (
+                  <a
+                    href={getCarrierPdfUrl(carrier.carrier_code)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-jfll-blue hover:underline truncate inline-flex items-center gap-1 mt-0.5 text-xs"
+                    title={`View or download ${circular.filename}`}
+                  >
+                    <span className="truncate">{circular.filename}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                  </a>
+                ) : (
+                  <span className="font-medium text-slate-500 truncate block mt-0.5 text-xs">
+                    No active circular
+                  </span>
+                )}
               </div>
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">

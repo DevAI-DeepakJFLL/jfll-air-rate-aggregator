@@ -425,3 +425,8 @@ export async function deleteTariffCircular(
   }
   return result;
 }
+
+export function getCarrierPdfUrl(carrierCode: string): string {
+  const base = getApiBase();
+  return `${base}/api/v1/tariffs/${encodeURIComponent(carrierCode)}/pdf`;
+}

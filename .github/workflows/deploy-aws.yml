@@ -86,15 +86,36 @@ jobs:
       - name: Update Lambda Function Configuration
         continue-on-error: true
         working-directory: ./backend
+        env:
+          SECRET_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          echo "Optimizing Lambda configuration (runtime=python3.11, timeout=30s, memory=512MB, handler=lambda_handler.handler)..."
+          BUCKET_NAME="${{ vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || '' }}"
+          GEMINI_KEY="${{ vars.GEMINI_API_KEY || secrets.GEMINI_API_KEY || '' }}"
+          KEY_ID="${SECRET_KEY_ID:-${{ vars.AWS_ACCESS_KEY_ID }}}"
+          SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
+
+          echo "Optimizing Lambda configuration (runtime=python3.11, timeout=60s, memory=512MB, handler=lambda_handler.handler)..."
+
+          ENV_PAIRS="ENVIRONMENT=production,AWS_REGION=$REGION"
+          if [ -n "$BUCKET_NAME" ]; then
+            ENV_PAIRS="$ENV_PAIRS,AWS_S3_BUCKET_NAME=$BUCKET_NAME"
+          fi
+          if [ -n "$GEMINI_KEY" ]; then
+            ENV_PAIRS="$ENV_PAIRS,GEMINI_API_KEY=$GEMINI_KEY"
+          fi
+          if [ -n "$KEY_ID" ] && [ -n "$SEC_KEY" ]; then
+            ENV_PAIRS="$ENV_PAIRS,AWS_ACCESS_KEY_ID=$KEY_ID,AWS_SECRET_ACCESS_KEY=$SEC_KEY"
+          fi
+
           aws lambda update-function-configuration \
             --function-name "$FUNCTION_NAME" \
             --runtime python3.11 \
-            --timeout 30 \
+            --timeout 60 \
             --memory-size 512 \
-            --handler "lambda_handler.handler" || echo "Note: Check Lambda configuration in AWS Console if needed."
+            --handler "lambda_handler.handler" \
+            --environment "Variables={$ENV_PAIRS}" || echo "Note: Check Lambda configuration in AWS Console if needed."
 
           echo "Waiting for configuration update to settle..."
           aws lambda wait function-updated --function-name "$FUNCTION_NAME" || sleep 3

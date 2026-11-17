@@ -11,10 +11,12 @@ import {
   Clock,
   Globe,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
 import { CarrierRegistryItem } from "@/types/tariff";
 import { useAdminRole } from "@/context/AdminRoleContext";
+import { getCarrierPdfUrl } from "@/lib/api-client";
 
 interface CarrierTariffCardProps {
   carrier: CarrierRegistryItem;
@@ -242,12 +244,16 @@ export function CarrierTariffCard({
             <div className="bg-slate-50/80 rounded-xl p-3.5">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="h-4 w-4 text-jfll-blue shrink-0" />
-                <span
-                  className="font-medium text-xs text-slate-800 truncate"
-                  title={circular.filename}
+                <a
+                  href={getCarrierPdfUrl(carrier.carrier_code)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-xs text-jfll-blue hover:underline truncate inline-flex items-center gap-1 cursor-pointer"
+                  title={`View or download ${circular.filename}`}
                 >
-                  {circular.filename}
-                </span>
+                  <span className="truncate">{circular.filename}</span>
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                </a>
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2 border-t border-slate-200/60 text-xs">

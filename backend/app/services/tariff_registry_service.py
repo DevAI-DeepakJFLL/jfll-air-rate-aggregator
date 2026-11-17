@@ -2,18 +2,22 @@ import json
 import logging
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 from app.data.tariffs import AIRLINE_TARIFFS
+from app.services.s3_storage_service import s3_storage_service
 
 logger = logging.getLogger(__name__)
 
 # Base storage paths for uploaded tariff sheets
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+RATES_DIR = Path(__file__).resolve().parent.parent.parent / "rates"
 IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 DEFAULT_UPLOADS_PATH = Path("/tmp/tariff_uploads.json") if IS_LAMBDA else (DATA_DIR / "tariff_uploads.json")
+DEFAULT_PDF_DIR = Path("/tmp/uploads") if IS_LAMBDA else (DATA_DIR / "uploads")
 
 
 def _atomic_write_json(file_path: Path, data: Any) -> None:
@@ -160,9 +164,18 @@ class TariffRegistryService:
     Thread-safe in-memory state with baseline seeding from AIRLINE_TARIFFS.
     """
 
-    def __init__(self, uploads_path: Optional[Union[str, Path]] = None):
+    def __init__(
+        self,
+        uploads_path: Optional[Union[str, Path]] = None,
+        pdf_dir: Optional[Union[str, Path]] = None,
+    ):
         self._lock = threading.RLock()
         self.uploads_path = Path(uploads_path) if uploads_path else DEFAULT_UPLOADS_PATH
+        self.pdf_dir = Path(pdf_dir) if pdf_dir else DEFAULT_PDF_DIR
+        try:
+            self.pdf_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
         self._registry: Dict[str, Dict[str, Any]] = {}
         self._custom_rates: Dict[str, List[Dict[str, Any]]] = {}
         self._baseline_carrier_rates: Dict[str, List[Dict[str, Any]]] = {}
@@ -186,9 +199,28 @@ class TariffRegistryService:
             pass
 
     def _load_persisted_uploads(self) -> None:
-        """Loads previously uploaded circular rates and registry state from atomic disk storage."""
+        """Loads previously uploaded circular rates and registry state from S3 or atomic disk storage."""
+        # 1. On AWS Lambda (or when uploads_path is missing), attempt restore from S3 or bundled seed
+        if not self.uploads_path.exists():
+            if s3_storage_service.is_enabled:
+                s3_data = s3_storage_service.download_json("data/tariff_uploads.json")
+                if s3_data:
+                    try:
+                        _atomic_write_json(self.uploads_path, s3_data)
+                        logger.info("Restored tariff_uploads.json from S3 into local cache.")
+                    except Exception as s3_wr_err:
+                        logger.warning(f"Failed to cache S3 tariff uploads locally: {s3_wr_err}")
+
+            if not self.uploads_path.exists() and (DATA_DIR / "tariff_uploads.json").exists():
+                try:
+                    shutil.copy2(DATA_DIR / "tariff_uploads.json", self.uploads_path)
+                    logger.info("Copied bundled tariff_uploads.json seed to active uploads path.")
+                except Exception as seed_copy_err:
+                    logger.debug(f"Could not copy bundled seed: {seed_copy_err}")
+
         if not self.uploads_path.exists():
             return
+
         try:
             current_mtime = self.uploads_path.stat().st_mtime
             with open(self.uploads_path, "r", encoding="utf-8") as f:
@@ -209,19 +241,18 @@ class TariffRegistryService:
             logger.warning(f"Failed to load persisted tariff uploads from {self.uploads_path}: {e}")
 
     def _persist_uploads(self) -> None:
-        """Persists custom circular rates and active status overrides to disk atomically."""
+        """Persists custom circular rates and active status overrides to disk and S3 atomically."""
         try:
             payload = {
                 "custom_rates": self._custom_rates,
                 "registry_overrides": {
                     code: {
-                        "has_active_circular": info.get("has_active_circular"),
+                        "has_active_circular": bool(info.get("has_active_circular")),
                         "active_circular": info.get("active_circular"),
-                        "total_corridors": info.get("total_corridors"),
-                        "corridors_sample": info.get("corridors_sample"),
+                        "total_corridors": info.get("total_corridors", 0),
+                        "corridors_sample": info.get("corridors_sample", []),
                     }
                     for code, info in self._registry.items()
-                    if code in self._custom_rates or not info.get("has_active_circular")
                 },
             }
             _atomic_write_json(self.uploads_path, payload)
@@ -229,6 +260,10 @@ class TariffRegistryService:
                 self._last_mtime = self.uploads_path.stat().st_mtime
             except OSError:
                 pass
+
+            # Sync to AWS S3 if configured
+            if s3_storage_service.is_enabled:
+                s3_storage_service.upload_json("data/tariff_uploads.json", payload)
         except Exception as e:
             logger.error(f"Failed to persist tariff uploads: {e}")
 
@@ -364,10 +399,11 @@ class TariffRegistryService:
         currency: str = "INR",
         valid_from: Optional[str] = None,
         valid_to: Optional[str] = None,
+        pdf_bytes: Optional[bytes] = None,
     ) -> Dict[str, Any]:
         """
         Register a newly parsed PDF circular for a carrier.
-        Updates metadata, stores extracted records, and sets status to ACTIVE.
+        Updates metadata, persists the raw PDF file, stores extracted records, and sets status to ACTIVE.
         """
         code = carrier_code.upper().strip()
         now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -408,11 +444,26 @@ class TariffRegistryService:
                 corridor_count = len(existing)
                 sample = [t["destination"] for t in existing[:4]]
 
+            # Persist uploaded raw PDF bytes to disk and S3
+            saved_pdf_name = f"{code}_{filename}"
+            pdf_saved = False
+            if pdf_bytes:
+                try:
+                    pdf_target = self.pdf_dir / saved_pdf_name
+                    with open(pdf_target, "wb") as f_pdf:
+                        f_pdf.write(pdf_bytes)
+                    pdf_saved = True
+                    if s3_storage_service.is_enabled:
+                        s3_storage_service.upload_file(pdf_target, f"uploads/{saved_pdf_name}")
+                except Exception as pdf_err:
+                    logger.warning(f"Could not persist PDF bytes for {code}: {pdf_err}")
+
             self._registry[code]["has_active_circular"] = True
             self._registry[code]["total_corridors"] = corridor_count
             self._registry[code]["corridors_sample"] = sample
             self._registry[code]["active_circular"] = {
                 "filename": filename,
+                "saved_filename": saved_pdf_name if pdf_saved else None,
                 "uploaded_at": now_iso,
                 "valid_from": v_from,
                 "valid_to": v_to,
@@ -424,6 +475,42 @@ class TariffRegistryService:
             self._persist_uploads()
 
             return dict(self._registry[code])
+
+    def get_carrier_pdf_path(self, carrier_code: str) -> Optional[Path]:
+        """
+        Resolves the local Path to the carrier's active rate circular PDF.
+        Attempts retrieval from local disk cache, downloads from S3 if absent,
+        or falls back to repository rates folder.
+        """
+        code = carrier_code.upper().strip()
+        with self._lock:
+            self._sync_from_disk_if_modified()
+            info = self._registry.get(code)
+            if not info or not info.get("has_active_circular") or not info.get("active_circular"):
+                return None
+
+            circular = info["active_circular"]
+            filename = circular.get("filename")
+            saved_name = circular.get("saved_filename") or f"{code}_{filename}"
+
+            # 1. Check local persistent uploads folder
+            local_path = self.pdf_dir / saved_name
+            if local_path.exists() and local_path.stat().st_size > 0:
+                return local_path
+
+            # 2. Check S3 if enabled
+            if s3_storage_service.is_enabled:
+                s3_key = f"uploads/{saved_name}"
+                if s3_storage_service.download_file(s3_key, local_path):
+                    return local_path
+
+            # 3. Fallback to rates directory if filename matches baseline
+            if filename:
+                repo_path = RATES_DIR / filename
+                if repo_path.exists():
+                    return repo_path
+
+            return None
 
     def clear_carrier_circular(self, carrier_code: str) -> Optional[Dict[str, Any]]:
         """
@@ -439,6 +526,16 @@ class TariffRegistryService:
             # Remove custom rates
             if code in self._custom_rates:
                 del self._custom_rates[code]
+
+            # Remove local saved PDF if present
+            circular = self._registry[code].get("active_circular")
+            if circular and circular.get("saved_filename"):
+                local_pdf = self.pdf_dir / circular["saved_filename"]
+                if local_pdf.exists():
+                    try:
+                        local_pdf.unlink()
+                    except OSError:
+                        pass
 
             self._registry[code]["has_active_circular"] = False
             self._registry[code]["active_circular"] = None
