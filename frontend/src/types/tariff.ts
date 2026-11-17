@@ -35,8 +35,14 @@ export interface CarrierRateRow {
   rate_100: number;
   rate_250: number;
   rate_300: number;
+  rate_500?: number;
+  rate_1000?: number;
   fsc_per_kg: number;
   ssc_per_kg: number;
   valid_from?: string;
   valid_to?: string;
+  gauge_restriction?: string;
+  validation_warnings?: string[];
+  is_flagged?: boolean;
+  confidence_score?: number;
 }

@@ -28,6 +28,9 @@ class TariffRateRecord(BaseModel):
     valid_from: Optional[str] = Field(default=None, description="Validity start date in YYYY-MM-DD")
     valid_to: Optional[str] = Field(default=None, description="Validity end date in YYYY-MM-DD")
     gauge_restriction: Optional[str] = Field(default=None, description="Aircraft gauge restriction note")
+    validation_warnings: List[str] = Field(default_factory=list, description="Sanity checks and quality warnings")
+    is_flagged: bool = Field(default=False, description="Flagged for manual review if anomalies detected")
+    confidence_score: float = Field(default=1.0, description="Extraction confidence score from 0.0 to 1.0")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to standard dictionary representation for rate engine indexing."""
@@ -46,6 +49,9 @@ class TariffUploadResponse(BaseModel):
     currency: str = Field(default="INR", description="Tariff currency")
     status: str = Field(default="STAGED_FOR_ADMIN_REVIEW", description="Workflow staging status")
     extracted_chars: Optional[int] = Field(default=None, description="Characters extracted from PDF")
+    total_records: int = Field(default=0, description="Total rate records extracted")
+    flagged_count: int = Field(default=0, description="Number of records flagged for review")
+    validation_summary: Optional[Dict[str, Any]] = Field(default=None, description="Aggregated quality metrics")
     records: List[TariffRateRecord] = Field(default_factory=list, description="Typed corridor rate records")
     flagged_footnotes: List[str] = Field(default_factory=list, description="Carrier footnotes and compliance alerts")
     registry_status: Optional[Dict[str, Any]] = Field(default=None, description="Updated registry item state")

@@ -6,6 +6,8 @@ import {
   Search,
   TableProperties,
   AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import { AirlineLogo } from "@/components/rates/AirlineLogo";
 import { CarrierRegistryItem, CarrierRateRow } from "@/types/tariff";
@@ -26,6 +28,7 @@ export function TariffPreviewDrawer({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCommodity, setSelectedCommodity] = useState<string>("ALL");
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
@@ -35,6 +38,7 @@ export function TariffPreviewDrawer({
       setRates([]);
       setSearchQuery("");
       setSelectedCommodity("ALL");
+      setShowFlaggedOnly(false);
       setError(null);
       return;
     }
@@ -67,6 +71,10 @@ export function TariffPreviewDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  const flaggedCount = useMemo(() => {
+    return rates.filter((r) => r.is_flagged).length;
+  }, [rates]);
+
   // DSA Optimization: Precomputed Commodity Partition Index
   const availableCommodities = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -81,6 +89,9 @@ export function TariffPreviewDrawer({
   // Evaluates in O(N) only when query, section, or rates change.
   const filteredRates: CarrierRateRow[] = useMemo(() => {
     let list = rates;
+    if (showFlaggedOnly) {
+      list = list.filter((r) => r.is_flagged);
+    }
     if (selectedCommodity !== "ALL") {
       list = list.filter((r) => (r.commodity || "General Cargo") === selectedCommodity);
     }
@@ -93,12 +104,12 @@ export function TariffPreviewDrawer({
       if (r.commodity && r.commodity.toLowerCase().includes(q)) return true;
       return false;
     });
-  }, [rates, selectedCommodity, searchQuery]);
+  }, [rates, showFlaggedOnly, selectedCommodity, searchQuery]);
 
-  // Reset pagination when search query, section filter, or active carrier changes
+  // Reset pagination when search query, section filter, flagged filter, or active carrier changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCommodity, carrier]);
+  }, [searchQuery, selectedCommodity, showFlaggedOnly, carrier]);
 
   const totalRates = filteredRates.length;
   const totalRatePages = Math.max(1, Math.ceil(totalRates / pageSize));
@@ -168,7 +179,7 @@ export function TariffPreviewDrawer({
             </div>
 
             {/* Circular Metadata Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-200/80 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 pt-4 border-t border-slate-200/80 text-xs">
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
                 <span className="text-[11px] font-semibold text-slate-500 block">
                   Active Circular
@@ -211,6 +222,23 @@ export function TariffPreviewDrawer({
                   {carrier.prefix} ({carrier.carrier_code})
                 </span>
               </div>
+
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                <span className="text-[11px] font-semibold text-slate-500 block">
+                  Quality Audit
+                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {flaggedCount === 0 ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 className="h-3 w-3" /> 100% Clean
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                      <AlertTriangle className="h-3 w-3 text-amber-600" /> {flaggedCount} Flagged
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Quick Filter Search & Commodity Section Filter */}
@@ -235,6 +263,23 @@ export function TariffPreviewDrawer({
                   </button>
                 )}
               </div>
+
+              {flaggedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFlaggedOnly((prev) => !prev)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 h-10 rounded-xl text-xs font-bold border transition-colors cursor-pointer shadow-2xs ${
+                    showFlaggedOnly
+                      ? "bg-amber-100 border-amber-300 text-amber-900"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-pressed={showFlaggedOnly}
+                  title="Toggle display of rows with validation warnings"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Flagged ({flaggedCount})</span>
+                </button>
+              )}
 
               {Object.keys(availableCommodities).length > 1 && (
                 <div className="shrink-0 flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-3 h-10 shadow-2xs">
@@ -299,9 +344,24 @@ export function TariffPreviewDrawer({
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                     {paginatedRates.map((row, idx) => (
-                      <tr key={`${row.destination}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={`${row.destination}-${idx}`}
+                        className={`transition-colors ${
+                          row.is_flagged ? "bg-amber-50/60 hover:bg-amber-100/50" : "hover:bg-slate-50/80"
+                        }`}
+                      >
                         <td className="px-3.5 py-2.5 font-sans font-bold text-slate-900">
-                          {row.destination}
+                          <div className="flex items-center gap-1.5">
+                            <span>{row.destination}</span>
+                            {row.is_flagged && (
+                              <span
+                                className="inline-flex items-center text-amber-600 cursor-help"
+                                title={row.validation_warnings?.join("\n") || "Flagged for manual review"}
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2.5 font-sans text-slate-600">
                           {row.commodity || "General Cargo"}

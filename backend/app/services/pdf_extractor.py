@@ -1,6 +1,8 @@
+import asyncio
 import io
 import logging
 import os
+import random
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,6 +78,98 @@ MULTI_COMMODITY_REGEX = re.compile(
 )
 
 
+def validate_tariff_record_domain(
+    destination: str,
+    commodity: str,
+    rate_basis: str,
+    min_charge: Optional[float],
+    rate_normal: Optional[float],
+    rate_45: Optional[float],
+    rate_100: Optional[float],
+    rate_250: Optional[float],
+    rate_300: Optional[float],
+    rate_500: Optional[float],
+    fsc_per_kg: float,
+    ssc_per_kg: float,
+    valid_from: Optional[str],
+    valid_to: Optional[str],
+) -> Tuple[str, float, float, Optional[str], Optional[str], List[str], bool, float]:
+    """
+    Domain Sanity & Range Validation Engine ex-BOM:
+    - IATA 3-letter airport code validation with OCR digit auto-repair (0->O, 1->I, 5->S).
+    - Rate basis consistency: zeroes out FSC/SSC for ALL_IN tariffs to prevent double-charging.
+    - Weight slab monotonicity and column inversion detection.
+    - Currency and minimum charge plausibility checks.
+    - Validity date chronological ordering.
+    """
+    warnings: List[str] = []
+    dest = (destination or "").strip().upper()
+
+    # 1. OCR Character Auto-Correction for IATA code
+    ocr_fix_map = {"0": "O", "1": "I", "5": "S"}
+    if len(dest) == 3 and not dest.isalpha():
+        fixed_chars = [ocr_fix_map.get(ch, ch) for ch in dest]
+        fixed_dest = "".join(fixed_chars)
+        if fixed_dest.isalpha():
+            warnings.append(f"Auto-repaired OCR digit in IATA code '{dest}' to '{fixed_dest}'")
+            dest = fixed_dest
+
+    if len(dest) != 3 or not dest.isalpha():
+        warnings.append(f"Non-standard destination airport code: '{dest}'")
+
+    # 2. Rate Basis & Surcharge consistency
+    clean_rate_basis = (rate_basis or "NET_NET_PLUS_PLUS").upper().strip()
+    clean_fsc = fsc_per_kg
+    clean_ssc = ssc_per_kg
+    if clean_rate_basis == "ALL_IN":
+        if clean_fsc > 0.0 or clean_ssc > 0.0:
+            warnings.append("ALL_IN rate specified with surcharges: zeroed FSC/SSC to eliminate double-billing")
+            clean_fsc = 0.0
+            clean_ssc = 0.0
+
+    # 3. Slab Monotonicity & Inversion Checking
+    if rate_normal is not None and rate_45 is not None and rate_normal > 0.0:
+        if rate_45 > rate_normal * 1.25:
+            warnings.append(f"Slab Inversion: +45kg rate ({rate_45}) exceeds Normal rate ({rate_normal}) by >25%")
+
+    if rate_45 is not None and rate_100 is not None and rate_45 > 0.0:
+        if rate_100 > rate_45 * 1.25:
+            warnings.append(f"Slab Inversion: +100kg rate ({rate_100}) exceeds +45kg rate ({rate_45}) by >25%")
+
+    if rate_100 is not None and rate_300 is not None and rate_100 > 0.0:
+        if rate_300 > rate_100 * 1.25:
+            warnings.append(f"Slab Inversion: +300kg rate ({rate_300}) exceeds +100kg rate ({rate_100}) by >25%")
+
+    if rate_300 is not None and rate_500 is not None and rate_300 > 0.0:
+        if rate_500 > rate_300 * 1.25:
+            warnings.append(f"Slab Inversion: +500kg rate ({rate_500}) exceeds +300kg rate ({rate_300}) by >25%")
+
+    # 4. Plausibility Ranges (INR ex-BOM)
+    if rate_normal is not None and 0.0 < rate_normal < 15.0:
+        warnings.append(f"Abnormally low base freight rate ({rate_normal}/kg): Check for foreign currency (USD/EUR)")
+
+    if rate_45 is not None and 0.0 < rate_45 < 15.0:
+        warnings.append(f"Abnormally low +45kg rate ({rate_45}/kg): Possible foreign currency quote")
+
+    if min_charge is not None and 0.0 < min_charge < 500.0:
+        warnings.append(f"Abnormally low minimum charge ({min_charge}): Verify currency unit")
+
+    # 5. Temporal Validity Range
+    clean_vfrom = valid_from
+    clean_vto = valid_to
+    if clean_vfrom and clean_vto:
+        if clean_vto < clean_vfrom:
+            warnings.append(f"Invalid validity range: End date ({clean_vto}) precedes start date ({clean_vfrom})")
+            clean_vfrom, clean_vto = clean_vto, clean_vfrom
+
+    confidence = 1.0
+    if warnings:
+        confidence = max(0.40, round(1.0 - (len(warnings) * 0.20), 2))
+    is_flagged = len(warnings) > 0
+
+    return (dest, clean_fsc, clean_ssc, clean_vfrom, clean_vto, warnings, is_flagged, confidence)
+
+
 def _build_tariff_record(
     destination: str,
     carrier_name: str,
@@ -99,12 +193,29 @@ def _build_tariff_record(
     rate_basis: str = "NET_NET_PLUS_PLUS",
 ) -> TariffRateRecord:
     """
-    Factory helper to instantiate a typed TariffRateRecord.
-    Consolidates dictionary definitions across parsers to eliminate code duplication.
+    Factory helper to instantiate a validated TariffRateRecord.
+    Enforces Domain Sanity heuristics and records validation flags.
     """
+    dest, fsc, ssc, v_from, v_to, warnings, is_flagged, confidence = validate_tariff_record_domain(
+        destination=destination,
+        commodity=commodity,
+        rate_basis=rate_basis,
+        min_charge=min_charge,
+        rate_normal=rate_normal,
+        rate_45=rate_45,
+        rate_100=rate_100,
+        rate_250=rate_250,
+        rate_300=rate_300,
+        rate_500=rate_500,
+        fsc_per_kg=fsc_per_kg,
+        ssc_per_kg=ssc_per_kg,
+        valid_from=valid_from,
+        valid_to=valid_to,
+    )
+
     return TariffRateRecord(
         origin="BOM",
-        destination=destination.strip().upper(),
+        destination=dest,
         airline=carrier_name,
         carrier_code=carrier_code.strip().upper(),
         prefix=prefix,
@@ -117,13 +228,16 @@ def _build_tariff_record(
         rate_250=rate_250,
         rate_300=rate_300,
         rate_500=rate_500,
-        fsc_per_kg=fsc_per_kg,
+        fsc_per_kg=fsc,
         fsc_min=fsc_min,
-        ssc_per_kg=ssc_per_kg,
+        ssc_per_kg=ssc,
         ssc_min=ssc_min,
-        valid_from=valid_from,
-        valid_to=valid_to,
+        valid_from=v_from,
+        valid_to=v_to,
         gauge_restriction=gauge_restriction,
+        validation_warnings=warnings,
+        is_flagged=is_flagged,
+        confidence_score=confidence,
     )
 
 
@@ -848,43 +962,63 @@ async def _generate_gemini_extraction(
     candidate_models: List[str],
     pdf_bytes: bytes,
     prompt: str,
+    max_retries: int = 3,
 ) -> Tuple[Optional[GeminiAirlineTariffExtraction], str]:
     successful_model = candidate_models[0]
     for candidate in candidate_models:
-        try:
-            response = await client.aio.models.generate_content(
-                model=candidate,
-                contents=[
-                    types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                    prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=GeminiAirlineTariffExtraction,
-                    temperature=0.1,
-                ),
-            )
-            successful_model = candidate
-            parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
-            if not parsed and response.text:
-                import json
-                raw_json = json.loads(response.text)
-                parsed = GeminiAirlineTariffExtraction.model_validate(raw_json)
-            return parsed, successful_model
-        except Exception as e:
-            err_str = str(e).lower()
-            is_recoverable = (
-                "not_found" in err_str
-                or "no longer available" in err_str
-                or "404" in err_str
-                or "unavailable" in err_str
-                or "503" in err_str
-                or "high demand" in err_str
-            )
-            if is_recoverable and candidate != candidate_models[-1]:
-                logger.warning(f"Model {candidate} returned recoverable error ({e}). Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
-                continue
-            raise
+        for attempt in range(max_retries):
+            try:
+                response = await client.aio.models.generate_content(
+                    model=candidate,
+                    contents=[
+                        types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                        prompt,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=GeminiAirlineTariffExtraction,
+                        temperature=0.1,
+                    ),
+                )
+                successful_model = candidate
+                parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
+                if not parsed and response.text:
+                    import json
+                    raw_json = json.loads(response.text)
+                    parsed = GeminiAirlineTariffExtraction.model_validate(raw_json)
+                return parsed, successful_model
+            except Exception as e:
+                err_str = str(e).lower()
+                is_transient = (
+                    "429" in err_str
+                    or "resource_exhausted" in err_str
+                    or "rate_limit" in err_str
+                    or "quota" in err_str
+                    or "503" in err_str
+                    or "high demand" in err_str
+                    or "unavailable" in err_str
+                )
+                if is_transient and attempt < max_retries - 1:
+                    sleep_sec = (2 ** attempt) + random.uniform(0.1, 0.5)
+                    logger.warning(
+                        f"Transient error on {candidate} (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {sleep_sec:.2f}s..."
+                    )
+                    await asyncio.sleep(sleep_sec)
+                    continue
+
+                is_recoverable = (
+                    "not_found" in err_str
+                    or "no longer available" in err_str
+                    or "404" in err_str
+                )
+                if is_recoverable and candidate != candidate_models[-1]:
+                    logger.warning(f"Model {candidate} returned recoverable error ({e}). Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
+                    break
+                if attempt == max_retries - 1 and candidate != candidate_models[-1]:
+                    logger.warning(f"Exhausted retries on {candidate}. Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
+                    break
+                raise
     return None, successful_model
 
 
@@ -1045,6 +1179,12 @@ async def parse_airline_rate_sheet(
                 scanned_records = extract_scanned_tariff_records(carrier_hint=carrier_hint, currency=currency)
                 extraction_mode = "VISION_OCR_FALLBACK"
 
+        raw_dict_records = [r.to_dict() for r in scanned_records]
+        flagged_records = [r for r in raw_dict_records if r.get("is_flagged")]
+        total_recs = len(raw_dict_records)
+        flagged_cnt = len(flagged_records)
+        quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
+
         return {
             "mode": extraction_mode,
             "is_scanned": True,
@@ -1052,9 +1192,17 @@ async def parse_airline_rate_sheet(
             "currency": currency,
             "status": "STAGED_FOR_ADMIN_REVIEW",
             "extracted_chars": len(text),
-            "records": [r.to_dict() for r in scanned_records],
+            "total_records": total_recs,
+            "flagged_count": flagged_cnt,
+            "validation_summary": {
+                "total_extracted": total_recs,
+                "clean_records": total_recs - flagged_cnt,
+                "flagged_for_review": flagged_cnt,
+                "quality_score": quality_score,
+            },
+            "records": raw_dict_records,
             "flagged_footnotes": [
-                f"{extraction_mode}: extracted {len(scanned_records)} active corridor records.",
+                f"{extraction_mode}: extracted {len(scanned_records)} active corridor records ({quality_score}% verified).",
                 "Staged for pricing head verification in Tariff Administration Desk."
             ] if scanned_records else [
                 "Scanned rate sheet detected. No embedded images or tabular rates found."
@@ -1077,6 +1225,10 @@ async def parse_airline_rate_sheet(
             extraction_mode = f"{model_tag}_VLM"
 
     raw_dict_records = [r.to_dict() for r in typed_records]
+    flagged_records = [r for r in raw_dict_records if r.get("is_flagged")]
+    total_recs = len(raw_dict_records)
+    flagged_cnt = len(flagged_records)
+    quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
 
     return {
         "mode": extraction_mode,
@@ -1085,9 +1237,17 @@ async def parse_airline_rate_sheet(
         "currency": currency,
         "status": "STAGED_FOR_ADMIN_REVIEW",
         "extracted_chars": len(text),
+        "total_records": total_recs,
+        "flagged_count": flagged_cnt,
+        "validation_summary": {
+            "total_extracted": total_recs,
+            "clean_records": total_recs - flagged_cnt,
+            "flagged_for_review": flagged_cnt,
+            "quality_score": quality_score,
+        },
         "records": raw_dict_records,
         "flagged_footnotes": [
-            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records."
+            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records ({quality_score}% verified)."
         ] if raw_dict_records else [
             "Digital text extracted, but no tabular corridor rows matched standard schemas."
         ],

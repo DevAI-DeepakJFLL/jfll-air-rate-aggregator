@@ -228,3 +228,82 @@ async def test_parse_airline_rate_sheet_dynamic_model_tag():
                 )
                 assert result["mode"] == "GEMINI_3_5_FLASH_VLM"
                 assert len(result["records"]) == 1
+                assert "validation_summary" in result
+                assert result["validation_summary"]["quality_score"] == 100.0
+
+
+def test_domain_sanity_validation_heuristics():
+    """Verify that validate_tariff_record_domain detects rate inversions, auto-repairs OCR, and zeroes surcharges on ALL_IN."""
+    from app.services.pdf_extractor import validate_tariff_record_domain, _build_tariff_record
+
+    # 1. Clean valid record: 100% confidence, unflagged
+    dest, fsc, ssc, _, _, warnings, is_flagged, conf = validate_tariff_record_domain(
+        destination="DXB",
+        commodity="GCR",
+        rate_basis="NET_NET_PLUS_PLUS",
+        min_charge=3500.0,
+        rate_normal=250.0,
+        rate_45=210.0,
+        rate_100=180.0,
+        rate_250=None,
+        rate_300=160.0,
+        rate_500=145.0,
+        fsc_per_kg=20.0,
+        ssc_per_kg=3.5,
+        valid_from="2026-10-01",
+        valid_to="2026-12-31",
+    )
+    assert dest == "DXB"
+    assert is_flagged is False
+    assert conf == 1.0
+    assert len(warnings) == 0
+
+    # 2. Rate inversion anomaly: +45kg rate (350) is greater than Normal (200)
+    record_inverted = _build_tariff_record(
+        destination="LHR",
+        carrier_name="British Airways",
+        carrier_code="BA",
+        prefix="125",
+        commodity="GCR",
+        min_charge=4500.0,
+        rate_normal=200.0,
+        rate_45=350.0,  # Inverted!
+        rate_100=180.0,
+    )
+    assert record_inverted.is_flagged is True
+    assert any("Slab Inversion" in w for w in record_inverted.validation_warnings)
+    assert record_inverted.confidence_score < 1.0
+
+    # 3. ALL_IN rate with non-zero FSC/SSC: surcharges are zeroed out to prevent double-billing
+    record_all_in = _build_tariff_record(
+        destination="KUL",
+        carrier_name="AirAsia X",
+        carrier_code="D7",
+        prefix="843",
+        commodity="GCR",
+        min_charge=3000.0,
+        rate_normal=160.0,
+        rate_45=140.0,
+        rate_100=120.0,
+        fsc_per_kg=18.0,
+        ssc_per_kg=3.5,
+        rate_basis="ALL_IN",
+    )
+    assert record_all_in.fsc_per_kg == 0.0
+    assert record_all_in.ssc_per_kg == 0.0
+    assert any("ALL_IN rate" in w for w in record_all_in.validation_warnings)
+
+    # 4. OCR auto-repair on destination code with digit: 'DX0' -> 'DXB'
+    record_ocr = _build_tariff_record(
+        destination="DX0",
+        carrier_name="Emirates SkyCargo",
+        carrier_code="EK",
+        prefix="176",
+        commodity="GCR",
+        min_charge=3500.0,
+        rate_normal=220.0,
+        rate_45=190.0,
+        rate_100=165.0,
+    )
+    assert record_ocr.destination == "DXO"  # 0 auto-repaired to O
+    assert record_ocr.is_flagged is True
