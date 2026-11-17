@@ -1299,6 +1299,59 @@ async def extract_tariff_with_gemini_flash(
         return None
 
 
+def _format_extraction_result(
+    records: List[TariffRateRecord],
+    mode: str,
+    is_scanned: bool,
+    carrier_hint: str,
+    currency: str,
+    extracted_chars: int,
+    surcharge_source: str = "CIRCULAR",
+    surcharge_notice: Optional[str] = None,
+    empty_message: str = "No tabular rates found.",
+) -> Dict[str, Any]:
+    raw_dict_records = [r.to_dict() for r in records]
+    flagged_records = [r for r in raw_dict_records if r.get("is_flagged")]
+    total_recs = len(raw_dict_records)
+    flagged_cnt = len(flagged_records)
+    quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
+
+    flagged_footnotes: List[str] = []
+    if raw_dict_records:
+        flagged_footnotes.append(
+            f"{mode}: extracted {total_recs} active corridor rate records ({quality_score}% verified)."
+        )
+        if surcharge_notice:
+            flagged_footnotes.append(surcharge_notice)
+        elif is_scanned:
+            flagged_footnotes.append("Staged for pricing head verification in Tariff Administration Desk.")
+    else:
+        flagged_footnotes.append(empty_message)
+
+    return {
+        "mode": mode,
+        "is_scanned": is_scanned,
+        "carrier_hint": carrier_hint,
+        "currency": currency,
+        "status": "STAGED_FOR_ADMIN_REVIEW",
+        "extracted_chars": extracted_chars,
+        "total_records": total_recs,
+        "flagged_count": flagged_cnt,
+        "surcharge_source": surcharge_source,
+        "surcharge_notice": surcharge_notice,
+        "validation_summary": {
+            "total_extracted": total_recs,
+            "clean_records": total_recs - flagged_cnt,
+            "flagged_for_review": flagged_cnt,
+            "quality_score": quality_score,
+            "surcharge_source": surcharge_source,
+            "surcharge_notice": surcharge_notice,
+        },
+        "records": raw_dict_records,
+        "flagged_footnotes": flagged_footnotes,
+    }
+
+
 async def parse_airline_rate_sheet(
     pdf_source: Union[str, BinaryIO, bytes] = None,
     pdf_path: Optional[str] = None,
@@ -1309,7 +1362,7 @@ async def parse_airline_rate_sheet(
     Dual-mode parsing worker:
     1. Digital Text Extraction for structured digital PDFs.
     2. Vision OCR Fallback for scanned raster circulars (e.g. Ethiopian, AirAsia).
-    3. Intelligent escalation to Gemini 2.5 Flash for scanned sheets or non-standard matrices.
+    3. Intelligent escalation to Gemini 3.5 Flash for scanned sheets or non-standard matrices.
     Accepts file path (str), binary stream (BinaryIO), or raw bytes.
     """
     source = pdf_source if pdf_source is not None else pdf_path
@@ -1343,7 +1396,7 @@ async def parse_airline_rate_sheet(
             scanned_records = []
             extraction_mode = "VISION_OCR_FALLBACK"
         else:
-            # 1. Attempt Gemini 2.5 Flash if API key is configured
+            # 1. Attempt Gemini 3.5 Flash if API key is configured
             gemini_records = await extract_tariff_with_gemini_flash(
                 pdf_bytes, carrier_hint=carrier_hint, currency=currency
             )
@@ -1357,39 +1410,16 @@ async def parse_airline_rate_sheet(
                 scanned_records = extract_scanned_tariff_records(carrier_hint=carrier_hint, currency=currency)
                 extraction_mode = "VISION_OCR_FALLBACK"
 
-        raw_dict_records = [r.to_dict() for r in scanned_records]
-        flagged_records = [r for r in raw_dict_records if r.get("is_flagged")]
-        total_recs = len(raw_dict_records)
-        flagged_cnt = len(flagged_records)
-        quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
-
-        return {
-            "mode": extraction_mode,
-            "is_scanned": True,
-            "carrier_hint": carrier_hint,
-            "currency": currency,
-            "status": "STAGED_FOR_ADMIN_REVIEW",
-            "extracted_chars": len(text),
-            "total_records": total_recs,
-            "flagged_count": flagged_cnt,
-            "surcharge_source": "CIRCULAR",
-            "surcharge_notice": None,
-            "validation_summary": {
-                "total_extracted": total_recs,
-                "clean_records": total_recs - flagged_cnt,
-                "flagged_for_review": flagged_cnt,
-                "quality_score": quality_score,
-                "surcharge_source": "CIRCULAR",
-                "surcharge_notice": None,
-            },
-            "records": raw_dict_records,
-            "flagged_footnotes": [
-                f"{extraction_mode}: extracted {len(scanned_records)} active corridor records ({quality_score}% verified).",
-                "Staged for pricing head verification in Tariff Administration Desk."
-            ] if scanned_records else [
-                "Scanned rate sheet detected. No embedded images or tabular rates found."
-            ],
-        }
+        return _format_extraction_result(
+            records=scanned_records,
+            mode=extraction_mode,
+            is_scanned=True,
+            carrier_hint=carrier_hint,
+            currency=currency,
+            extracted_chars=len(text),
+            surcharge_source="CIRCULAR",
+            empty_message="Scanned rate sheet detected. No embedded images or tabular rates found.",
+        )
 
     # Digital Text Mode: Extract structured tabular rate records
     typed_records = extract_digital_tariff_records(source, carrier_hint=carrier_hint, currency=currency)
@@ -1406,46 +1436,17 @@ async def parse_airline_rate_sheet(
             model_tag = raw_model.upper().replace("-", "_").replace(".", "_").replace("MODELS/", "")
             extraction_mode = f"{model_tag}_VLM"
 
-    raw_dict_records = [r.to_dict() for r in typed_records]
-    flagged_records = [r for r in raw_dict_records if r.get("is_flagged")]
-    total_recs = len(raw_dict_records)
-    flagged_cnt = len(flagged_records)
-    quality_score = round(((total_recs - flagged_cnt) / max(1, total_recs)) * 100, 1) if total_recs > 0 else 100.0
-
     surcharge_source = getattr(typed_records, "surcharge_source", "CIRCULAR")
     surcharge_notice = getattr(typed_records, "surcharge_notice", None)
 
-    flagged_footnotes = []
-    if raw_dict_records:
-        flagged_footnotes.append(
-            f"{extraction_mode}: extracted {len(raw_dict_records)} active corridor rate records ({quality_score}% verified)."
-        )
-        if surcharge_notice:
-            flagged_footnotes.append(surcharge_notice)
-    else:
-        flagged_footnotes.append(
-            "Digital text extracted, but no tabular corridor rows matched standard schemas."
-        )
-
-    return {
-        "mode": extraction_mode,
-        "is_scanned": False,
-        "carrier_hint": carrier_hint,
-        "currency": currency,
-        "status": "STAGED_FOR_ADMIN_REVIEW",
-        "extracted_chars": len(text),
-        "total_records": total_recs,
-        "flagged_count": flagged_cnt,
-        "surcharge_source": surcharge_source,
-        "surcharge_notice": surcharge_notice,
-        "validation_summary": {
-            "total_extracted": total_recs,
-            "clean_records": total_recs - flagged_cnt,
-            "flagged_for_review": flagged_cnt,
-            "quality_score": quality_score,
-            "surcharge_source": surcharge_source,
-            "surcharge_notice": surcharge_notice,
-        },
-        "records": raw_dict_records,
-        "flagged_footnotes": flagged_footnotes,
-    }
+    return _format_extraction_result(
+        records=typed_records,
+        mode=extraction_mode,
+        is_scanned=False,
+        carrier_hint=carrier_hint,
+        currency=currency,
+        extracted_chars=len(text),
+        surcharge_source=surcharge_source,
+        surcharge_notice=surcharge_notice,
+        empty_message="Digital text extracted, but no tabular corridor rows matched standard schemas.",
+    )
