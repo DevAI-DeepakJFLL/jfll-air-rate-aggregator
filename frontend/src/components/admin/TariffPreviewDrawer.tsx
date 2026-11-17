@@ -26,6 +26,8 @@ export function TariffPreviewDrawer({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   useEffect(() => {
     if (!isOpen || !carrier) {
@@ -77,6 +79,21 @@ export function TariffPreviewDrawer({
       return false;
     });
   }, [rates, searchQuery]);
+
+  // Reset pagination when search query or active carrier changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, carrier]);
+
+  const totalRates = filteredRates.length;
+  const totalRatePages = Math.max(1, Math.ceil(totalRates / pageSize));
+  const safeRatePage = Math.min(currentPage, totalRatePages);
+  const rateStartIndex = (safeRatePage - 1) * pageSize;
+  const rateEndIndex = Math.min(rateStartIndex + pageSize, totalRates);
+
+  const paginatedRates = useMemo(() => {
+    return filteredRates.slice(rateStartIndex, rateEndIndex);
+  }, [filteredRates, rateStartIndex, rateEndIndex]);
 
   if (!isOpen || !carrier) return null;
 
@@ -238,7 +255,7 @@ export function TariffPreviewDrawer({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                    {filteredRates.map((row, idx) => (
+                    {paginatedRates.map((row, idx) => (
                       <tr key={`${row.destination}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-3.5 py-2.5 font-sans font-bold text-slate-900">
                           {row.destination}
@@ -278,18 +295,69 @@ export function TariffPreviewDrawer({
             )}
           </div>
 
-          {/* Drawer Footer */}
-          <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Showing {filteredRates.length} of {rates.length} corridors
-            </span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              Done Previewing
-            </button>
+          {/* Drawer Footer with Corridor Pagination */}
+          <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-xs text-slate-600">
+              <span>
+                Showing <strong className="font-bold text-slate-900">{totalRates === 0 ? 0 : rateStartIndex + 1}</strong> to{" "}
+                <strong className="font-bold text-slate-900">{rateEndIndex}</strong> of{" "}
+                <strong className="font-bold text-slate-900">{totalRates}</strong> corridors
+              </span>
+              {totalRates > 15 && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">Rows:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="h-7 px-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white cursor-pointer"
+                    >
+                      <option value={15}>15</option>
+                      <option value={30}>30</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {totalRatePages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safeRatePage <= 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 text-xs font-bold text-slate-700">
+                    {safeRatePage} / {totalRatePages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalRatePages, p + 1))}
+                    disabled={safeRatePage >= totalRatePages}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Done Previewing
+              </button>
+            </div>
           </div>
         </div>
       </div>

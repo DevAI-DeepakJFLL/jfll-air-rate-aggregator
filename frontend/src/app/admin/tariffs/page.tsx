@@ -40,6 +40,10 @@ export default function AdminTariffsPage() {
     message: string;
   } | null>(null);
 
+  // Pagination State for Carrier Circulars
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+
   // Fetch carriers registry (supports silent background revalidation without flashing skeleton)
   const fetchRegistry = async (silent = false) => {
     if (!silent && !getCachedTariffRegistry()) {
@@ -152,6 +156,22 @@ export default function AdminTariffsPage() {
       );
     });
   }, [carriers, filterMode, searchQuery]);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterMode]);
+
+  // Paginated Slices
+  const totalItems = filteredCarriers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+
+  const paginatedCarriers = React.useMemo(() => {
+    return filteredCarriers.slice(startIndex, endIndex);
+  }, [filteredCarriers, startIndex, endIndex]);
 
   return (
     <div className="space-y-6">
@@ -364,7 +384,7 @@ export default function AdminTariffsPage() {
             Known Airline Fleet Circulars ex-BOM
           </h2>
           <CarrierTariffTable
-            carriers={filteredCarriers}
+            carriers={paginatedCarriers}
             onUpload={handleCarrierUpload}
             onPreview={(c) => setActivePreviewCarrier(c)}
             onDeleteRequest={(c) => setCarrierToDelete(c)}
@@ -377,7 +397,7 @@ export default function AdminTariffsPage() {
             Known Airline Fleet Circulars ex-BOM
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filteredCarriers.map((carrier) => (
+            {paginatedCarriers.map((carrier) => (
               <CarrierTariffCard
                 key={carrier.carrier_code}
                 carrier={carrier}
@@ -389,6 +409,71 @@ export default function AdminTariffsPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Pagination Bar */}
+      {filteredCarriers.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3 text-slate-600">
+            <span>
+              Showing <strong className="font-bold text-slate-900">{startIndex + 1}</strong> to{" "}
+              <strong className="font-bold text-slate-900">{endIndex}</strong> of{" "}
+              <strong className="font-bold text-slate-900">{totalItems}</strong> carriers
+            </span>
+            <span className="text-slate-300">•</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-slate-50 cursor-pointer focus:ring-2 focus:ring-jfll-blue"
+              >
+                <option value={6}>6</option>
+                <option value={9}>9</option>
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1 px-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                <button
+                  key={pg}
+                  type="button"
+                  onClick={() => setCurrentPage(pg)}
+                  className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    pg === safePage
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {pg}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Preview Extracted Corridors Drawer */}
