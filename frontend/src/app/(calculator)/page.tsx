@@ -6,6 +6,7 @@ import { RatesTable } from "@/components/rates/RatesGrid";
 import { HeavyCargoBanner } from "@/components/rates/HeavyCargoBanner";
 import { AirlineCardSkeleton } from "@/components/rates/AirlineCardSkeleton";
 import { EmptyRateState } from "@/components/rates/EmptyRateState";
+import { RateDiscoveryHeroDemo } from "@/components/rates/RateDiscoveryHeroDemo";
 import { RateSearchRequest, RateSearchResponse } from "@/types/rate";
 import { fetchLiveRates } from "@/lib/api-client";
 
@@ -53,6 +54,19 @@ export default function RateDiscoveryPage() {
 
       {/* Loading Skeleton (Zero CLS) */}
       {loading && <AirlineCardSkeleton />}
+
+      {/* Interactive Stageshow Hero Walkthrough */}
+      {!loading && !response && (
+        <RateDiscoveryHeroDemo
+          onRunSample={() =>
+            handleSearch({
+              origin: "BOM",
+              destination: "DXB",
+              actual_weight_kg: 250,
+            })
+          }
+        />
+      )}
 
       {/* Heavy Cargo Banner (>= 500 kg) */}
       {!loading && response?.is_heavy_cargo && (
