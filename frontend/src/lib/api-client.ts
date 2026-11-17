@@ -346,28 +346,37 @@ export async function uploadTariffPdf(
   formData.append("carrier_code", carrierCode);
   formData.append("currency", currency);
 
-  const res = await apiFetch("/api/v1/tariffs/upload", {
-    method: "POST",
-    headers: {
-      "X-Admin-Key": getAdminApiKey(),
-      "X-Admin-Role": role || "PRICING_HEAD",
-      "X-Admin-User": "deepak.naidu@jfll.com",
-    },
-    body: formData,
-  });
+  try {
+    const res = await apiFetch("/api/v1/tariffs/upload", {
+      method: "POST",
+      headers: {
+        "X-Admin-Key": getAdminApiKey(),
+        "X-Admin-Role": role || "PRICING_HEAD",
+        "X-Admin-User": "deepak.naidu@jfll.com",
+      },
+      body: formData,
+    });
 
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.detail || `Failed to upload rate sheet (Status ${res.status})`);
-  }
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Failed to upload rate sheet (Status ${res.status})`);
+    }
 
-  const result = await res.json();
-  if (_tariffRegistryCache && result.registry_status) {
-    _tariffRegistryCache = _tariffRegistryCache.map((c) =>
-      c.carrier_code === result.carrier_code ? { ...c, ...result.registry_status } : c
-    );
+    const result = await res.json();
+    if (_tariffRegistryCache && result.registry_status) {
+      _tariffRegistryCache = _tariffRegistryCache.map((c) =>
+        c.carrier_code === result.carrier_code ? { ...c, ...result.registry_status } : c
+      );
+    }
+    return result;
+  } catch (err: unknown) {
+    if (err instanceof TypeError && err.message.toLowerCase().includes("fetch")) {
+      throw new Error(
+        "Upload timed out or connection dropped. Multi-page scanned rate circulars undergoing VLM vision extraction require at least 120 seconds of gateway/function timeout."
+      );
+    }
+    throw err;
   }
-  return result;
 }
 
 export async function deleteTariffCircular(

@@ -298,7 +298,7 @@ export function CarrierTariffCard({
             >
               <p className="text-xs font-medium">
                 {isUploading ? (
-                  <span className="text-jfll-blue font-bold">Ingesting and parsing circular...</span>
+                  <span className="text-jfll-blue font-bold">Ingesting & extracting rate matrix (VLM vision parsing may take 20-60s)...</span>
                 ) : (
                   <>
                     Drag new PDF here or <span className="text-jfll-blue font-bold">browse</span> to replace
@@ -322,7 +322,7 @@ export function CarrierTariffCard({
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800">
-                {isUploading ? "Uploading & Extracting..." : "Upload Carrier Circular PDF"}
+                {isUploading ? "Uploading & Extracting Matrix (VLM In Progress)..." : "Upload Carrier Circular PDF"}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">
                 Drop PDF here or click to browse

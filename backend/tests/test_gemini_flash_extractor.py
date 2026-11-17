@@ -171,3 +171,59 @@ async def test_parse_airline_rate_sheet_routes_to_gemini_flash_on_scanned():
                 assert result["is_scanned"] is True
                 assert len(result["records"]) == 1
                 assert result["records"][0]["destination"] == "KUL"
+
+
+@pytest.mark.anyio
+async def test_extract_tariff_with_gemini_flash_empty_bytes():
+    """Verify that extract_tariff_with_gemini_flash returns None immediately on empty or tiny bytes without API call."""
+    with patch("app.services.pdf_extractor.settings.GEMINI_API_KEY", "dummy-key"):
+        with patch("app.services.pdf_extractor.genai.Client") as mock_client:
+            res_empty = await extract_tariff_with_gemini_flash(b"")
+            assert res_empty is None
+            mock_client.assert_not_called()
+
+            res_tiny = await extract_tariff_with_gemini_flash(b"abc")
+            assert res_tiny is None
+            mock_client.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_parse_airline_rate_sheet_dynamic_model_tag():
+    """Verify that parse_airline_rate_sheet dynamically formats the mode tag from the winning Gemini model."""
+    from app.services.pdf_extractor import GeminiExtractedList
+
+    records = [
+        TariffRateRecord(
+            origin="BOM",
+            destination="DXB",
+            airline="Air India",
+            carrier_code="AI",
+            prefix="098",
+            commodity="GCR",
+            min_charge=3500.0,
+            rate_normal=250.0,
+            rate_45=200.0,
+            rate_100=170.0,
+            fsc_per_kg=20.0,
+            ssc_per_kg=3.5,
+        )
+    ]
+    extracted_list = GeminiExtractedList(records, model_name="gemini-3.5-flash")
+
+    with patch("app.services.pdf_extractor.extract_text_from_pdf", return_value=("", True)):
+        with patch("pypdf.PdfReader") as mock_reader_cls:
+            mock_reader = MagicMock()
+            mock_page = MagicMock()
+            mock_page.images = [MagicMock()]
+            mock_reader.pages = [mock_page]
+            mock_reader_cls.return_value = mock_reader
+
+            with patch("app.services.pdf_extractor.extract_tariff_with_gemini_flash", new_callable=AsyncMock) as mock_gemini:
+                mock_gemini.return_value = extracted_list
+
+                result = await parse_airline_rate_sheet(
+                    pdf_source=b"%PDF-1.4 sample",
+                    carrier_hint="AI",
+                )
+                assert result["mode"] == "GEMINI_3_5_FLASH_VLM"
+                assert len(result["records"]) == 1

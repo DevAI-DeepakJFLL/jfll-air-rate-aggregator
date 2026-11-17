@@ -5,6 +5,10 @@ Guarantees 100% binary compatibility on AWS Lambda across:
 - Python 3.10, 3.11, 3.12, 3.13
 - Architectures: x86_64 (Intel/AMD) and aarch64 (Graviton/ARM64)
 by embedding official precompiled manylinux pydantic-core binaries directly.
+
+NOTE: When deploying on AWS Lambda, configure Lambda Function URL (or an extended timeout
+of at least 120 seconds up to 900 seconds) so dense multi-page scanned PDF VLM vision
+extractions do not encounter premature gateway timeouts.
 """
 import glob
 import io

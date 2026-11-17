@@ -716,6 +716,13 @@ class GeminiAirlineTariffExtraction(BaseModel):
     records: List[GeminiExtractedTariffRecord] = Field(description="List of extracted corridor rate records")
 
 
+class GeminiExtractedList(list):
+    """List subclass preserving the exact Gemini model identifier that succeeded."""
+    def __init__(self, items, model_name: str = "gemini-2.5-flash"):
+        super().__init__(items)
+        self.model_name = model_name
+
+
 async def extract_tariff_with_gemini_flash(
     pdf_bytes: bytes,
     carrier_hint: str = "",
@@ -726,6 +733,9 @@ async def extract_tariff_with_gemini_flash(
     Uses Pydantic structured output constraints to extract complex, scanned, or borderless tariff sheets
     directly into validated TariffRateRecord domain models with zero regex post-processing.
     """
+    if not pdf_bytes or len(pdf_bytes) < 10:
+        return None
+
     api_key = (getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip()
     if not api_key or api_key.startswith("your-gemini"):
         return None
@@ -757,6 +767,7 @@ async def extract_tariff_with_gemini_flash(
                 candidate_models.append(fallback)
 
         response = None
+        successful_model = model_name
         for candidate in candidate_models:
             try:
                 response = await client.aio.models.generate_content(
@@ -771,6 +782,7 @@ async def extract_tariff_with_gemini_flash(
                         temperature=0.1,
                     ),
                 )
+                successful_model = candidate
                 break
             except Exception as e:
                 err_str = str(e).lower()
@@ -838,7 +850,7 @@ async def extract_tariff_with_gemini_flash(
                     )
                 )
 
-        return records if records else None
+        return GeminiExtractedList(records, model_name=successful_model) if records else None
 
     except Exception as exc:
         logger.error(f"Gemini 2.5 Flash tariff extraction failed: {exc}", exc_info=True)
@@ -895,7 +907,9 @@ async def parse_airline_rate_sheet(
             )
             if gemini_records:
                 scanned_records = gemini_records
-                extraction_mode = "GEMINI_2_5_FLASH_VLM"
+                raw_model = getattr(gemini_records, "model_name", "gemini-2.5-flash")
+                model_tag = raw_model.upper().replace("-", "_").replace(".", "_").replace("MODELS/", "")
+                extraction_mode = f"{model_tag}_VLM"
             else:
                 # 2. Fall back to local verified profiles (AirAsia D7, Ethiopian ET)
                 scanned_records = extract_scanned_tariff_records(carrier_hint=carrier_hint, currency=currency)
@@ -921,14 +935,16 @@ async def parse_airline_rate_sheet(
     typed_records = extract_digital_tariff_records(source, carrier_hint=carrier_hint, currency=currency)
     extraction_mode = "DIGITAL_TEXT_PARSER"
 
-    # Escalation fallback: If digital text extraction found 0 tabular rows, attempt Gemini 2.5 Flash
+    # Escalation fallback: If digital text extraction found 0 tabular rows, attempt Gemini Flash
     if not typed_records and (getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY")):
         gemini_records = await extract_tariff_with_gemini_flash(
             pdf_bytes, carrier_hint=carrier_hint, currency=currency
         )
         if gemini_records:
             typed_records = gemini_records
-            extraction_mode = "GEMINI_2_5_FLASH_VLM"
+            raw_model = getattr(gemini_records, "model_name", "gemini-2.5-flash")
+            model_tag = raw_model.upper().replace("-", "_").replace(".", "_").replace("MODELS/", "")
+            extraction_mode = f"{model_tag}_VLM"
 
     raw_dict_records = [r.to_dict() for r in typed_records]
 
