@@ -34,9 +34,12 @@ async def verify_admin_key(api_key: str = Security(api_key_header)) -> bool:
     """
     RBAC dependency: Protects admin ingestion endpoints.
     Requires a valid 'X-Admin-Key' HTTP header.
-    Preserved for backward compatibility with tariff ingestion endpoints.
+    Accepts ADMIN_API_KEY (Pricing Head) or COORDINATOR_API_KEY.
     """
-    if not api_key or not secrets.compare_digest(api_key, settings.ADMIN_API_KEY):
+    is_head = bool(api_key and secrets.compare_digest(api_key, settings.ADMIN_API_KEY))
+    coord_key = getattr(settings, "COORDINATOR_API_KEY", None)
+    is_coord = bool(api_key and coord_key and secrets.compare_digest(api_key, coord_key))
+    if not (is_head or is_coord):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: Valid X-Admin-Key header required for tariff ingestion.",
@@ -52,10 +55,15 @@ async def get_current_user(
 ) -> UserSession:
     """
     Authenticates operator via X-Admin-Key and extracts role & user identity.
-    Defaults role to COORDINATOR (least privilege) and user to deepak.naidu@jfll.com
-    if not explicitly provided.
+    Enforces server-side privilege:
+    - If authenticated via COORDINATOR_API_KEY, strictly locked to COORDINATOR (cannot self-escalate via header).
+    - If authenticated via ADMIN_API_KEY (Pricing Head), defaults to PRICING_HEAD or allows downscoping to COORDINATOR for testing.
     """
-    if not api_key or not secrets.compare_digest(api_key, settings.ADMIN_API_KEY):
+    is_head = bool(api_key and secrets.compare_digest(api_key, settings.ADMIN_API_KEY))
+    coord_key = getattr(settings, "COORDINATOR_API_KEY", None)
+    is_coord = bool(api_key and coord_key and secrets.compare_digest(api_key, coord_key))
+
+    if not (is_head or is_coord):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: Valid X-Admin-Key header required.",
@@ -68,6 +76,10 @@ async def get_current_user(
         assigned_role = raw_role if raw_role in valid_roles else Role.COORDINATOR.value
     else:
         assigned_role = Role.COORDINATOR.value  # Least privilege: default to COORDINATOR
+
+    if is_coord and not is_head:
+        # Strictly enforce least-privilege: coordinator keys cannot escalate to PRICING_HEAD
+        assigned_role = Role.COORDINATOR.value
 
     assigned_user = user.strip() if user and user.strip() else "deepak.naidu@jfll.com"
 

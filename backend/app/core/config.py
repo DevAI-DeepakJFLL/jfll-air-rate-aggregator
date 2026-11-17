@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Jet Freight Rate Aggregator API"
     SECRET_KEY: str = "default-insecure-secret-key-change-in-production"
     ADMIN_API_KEY: str = "dev-admin-api-key-change-in-production"
+    COORDINATOR_API_KEY: str = "dev-coordinator-api-key"
     
     # Server & CORS
     BACKEND_HOST: str = "0.0.0.0"

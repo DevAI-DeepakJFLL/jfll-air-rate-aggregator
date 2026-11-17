@@ -56,8 +56,6 @@ MULTI_COMMODITY_REGEX = re.compile(
         |GCR\s*-\s*Offline(?:\s*Tariff)?
         |AXD\s*-\s*COL
         |AXD\s*-\s*CRT
-        |AXS\s*-\s*COL
-        |AXS\s*-\s*CRT
         |GENERAL
         |GCR
         |GEN
@@ -791,15 +789,115 @@ class GeminiExtractedList(list):
         self.model_name = model_name
 
 
+def _convert_parsed_extraction_to_records(
+    parsed: GeminiAirlineTariffExtraction,
+    carrier_hint: str = "",
+) -> List[TariffRateRecord]:
+    if not parsed or not parsed.records:
+        return []
+
+    code = (carrier_hint or parsed.carrier_code).strip().upper()
+    meta = CARRIER_METADATA.get(code, {})
+    airline_name = parsed.carrier_name or meta.get("name", code or "Air Cargo Partner")
+    prefix = parsed.prefix if parsed.prefix and parsed.prefix != "000" else meta.get("prefix", "000")
+    rate_basis = parsed.rate_basis if parsed.rate_basis in ("ALL_IN", "NET_NET_PLUS_PLUS") else "NET_NET_PLUS_PLUS"
+    default_fsc = parsed.default_fsc_per_kg if parsed.default_fsc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("fsc", 20.0))
+    default_ssc = parsed.default_ssc_per_kg if parsed.default_ssc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("ssc", 3.5))
+    valid_from = parsed.valid_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
+    valid_to = parsed.valid_to or "2026-12-31"
+
+    records: List[TariffRateRecord] = []
+    for rec in parsed.records:
+        dests = unroll_destinations(rec.destination)
+        if not dests:
+            clean_dest = rec.destination.strip().upper()
+            if len(clean_dest) == 3 and clean_dest.isalpha():
+                dests = [clean_dest]
+
+        for d in dests:
+            records.append(
+                _build_tariff_record(
+                    destination=d,
+                    carrier_name=airline_name,
+                    carrier_code=code or parsed.carrier_code,
+                    prefix=prefix,
+                    commodity=rec.commodity or "GCR",
+                    min_charge=rec.min_charge,
+                    rate_normal=rec.rate_normal,
+                    rate_45=rec.rate_45,
+                    rate_100=rec.rate_100,
+                    rate_250=rec.rate_250,
+                    rate_300=rec.rate_300,
+                    rate_500=rec.rate_500,
+                    fsc_per_kg=rec.fsc_per_kg if rec.fsc_per_kg is not None else default_fsc,
+                    fsc_min=rec.fsc_min,
+                    ssc_per_kg=rec.ssc_per_kg if rec.ssc_per_kg is not None else default_ssc,
+                    ssc_min=rec.ssc_min,
+                    valid_from=valid_from,
+                    valid_to=valid_to,
+                    gauge_restriction=rec.gauge_restriction,
+                    rate_basis=rate_basis,
+                )
+            )
+
+    return records
+
+
+async def _generate_gemini_extraction(
+    client,
+    candidate_models: List[str],
+    pdf_bytes: bytes,
+    prompt: str,
+) -> Tuple[Optional[GeminiAirlineTariffExtraction], str]:
+    successful_model = candidate_models[0]
+    for candidate in candidate_models:
+        try:
+            response = await client.aio.models.generate_content(
+                model=candidate,
+                contents=[
+                    types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=GeminiAirlineTariffExtraction,
+                    temperature=0.1,
+                ),
+            )
+            successful_model = candidate
+            parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
+            if not parsed and response.text:
+                import json
+                raw_json = json.loads(response.text)
+                parsed = GeminiAirlineTariffExtraction.model_validate(raw_json)
+            return parsed, successful_model
+        except Exception as e:
+            err_str = str(e).lower()
+            is_recoverable = (
+                "not_found" in err_str
+                or "no longer available" in err_str
+                or "404" in err_str
+                or "unavailable" in err_str
+                or "503" in err_str
+                or "high demand" in err_str
+            )
+            if is_recoverable and candidate != candidate_models[-1]:
+                logger.warning(f"Model {candidate} returned recoverable error ({e}). Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
+                continue
+            raise
+    return None, successful_model
+
+
 async def extract_tariff_with_gemini_flash(
     pdf_bytes: bytes,
     carrier_hint: str = "",
     currency: str = "INR",
 ) -> Optional[List[TariffRateRecord]]:
     """
-    Tier-2 Vision VLM Extractor powered by Gemini 2.5 Flash (gemini-2.5-flash).
+    Tier-2 Vision VLM Extractor powered by Gemini 2.5 Flash / 3.5 Flash.
     Uses Pydantic structured output constraints to extract complex, scanned, or borderless tariff sheets
     directly into validated TariffRateRecord domain models with zero regex post-processing.
+    Multi-page scanned PDFs are chunked into 2-page slices to prevent response token truncation.
     """
     if not pdf_bytes or len(pdf_bytes) < 10:
         return None
@@ -838,93 +936,51 @@ async def extract_tariff_with_gemini_flash(
             if fallback not in candidate_models:
                 candidate_models.append(fallback)
 
-        response = None
-        successful_model = model_name
-        for candidate in candidate_models:
+        total_pages = 1
+        reader = None
+        if pypdf is not None:
             try:
-                response = await client.aio.models.generate_content(
-                    model=candidate,
-                    contents=[
-                        types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                        prompt,
-                    ],
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=GeminiAirlineTariffExtraction,
-                        temperature=0.1,
-                    ),
+                reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+                total_pages = len(reader.pages)
+            except Exception:
+                total_pages = 1
+
+        if total_pages > 3 and reader is not None:
+            all_records: List[TariffRateRecord] = []
+            chunk_size = 2
+            winning_model = model_name
+            for start_idx in range(0, total_pages, chunk_size):
+                end_idx = min(start_idx + chunk_size, total_pages)
+                writer = pypdf.PdfWriter()
+                for p_idx in range(start_idx, end_idx):
+                    writer.add_page(reader.pages[p_idx])
+                chunk_buf = io.BytesIO()
+                writer.write(chunk_buf)
+                chunk_bytes = chunk_buf.getvalue()
+
+                chunk_parsed, chunk_model = await _generate_gemini_extraction(
+                    client=client,
+                    candidate_models=candidate_models,
+                    pdf_bytes=chunk_bytes,
+                    prompt=prompt,
                 )
-                successful_model = candidate
-                break
-            except Exception as e:
-                err_str = str(e).lower()
-                is_recoverable = (
-                    "not_found" in err_str
-                    or "no longer available" in err_str
-                    or "404" in err_str
-                    or "unavailable" in err_str
-                    or "503" in err_str
-                    or "high demand" in err_str
-                )
-                if is_recoverable and candidate != candidate_models[-1]:
-                    logger.warning(f"Model {candidate} returned recoverable error ({e}). Trying fallback {candidate_models[candidate_models.index(candidate) + 1]}.")
-                    continue
-                raise
+                winning_model = chunk_model
+                if chunk_parsed:
+                    chunk_recs = _convert_parsed_extraction_to_records(chunk_parsed, carrier_hint)
+                    all_records.extend(chunk_recs)
 
-        parsed: Optional[GeminiAirlineTariffExtraction] = response.parsed
-        if not parsed and response.text:
-            import json
-            raw_json = json.loads(response.text)
-            parsed = GeminiAirlineTariffExtraction.model_validate(raw_json)
-
-        if not parsed or not parsed.records:
-            return None
-
-        code = (carrier_hint or parsed.carrier_code).strip().upper()
-        meta = CARRIER_METADATA.get(code, {})
-        airline_name = parsed.carrier_name or meta.get("name", code or "Air Cargo Partner")
-        prefix = parsed.prefix if parsed.prefix and parsed.prefix != "000" else meta.get("prefix", "000")
-        rate_basis = parsed.rate_basis if parsed.rate_basis in ("ALL_IN", "NET_NET_PLUS_PLUS") else "NET_NET_PLUS_PLUS"
-        default_fsc = parsed.default_fsc_per_kg if parsed.default_fsc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("fsc", 20.0))
-        default_ssc = parsed.default_ssc_per_kg if parsed.default_ssc_per_kg is not None else (0.0 if rate_basis == "ALL_IN" else meta.get("ssc", 3.5))
-        valid_from = parsed.valid_from or datetime.now(timezone.utc).strftime("%Y-%m-01")
-        valid_to = parsed.valid_to or "2026-12-31"
-
-        records: List[TariffRateRecord] = []
-        for rec in parsed.records:
-            dests = unroll_destinations(rec.destination)
-            if not dests:
-                clean_dest = rec.destination.strip().upper()
-                if len(clean_dest) == 3 and clean_dest.isalpha():
-                    dests = [clean_dest]
-
-            for d in dests:
-                records.append(
-                    _build_tariff_record(
-                        destination=d,
-                        carrier_name=airline_name,
-                        carrier_code=code or parsed.carrier_code,
-                        prefix=prefix,
-                        commodity=rec.commodity or "GCR",
-                        min_charge=rec.min_charge,
-                        rate_normal=rec.rate_normal,
-                        rate_45=rec.rate_45,
-                        rate_100=rec.rate_100,
-                        rate_250=rec.rate_250,
-                        rate_300=rec.rate_300,
-                        rate_500=rec.rate_500,
-                        fsc_per_kg=rec.fsc_per_kg if rec.fsc_per_kg is not None else default_fsc,
-                        fsc_min=rec.fsc_min,
-                        ssc_per_kg=rec.ssc_per_kg if rec.ssc_per_kg is not None else default_ssc,
-                        ssc_min=rec.ssc_min,
-                        valid_from=valid_from,
-                        valid_to=valid_to,
-                        gauge_restriction=rec.gauge_restriction,
-                        rate_basis=rate_basis,
-                    )
-                )
-
-        return GeminiExtractedList(records, model_name=successful_model) if records else None
+            return GeminiExtractedList(all_records, model_name=winning_model) if all_records else None
+        else:
+            parsed, successful_model = await _generate_gemini_extraction(
+                client=client,
+                candidate_models=candidate_models,
+                pdf_bytes=pdf_bytes,
+                prompt=prompt,
+            )
+            if not parsed or not parsed.records:
+                return None
+            records = _convert_parsed_extraction_to_records(parsed, carrier_hint)
+            return GeminiExtractedList(records, model_name=successful_model) if records else None
 
     except Exception as exc:
         logger.error(f"Gemini 2.5 Flash tariff extraction failed: {exc}", exc_info=True)

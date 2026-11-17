@@ -170,14 +170,27 @@ class TariffRegistryService:
         self._cached_index: Optional[Any] = None
         self._cached_generation: int = -1
         self._cached_tariffs: List[Dict[str, Any]] = []
+        self._last_mtime: float = 0.0
         self._initialize_registry()
         self._load_persisted_uploads()
+
+    def _sync_from_disk_if_modified(self) -> None:
+        """Reloads persisted state if another worker process modified uploads_path."""
+        if not self.uploads_path.exists():
+            return
+        try:
+            current_mtime = self.uploads_path.stat().st_mtime
+            if current_mtime != self._last_mtime:
+                self._load_persisted_uploads()
+        except OSError:
+            pass
 
     def _load_persisted_uploads(self) -> None:
         """Loads previously uploaded circular rates and registry state from atomic disk storage."""
         if not self.uploads_path.exists():
             return
         try:
+            current_mtime = self.uploads_path.stat().st_mtime
             with open(self.uploads_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             custom_rates = data.get("custom_rates", {})
@@ -190,6 +203,8 @@ class TariffRegistryService:
                 if code in self._registry and isinstance(info, dict):
                     self._registry[code].update(info)
             self._generation += 1
+            self._cached_index = None
+            self._last_mtime = current_mtime
         except Exception as e:
             logger.warning(f"Failed to load persisted tariff uploads from {self.uploads_path}: {e}")
 
@@ -210,12 +225,17 @@ class TariffRegistryService:
                 },
             }
             _atomic_write_json(self.uploads_path, payload)
+            try:
+                self._last_mtime = self.uploads_path.stat().st_mtime
+            except OSError:
+                pass
         except Exception as e:
             logger.error(f"Failed to persist tariff uploads: {e}")
 
     def get_generation(self) -> int:
         """Returns the current registry cache generation counter."""
         with self._lock:
+            self._sync_from_disk_if_modified()
             return self._generation
 
     def _initialize_registry(self) -> None:
@@ -262,6 +282,7 @@ class TariffRegistryService:
     def get_registry(self) -> List[Dict[str, Any]]:
         """Return the current known carrier registry with active circular statuses."""
         with self._lock:
+            self._sync_from_disk_if_modified()
             # Return list in canonical order
             order = [c["carrier_code"] for c in KNOWN_CARRIERS]
             result = []
@@ -274,6 +295,7 @@ class TariffRegistryService:
         """Get details for a specific carrier."""
         code = carrier_code.upper().strip()
         with self._lock:
+            self._sync_from_disk_if_modified()
             info = self._registry.get(code)
             return dict(info) if info else None
 
@@ -284,6 +306,7 @@ class TariffRegistryService:
         """
         code = carrier_code.upper().strip()
         with self._lock:
+            self._sync_from_disk_if_modified()
             # Check custom uploaded rates first
             if code in self._custom_rates and self._custom_rates[code]:
                 return [dict(r) for r in self._custom_rates[code]]
@@ -306,6 +329,7 @@ class TariffRegistryService:
         DSA: Fast O(C) carrier aggregation over inverted indices.
         """
         with self._lock:
+            self._sync_from_disk_if_modified()
             all_tariffs: List[Dict[str, Any]] = []
             for code, carrier in self._registry.items():
                 if not carrier.get("has_active_circular"):
@@ -325,6 +349,7 @@ class TariffRegistryService:
         from app.services.rate_engine import CorridorRateIndex
 
         with self._lock:
+            self._sync_from_disk_if_modified()
             if self._cached_index is None or self._cached_generation != self._generation:
                 self._cached_tariffs = self.get_all_active_tariffs()
                 self._cached_index = CorridorRateIndex(self._cached_tariffs)
@@ -348,6 +373,7 @@ class TariffRegistryService:
         now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         with self._lock:
+            self._sync_from_disk_if_modified()
             if code not in self._registry:
                 # If unknown code, auto-register it
                 self._registry[code] = {
@@ -406,6 +432,7 @@ class TariffRegistryService:
         """
         code = carrier_code.upper().strip()
         with self._lock:
+            self._sync_from_disk_if_modified()
             if code not in self._registry:
                 return None
 

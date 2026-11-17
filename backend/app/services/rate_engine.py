@@ -1,4 +1,5 @@
 import math
+import hashlib
 import heapq
 import re
 from typing import List, Dict, Any, Optional, Tuple, Set
@@ -411,14 +412,13 @@ def calculate_pure_buy_rate(
     ssc_rate = 0.0 if rate_basis == 'ALL_IN' else float(tariff.get('ssc_per_kg') or 0.0)
     carrier_code = (tariff.get('carrier_code') or '').upper().strip()
 
-    # Determine charges generation/signature for cache key
+    # Determine deterministic charges generation/signature for cache key
     if active_charges is not None:
-        charges_sig = hash(tuple(
-            (c.id, c.code, str(c.calculation_type), c.rate_per_kg, c.min_amount,
-             c.flat_amount, c.percentage_rate, c.rate_per_piece, c.is_active,
-             getattr(c, 'updated_at', ''))
+        raw_repr = "|".join(
+            f"{c.id}:{c.code}:{c.calculation_type}:{c.rate_per_kg}:{c.min_amount}:{c.flat_amount}:{c.percentage_rate}:{c.rate_per_piece}:{c.is_active}:{getattr(c, 'updated_at', '')}"
             for c in active_charges
-        ))
+        )
+        charges_sig = hashlib.md5(raw_repr.encode("utf-8")).hexdigest()
     else:
         charges_sig = get_charges_generation()
 
@@ -437,6 +437,8 @@ def calculate_pure_buy_rate(
         tariff.get('rate_100'),
         tariff.get('rate_250'),
         tariff.get('rate_300'),
+        tariff.get('rate_500'),
+        tariff.get('rate_1000'),
         fsc_rate,
         ssc_rate,
         pieces,

@@ -5,7 +5,7 @@ from app.schemas.rate import (
     RateSearchResponse,
     DestinationItemSchema,
 )
-from app.services.rate_engine import process_rate_search
+from app.services.rate_engine import process_rate_search, AIRPORT_TO_COUNTRY
 from app.data.tariffs import RATE_SHEET_DESTINATIONS
 from app.services.tariff_registry_service import tariff_registry_service
 
@@ -15,10 +15,32 @@ router = APIRouter(prefix="/rates", tags=["Rate Discovery"])
 @router.get("/destinations", response_model=List[DestinationItemSchema])
 async def get_rate_sheet_destinations():
     """
-    Returns all valid export destination airports indexed directly from verified airline rate sheets.
+    Returns all valid export destination airports indexed directly and dynamically from active airline rate sheets.
     Origin is strictly anchored at Mumbai Gateway Hub (BOM).
     """
-    return RATE_SHEET_DESTINATIONS
+    seen_codes = set()
+    result: List[dict] = []
+
+    for item in RATE_SHEET_DESTINATIONS:
+        code = item["code"].upper().strip()
+        if code not in seen_codes:
+            seen_codes.add(code)
+            result.append(dict(item))
+
+    _, live_tariffs = tariff_registry_service.get_live_corridor_index()
+    for t in live_tariffs:
+        dest = (t.get("destination") or "").upper().strip()
+        if dest and len(dest) == 3 and dest not in seen_codes:
+            seen_codes.add(dest)
+            country = AIRPORT_TO_COUNTRY.get(dest, "International")
+            result.append({
+                "code": dest,
+                "city": t.get("destination_city") or dest,
+                "country": t.get("destination_country") or country,
+                "region": t.get("destination_region") or "Global",
+            })
+
+    return result
 
 
 @router.post("/quote", response_model=RateSearchResponse)

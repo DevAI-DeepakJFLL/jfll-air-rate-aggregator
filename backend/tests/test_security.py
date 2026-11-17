@@ -110,6 +110,16 @@ def test_admin_upload_endpoint_accepts_valid_auth():
     assert res_head.status_code == 200
     assert res_head.json()["status"] == "STAGED_FOR_ADMIN_REVIEW"
 
+    # 3. Dedicated COORDINATOR key cannot self-escalate by claiming PRICING_HEAD role
+    headers_spoof = {
+        "X-Admin-Key": settings.COORDINATOR_API_KEY,
+        "X-Admin-Role": "PRICING_HEAD",
+    }
+    files_spoof = {"file": ("test.pdf", valid_pdf_bytes, "application/pdf")}
+    res_spoof = client.post("/api/v1/tariffs/upload", files=files_spoof, data=data, headers=headers_spoof)
+    assert res_spoof.status_code == 403
+    assert "Operation restricted to Pricing Team Head" in res_spoof.json()["detail"]
+
 
 def test_cors_origin_restriction():
     """Security: Verifies CORS policy restricts origins to configured endpoints."""

@@ -375,3 +375,37 @@ def test_tariff_registry_service_persistence_across_restarts(tmp_path):
     info3 = svc3.get_carrier_info("D7")
     assert info3["has_active_circular"] is False
     assert len(svc3.get_carrier_rates("D7")) == 0
+
+
+def test_dynamic_destinations_includes_uploaded_corridors():
+    """Verify that /rates/destinations dynamically includes newly ingested circular destinations."""
+    from app.services.tariff_registry_service import tariff_registry_service
+
+    sample_records = [
+        {
+            "origin": "BOM",
+            "destination": "ABZ",
+            "airline": "Emirates SkyCargo",
+            "carrier_code": "EK",
+            "prefix": "176",
+            "commodity": "GCR",
+            "rate_normal": 250.0,
+            "rate_45": 210.0,
+            "rate_100": 180.0,
+            "fsc_per_kg": 24.0,
+            "ssc_per_kg": 4.5,
+        }
+    ]
+    tariff_registry_service.register_circular_upload(
+        carrier_code="EK",
+        filename="test_emirates_abz.pdf",
+        extracted_records=sample_records,
+    )
+
+    try:
+        updated_res = client.get("/api/v1/rates/destinations")
+        assert updated_res.status_code == 200
+        updated_codes = {d["code"] for d in updated_res.json()}
+        assert "ABZ" in updated_codes
+    finally:
+        tariff_registry_service.clear_carrier_circular("EK")

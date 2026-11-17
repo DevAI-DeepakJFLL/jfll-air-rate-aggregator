@@ -9,6 +9,7 @@ from app.services.pdf_extractor import (
     GeminiExtractedTariffRecord,
 )
 from app.schemas.tariff import TariffRateRecord
+from app.core.config import settings
 
 
 def test_extract_pdf_bytes_from_various_sources(tmp_path):
@@ -116,9 +117,9 @@ async def test_extract_tariff_with_gemini_flash_successful_mock():
             assert mct.fsc_per_kg == 20.0
             assert mct.gauge_restriction == "Passenger flight belly capacity only."
 
-            # Verify call passed model gemini-2.5-flash
+            # Verify call passed model from settings (gemini-3.5-flash)
             call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
-            assert call_kwargs["model"] == "gemini-2.5-flash"
+            assert call_kwargs["model"] == settings.GEMINI_MODEL
 
 
 @pytest.mark.anyio

@@ -88,7 +88,10 @@ export function getAdminApiKey(): string {
       // Storage unavailable
     }
   }
-  return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "dev-admin-api-key-change-in-production";
+  if (process.env.NEXT_PUBLIC_ADMIN_API_KEY) {
+    return process.env.NEXT_PUBLIC_ADMIN_API_KEY;
+  }
+  return process.env.NODE_ENV === "development" ? "dev-admin-api-key-change-in-production" : "";
 }
 
 let _chargesCache: ChargeRule[] | null = null;
@@ -101,11 +104,24 @@ export function clearChargesCache(): void {
   _chargesCache = null;
 }
 
+function getActiveRole(role?: string): string {
+  if (role && role.trim()) return role.trim();
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("jfll_admin_role");
+      if (stored && stored.trim()) return stored.trim();
+    } catch {
+      // Ignore
+    }
+  }
+  return "PRICING_HEAD";
+}
+
 function getAdminHeaders(role?: string): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Admin-Key": getAdminApiKey(),
-    "X-Admin-Role": role || "PRICING_HEAD",
+    "X-Admin-Role": getActiveRole(role),
     "X-Admin-User": "deepak.naidu@jfll.com",
   };
   return headers;
@@ -351,7 +367,7 @@ export async function uploadTariffPdf(
       method: "POST",
       headers: {
         "X-Admin-Key": getAdminApiKey(),
-        "X-Admin-Role": role || "PRICING_HEAD",
+        "X-Admin-Role": getActiveRole(role),
         "X-Admin-User": "deepak.naidu@jfll.com",
       },
       body: formData,
@@ -391,7 +407,7 @@ export async function deleteTariffCircular(
     method: "DELETE",
     headers: {
       "X-Admin-Key": getAdminApiKey(),
-      "X-Admin-Role": role || "PRICING_HEAD",
+      "X-Admin-Role": getActiveRole(role),
       "X-Admin-User": "deepak.naidu@jfll.com",
     },
   });
