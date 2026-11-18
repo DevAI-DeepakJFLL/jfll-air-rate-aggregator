@@ -614,7 +614,11 @@ def evaluate_regulatory_and_operational_directives(
         has_oversize = False
         if dimensions:
             for dim in dimensions:
-                if dim.length_cm > 100 or dim.width_cm > 80 or dim.height_cm > 60:
+                is_dict = isinstance(dim, dict)
+                l = dim.get('length_cm', 0.0) if is_dict else getattr(dim, 'length_cm', 0.0)
+                w = dim.get('width_cm', 0.0) if is_dict else getattr(dim, 'width_cm', 0.0)
+                h = dim.get('height_cm', 0.0) if is_dict else getattr(dim, 'height_cm', 0.0)
+                if l > 100 or w > 80 or h > 60:
                     has_oversize = True
                     break
         if has_oversize or piece_weight > 100.0:
@@ -782,7 +786,7 @@ def process_rate_search(
 
     matched_quotes: List[RateQuoteItem] = []
     active_charges = get_active_charges()
-    total_pieces = sum(d.pieces for d in request.dimensions) if request.dimensions else 1
+    total_pieces = sum(d.pieces for d in request.dimensions) if request.dimensions else (request.pieces or 1)
 
     # Filter and match candidate tariffs by commodity preference per carrier
     carrier_tariff_map: Dict[str, List[Dict[str, Any]]] = {}

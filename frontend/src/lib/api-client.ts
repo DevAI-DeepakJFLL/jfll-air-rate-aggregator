@@ -153,10 +153,33 @@ export async function fetchDestinations(): Promise<DestinationItem[]> {
   try {
     const res = await apiFetch("/api/v1/rates/destinations");
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("JFLL_CACHED_DESTINATIONS", JSON.stringify(data));
+          } catch {
+            // Ignore storage quota errors
+          }
+        }
+        return data;
+      }
     }
   } catch {
-    // Graceful fallback to verified rate sheet dataset
+    // Graceful fallback to cached destinations or static dataset
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("JFLL_CACHED_DESTINATIONS");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
   }
   return RATE_SHEET_DESTINATIONS;
 }

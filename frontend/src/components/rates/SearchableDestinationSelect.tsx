@@ -107,7 +107,9 @@ export function SearchableDestinationSelect({
     if (isOpen && activeIndex !== null && filteredDestinations[activeIndex]) {
       const code = filteredDestinations[activeIndex].code;
       const el = document.getElementById(`dest-option-${code}`);
-      el?.scrollIntoView({ block: "nearest" });
+      if (typeof el?.scrollIntoView === "function") {
+        el.scrollIntoView({ block: "nearest" });
+      }
     }
   }, [activeIndex, filteredDestinations, isOpen]);
 

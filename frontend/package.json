@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -17,12 +18,18 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.9.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "autoprefixer": "^10.6.2",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.1.1"
   }
 }

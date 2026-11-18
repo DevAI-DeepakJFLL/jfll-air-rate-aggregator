@@ -29,12 +29,15 @@ def optimize_break_even_pivot(
         default_freight = max(150.0 * chargeable_weight, min_charge)
         return (default_freight, 150.0, "Standard", False, 0.0)
 
+    # Defensively ensure ascending order by min_weight for bisect binary search
+    sorted_tiers = sorted(tiers, key=lambda t: float(t.get("min_weight", 0.0)))
+
     # DSA Optimization: Binary search (bisect_right) to find natural tier in O(log T)
-    weights = [tier["min_weight"] for tier in tiers]
+    weights = [tier["min_weight"] for tier in sorted_tiers]
     insert_pos = bisect.bisect_right(weights, chargeable_weight)
     natural_idx = max(0, insert_pos - 1)
 
-    natural_tier = tiers[natural_idx]
+    natural_tier = sorted_tiers[natural_idx]
     natural_rate = natural_tier["rate"]
     natural_freight = round(chargeable_weight * natural_rate)
     
@@ -46,8 +49,8 @@ def optimize_break_even_pivot(
 
     # Evaluate higher weight slabs (capped at +300 kg for <500kg Smalls scope)
     # Finding the optimal higher weight break that minimizes total invoice
-    for j in range(natural_idx + 1, len(tiers)):
-        higher_tier = tiers[j]
+    for j in range(natural_idx + 1, len(sorted_tiers)):
+        higher_tier = sorted_tiers[j]
         # Hard constraint: Do not pivot to 500kg or above
         if higher_tier["min_weight"] >= 500.0:
             continue

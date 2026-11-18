@@ -151,6 +151,18 @@ class S3StorageService:
             logger.debug(f"Failed to download S3 key '{key}' to '{p}': {e}")
             return False
 
+    def delete_file(self, key: str) -> bool:
+        """Deletes an object from S3."""
+        if not self.is_enabled:
+            return False
+        try:
+            self._client.delete_object(Bucket=self._bucket_name, Key=key)
+            logger.info(f"Successfully deleted s3://{self._bucket_name}/{key}")
+            return True
+        except (BotoCoreError, ClientError, Exception) as e:
+            logger.warning(f"Failed to delete S3 key '{key}': {e}")
+            return False
+
     def get_presigned_download_url(self, key: str, expires_in: int = 3600) -> Optional[str]:
         """Generates a temporary HTTPS presigned URL for direct secure downloading from S3."""
         if not self.is_enabled:

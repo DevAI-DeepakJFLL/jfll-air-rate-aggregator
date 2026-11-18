@@ -43,7 +43,13 @@ async def create_charge(
     Restricted to Pricing Team Head (PRICING_HEAD).
     Audit trail author is automatically recorded from X-Admin-User.
     """
-    return service.create_charge(charge_in, user=current_user.username)
+    try:
+        return service.create_charge(charge_in, user=current_user.username)
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(val_err),
+        )
 
 
 @router.post("/reset-defaults", response_model=List[ChargeRule])

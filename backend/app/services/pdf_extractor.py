@@ -103,6 +103,7 @@ def validate_tariff_record_domain(
     ssc_per_kg: float,
     valid_from: Optional[str],
     valid_to: Optional[str],
+    currency: str = "INR",
 ) -> Tuple[str, float, float, Optional[str], Optional[str], List[str], bool, float]:
     """
     Domain Sanity & Range Validation Engine ex-BOM:
@@ -155,14 +156,16 @@ def validate_tariff_record_domain(
             warnings.append(f"Slab Inversion: +500kg rate ({rate_500}) exceeds +300kg rate ({rate_300}) by >25%")
 
     # 4. Plausibility Ranges (INR ex-BOM)
-    if rate_normal is not None and 0.0 < rate_normal < 15.0:
-        warnings.append(f"Abnormally low base freight rate ({rate_normal}/kg): Check for foreign currency (USD/EUR)")
+    is_inr = (currency or "INR").strip().upper() == "INR"
+    if is_inr:
+        if rate_normal is not None and 0.0 < rate_normal < 15.0:
+            warnings.append(f"Abnormally low base freight rate ({rate_normal}/kg): Check for foreign currency (USD/EUR)")
 
-    if rate_45 is not None and 0.0 < rate_45 < 15.0:
-        warnings.append(f"Abnormally low +45kg rate ({rate_45}/kg): Possible foreign currency quote")
+        if rate_45 is not None and 0.0 < rate_45 < 15.0:
+            warnings.append(f"Abnormally low +45kg rate ({rate_45}/kg): Possible foreign currency quote")
 
-    if min_charge is not None and 0.0 < min_charge < 500.0:
-        warnings.append(f"Abnormally low minimum charge ({min_charge}): Verify currency unit")
+        if min_charge is not None and 0.0 < min_charge < 500.0:
+            warnings.append(f"Abnormally low minimum charge ({min_charge}): Verify currency unit")
 
     # 5. Temporal Validity Range
     clean_vfrom = valid_from
@@ -202,6 +205,7 @@ def _build_tariff_record(
     gauge_restriction: Optional[str] = None,
     rate_basis: str = "NET_NET_PLUS_PLUS",
     surcharge_source: str = "CIRCULAR",
+    currency: str = "INR",
 ) -> TariffRateRecord:
     """
     Factory helper to instantiate a validated TariffRateRecord.
@@ -222,6 +226,7 @@ def _build_tariff_record(
         ssc_per_kg=ssc_per_kg,
         valid_from=valid_from,
         valid_to=valid_to,
+        currency=currency,
     )
 
     return TariffRateRecord(
@@ -247,6 +252,7 @@ def _build_tariff_record(
         valid_to=v_to,
         gauge_restriction=gauge_restriction,
         surcharge_source=surcharge_source,
+        currency=currency,
         validation_warnings=warnings,
         is_flagged=is_flagged,
         confidence_score=confidence,

@@ -29,6 +29,7 @@ class TariffRateRecord(BaseModel):
     valid_to: Optional[str] = Field(default=None, description="Validity end date in YYYY-MM-DD")
     gauge_restriction: Optional[str] = Field(default=None, description="Aircraft gauge restriction note")
     surcharge_source: str = Field(default="CIRCULAR", description="Source of FSC/SSC surcharges: 'CIRCULAR' or 'GATEWAY_DEFAULT'")
+    currency: str = Field(default="INR", description="Tariff currency")
     validation_warnings: List[str] = Field(default_factory=list, description="Sanity checks and quality warnings")
     is_flagged: bool = Field(default=False, description="Flagged for manual review if anomalies detected")
     confidence_score: float = Field(default=1.0, description="Extraction confidence score from 0.0 to 1.0")

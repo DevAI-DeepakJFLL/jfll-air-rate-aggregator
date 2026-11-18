@@ -453,6 +453,9 @@ class ChargesService:
         """
         with self._lock:
             charges = self._read_charges()
+            code_norm = (charge_in.code or "").strip().upper()
+            if any(c.code.strip().upper() == code_norm and c.is_active for c in charges):
+                raise ValueError(f"An active charge rule with code '{code_norm}' already exists.")
             charge_id = f"chg_custom_{uuid.uuid4().hex[:8]}"
             now_iso = datetime.now(timezone.utc).isoformat()
 

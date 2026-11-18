@@ -57,7 +57,8 @@ async def get_current_user(
     Authenticates operator via X-Admin-Key and extracts role & user identity.
     Enforces server-side privilege:
     - If authenticated via COORDINATOR_API_KEY, strictly locked to COORDINATOR (cannot self-escalate via header).
-    - If authenticated via ADMIN_API_KEY (Pricing Head), defaults to PRICING_HEAD or allows downscoping to COORDINATOR for testing.
+    - If X-Admin-Role is omitted, defaults to COORDINATOR (Principle of Least Privilege; write endpoints require explicit PRICING_HEAD).
+    - If authenticated via ADMIN_API_KEY with X-Admin-Role: PRICING_HEAD, grants PRICING_HEAD.
     """
     is_head = bool(api_key and secrets.compare_digest(api_key, settings.ADMIN_API_KEY))
     coord_key = getattr(settings, "COORDINATOR_API_KEY", None)

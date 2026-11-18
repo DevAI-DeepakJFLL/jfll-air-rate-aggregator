@@ -535,15 +535,18 @@ class TariffRegistryService:
             if code in self._custom_rates:
                 del self._custom_rates[code]
 
-            # Remove local saved PDF if present
+            # Remove local saved PDF and S3 object if present
             circular = self._registry[code].get("active_circular")
             if circular and circular.get("saved_filename"):
-                local_pdf = self.pdf_dir / circular["saved_filename"]
+                saved_name = circular["saved_filename"]
+                local_pdf = self.pdf_dir / saved_name
                 if local_pdf.exists():
                     try:
                         local_pdf.unlink()
                     except OSError:
                         pass
+                if s3_storage_service.is_enabled and self.pdf_dir == DEFAULT_PDF_DIR:
+                    s3_storage_service.delete_file(f"uploads/{saved_name}")
 
             self._registry[code]["has_active_circular"] = False
             self._registry[code]["active_circular"] = None

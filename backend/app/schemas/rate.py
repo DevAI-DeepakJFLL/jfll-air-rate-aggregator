@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class PackagingType(str, Enum):
@@ -65,6 +65,14 @@ class RateSearchRequest(BaseModel):
         ge=1,
         description="Total package piece count"
     )
+
+    @model_validator(mode="after")
+    def validate_corridor_endpoints(self) -> "RateSearchRequest":
+        orig = (self.origin or "").strip().upper()
+        dest = (self.destination or "").strip().upper()
+        if orig and dest and orig == dest:
+            raise ValueError("Origin and destination airport codes cannot be identical.")
+        return self
 
 
 class CostBreakdown(BaseModel):
