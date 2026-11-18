@@ -19,90 +19,14 @@ from app.services.charges_service import (
     register_charges_invalidation_callback,
 )
 from app.services.break_even import optimize_break_even_pivot
-
-
-# Airport IATA Code to ISO Country Code Mapping for Corridor Evaluation
-AIRPORT_TO_COUNTRY: Dict[str, str] = {
-    # United States
-    "JFK": "US", "ORD": "US", "LAX": "US", "MIA": "US", "SFO": "US",
-    "ATL": "US", "DFW": "US", "BOS": "US", "IAD": "US", "IAH": "US",
-    "SEA": "US", "EWR": "US", "DTW": "US", "MSP": "US", "PHL": "US",
-    "CLT": "US", "DEN": "US", "LAS": "US", "MCO": "US", "PHX": "US",
-    # Canada
-    "YYZ": "CA", "YVR": "CA", "YUL": "CA", "YYC": "CA", "YEG": "CA", "YOW": "CA", "YHZ": "CA",
-    # United Kingdom
-    "LHR": "GB", "LGW": "GB", "MAN": "GB", "EDI": "GB", "BHX": "GB", "GLA": "GB", "STN": "GB", "LTN": "GB",
-    # United Arab Emirates
-    "DXB": "AE", "AUH": "AE", "SHJ": "AE", "DWC": "AE",
-    # Middle East
-    "DOH": "QA",
-    "MCT": "OM", "SLL": "OM",
-    "KWI": "KW",
-    "BAH": "BH",
-    "RUH": "SA", "JED": "SA", "DMM": "SA", "MED": "SA",
-    "AMM": "JO", "BEY": "LB",
-    # Europe
-    "FRA": "DE", "MUC": "DE", "BER": "DE", "HAM": "DE", "DUS": "DE",
-    "CDG": "FR", "ORY": "FR", "NCE": "FR", "LYS": "FR",
-    "AMS": "NL",
-    "BRU": "BE",
-    "MXP": "IT", "FCO": "IT",
-    "MAD": "ES", "BCN": "ES",
-    "ZRH": "CH", "GVA": "CH",
-    "VIE": "AT",
-    "DUB": "IE",
-    "CPH": "DK",
-    "WAW": "PL",
-    "IST": "TR",
-    "LIS": "PT",
-    "ATH": "GR",
-    # Asia-Pacific
-    "SIN": "SG",
-    "BKK": "TH", "HKT": "TH",
-    "KUL": "MY",
-    "NRT": "JP", "HND": "JP", "KIX": "JP",
-    "ICN": "KR",
-    "HKG": "HK",
-    "PVG": "CN", "PEK": "CN", "PKX": "CN", "CAN": "CN", "SZX": "CN",
-    "SYD": "AU", "MEL": "AU", "BNE": "AU", "PER": "AU",
-    "BOM": "IN", "DEL": "IN", "BLR": "IN", "MAA": "IN", "HYD": "IN", "CCU": "IN", "COK": "IN", "AMD": "IN",
-    "CMB": "LK", "MLE": "MV",
-    "CGK": "ID", "DPS": "ID", "KNO": "ID", "KTI": "ID",
-    "MNL": "PH",
-    # Africa
-    "JNB": "ZA", "CPT": "ZA",
-    "NBO": "KE",
-    "ADD": "ET",
-    "CAI": "EG",
-    "CMN": "MA",
-    "SEZ": "SC",
-}
-
-COUNTRY_ALIASES: Dict[str, Set[str]] = {
-    "US": {"US", "USA", "UNITED STATES"},
-    "CA": {"CA", "CAN", "CANADA"},
-    "GB": {"GB", "UK", "GBR", "UNITED KINGDOM"},
-    "AE": {"AE", "UAE", "ARE", "UNITED ARAB EMIRATES"},
-    "SA": {"SA", "KSA", "SAU", "SAUDI ARABIA"},
-    "DE": {"DE", "DEU", "GERMANY"},
-    "FR": {"FR", "FRA", "FRANCE"},
-    "NL": {"NL", "NLD", "NETHERLANDS"},
-    "IN": {"IN", "IND", "INDIA"},
-    "SG": {"SG", "SGP", "SINGAPORE"},
-    "MY": {"MY", "MYS", "MALAYSIA"},
-    "QA": {"QA", "QAT", "QATAR"},
-    "OM": {"OM", "OMN", "OMAN"},
-    "KW": {"KW", "KWT", "KUWAIT"},
-    "BH": {"BH", "BHR", "BAHRAIN"},
-    "JP": {"JP", "JPN", "JAPAN"},
-    "CN": {"CN", "CHN", "CHINA"},
-    "AU": {"AU", "AUS", "AUSTRALIA"},
-}
-
-# Pre-computed frozensets for O(1) set operations
-COUNTRY_AND_ALIASES: Dict[str, frozenset] = {
-    k: frozenset({k} | v) for k, v in COUNTRY_ALIASES.items()
-}
+from app.core.config import settings
+from app.data.airports import (
+    AIRPORT_TO_COUNTRY,
+    COUNTRY_ALIASES,
+    COUNTRY_AND_ALIASES,
+    AIRLINE_SCHEDULES,
+    get_country_for_airport,
+)
 
 
 def _get_applicability_cache(app: Any) -> Tuple[frozenset, frozenset, Tuple[str, ...]]:
@@ -118,26 +42,6 @@ def _get_applicability_cache(app: Any) -> Tuple[frozenset, frozenset, Tuple[str,
         cached = (dest_set, carrier_set, comm_tuple)
         setattr(app, "_dsa_cache", cached)
     return cached
-
-
-def get_country_for_airport(airport_code: str) -> Optional[str]:
-    """Returns ISO country code for common airport IATA codes."""
-    if not airport_code:
-        return None
-    return AIRPORT_TO_COUNTRY.get(airport_code.upper().strip())
-
-AIRLINE_SCHEDULES: Dict[str, Dict[str, Any]] = {
-    'EK': {'flight': 'EK-505', 'departure': '10:10 IST', 'arrival': '11:55 GST', 'transit': 'Direct Flight (3h 15m)', 'cutoff': '05:30 IST'},
-    'AI': {'flight': 'AI-995', 'departure': '17:05 IST', 'arrival': '19:00 GST', 'transit': 'Direct Flight (3h 25m)', 'cutoff': '11:30 IST'},
-    '6E': {'flight': '6E-1453', 'departure': '19:20 IST', 'arrival': '21:10 GST', 'transit': 'Direct Flight (3h 20m)', 'cutoff': '13:30 IST'},
-    'EY': {'flight': 'EY-205', 'departure': '04:20 IST', 'arrival': '09:30 GST', 'transit': 'Connecting via AUH (5h 10m)', 'cutoff': '22:00 IST (-1d)'},
-    'WY': {'flight': 'WY-202', 'departure': '09:40 IST', 'arrival': '15:15 GST', 'transit': 'Connecting via MCT (5h 35m)', 'cutoff': '04:30 IST'},
-    'ET': {'flight': 'ET-641', 'departure': '11:05 IST', 'arrival': '22:40 GST', 'transit': 'Connecting via ADD (11h 35m)', 'cutoff': '05:00 IST'},
-    'QR': {'flight': 'QR-557', 'departure': '04:10 IST', 'arrival': '10:30 GST', 'transit': 'Connecting via DOH (6h 20m)', 'cutoff': '22:00 IST (-1d)'},
-    'D7': {'flight': 'D7-183', 'departure': '23:00 IST', 'arrival': '15:20 CST (+1)', 'transit': 'Connecting via KUL (13h 50m)', 'cutoff': '17:00 IST'},
-    'MH': {'flight': 'MH-195', 'departure': '23:25 IST', 'arrival': '15:35 CST (+1)', 'transit': 'Connecting via KUL (13h 40m)', 'cutoff': '17:30 IST'},
-    'SV': {'flight': 'SV-773', 'departure': '07:30 IST', 'arrival': '15:45 GST', 'transit': 'Connecting via RUH (8h 15m)', 'cutoff': '02:00 IST'},
-}
 
 
 class CorridorRateIndex:
@@ -171,19 +75,20 @@ class CorridorRateIndex:
 RE_HOURS = re.compile(r'(\d+)\s*h', re.IGNORECASE)
 RE_MINUTES = re.compile(r'(\d+)\s*m', re.IGNORECASE)
 
-# Canonical IATA weight slab definitions (< 500kg Smalls Desk)
+# Canonical IATA weight slab definitions
 SLAB_SPECS: Tuple[Tuple[str, float, str], ...] = (
     ('rate_normal', 0.0, 'Normal'),
     ('rate_45', 45.0, '+45 kg'),
     ('rate_100', 100.0, '+100 kg'),
     ('rate_250', 250.0, '+250 kg'),
     ('rate_300', 300.0, '+300 kg'),
+    ('rate_500', 500.0, '+500 kg'),
 )
 
 
 def extract_active_weight_tiers(tariff: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Extracts and validates sorted active rate slabs (< 500kg) from a tariff record.
+    Extracts and validates sorted active rate slabs from a tariff record.
     Guarantees ascending order for binary search break-even pivot.
     """
     tiers = []
@@ -216,7 +121,10 @@ def parse_transit_minutes(transit_str: str) -> int:
     return minutes if minutes > 0 else 9999
 
 
-def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[Any]] = None) -> float:
+def calculate_chargeable_weight(
+    actual_weight: Optional[float] = None,
+    dimensions: Optional[List[Any]] = None,
+) -> float:
     """
     Computes IATA Chargeable Weight rounded up to nearest 0.5 kg.
     TACT Rule 1.3.2.
@@ -232,7 +140,8 @@ def calculate_chargeable_weight(actual_weight: float, dimensions: Optional[List[
             pcs = dim.get('pieces', 1) if is_dict else getattr(dim, 'pieces', 1)
             vol_weight += (l * w * h * pcs) / 6000.0
 
-    raw_weight = max(actual_weight, vol_weight)
+    act_weight = float(actual_weight) if (actual_weight is not None and actual_weight > 0) else 0.0
+    raw_weight = max(act_weight, vol_weight)
     return math.ceil(raw_weight * 2.0) / 2.0
 
 
@@ -400,7 +309,7 @@ def calculate_pure_buy_rate(
     active_charges: Optional[List[ChargeRule]] = None,
 ) -> CostBreakdown:
     """
-    Computes pure landed airline buying cost for shipments under 500 kg.
+    Computes pure landed airline buying cost across published weight breaks.
     Strictly excludes all commercial margins.
     Dynamically evaluates statutory and gateway charges from active configuration.
     Employs true O(1) OrderedDict LRU memoization cache and O(log T) binary search break-even pivot.
@@ -658,11 +567,17 @@ def build_rate_quote(
     elif request and request.pieces:
         total_pieces = request.pieces
 
+    act_weight = (
+        request.actual_weight_kg
+        if (request and request.actual_weight_kg is not None and request.actual_weight_kg > 0)
+        else cw
+    )
+
     regulatory_notes, packaging_restricted = evaluate_regulatory_and_operational_directives(
         carrier_code=carrier_code,
         destination=dest,
         commodity=commodity,
-        actual_weight_kg=request.actual_weight_kg if request else cw,
+        actual_weight_kg=act_weight,
         total_pieces=total_pieces,
         dimensions=request.dimensions if request else None,
         packaging_type=request.packaging_type if request else None,
@@ -747,7 +662,7 @@ def process_rate_search(
     limit: int = 25
 ) -> RateSearchResponse:
     """
-    Main aggregator entry point with DSA optimization and < 500kg Smalls constraint.
+    Main aggregator entry point with DSA optimization across published weight breaks.
     
     Time Complexity:
       - O(1) Corridor candidate retrieval via CorridorRateIndex
@@ -759,17 +674,17 @@ def process_rate_search(
     orig = request.origin.upper().strip()
     dest = request.destination.upper().strip()
 
-    # HARD CONSTRAINT: Smalls only (< 500 kg)
-    if cw >= 500.0:
+    # Weight Ceiling Constraint (maximum limit: 500 kg)
+    if cw > settings.MAX_CHARGEABLE_WEIGHT_KG:
         return RateSearchResponse(
             origin=orig,
             destination=dest,
             chargeable_weight=cw,
             is_heavy_cargo=True,
             message=(
-                f"Chargeable weight is {cw:.1f} kg (≥ 500 kg threshold). "
-                "Published airline smalls tariffs do not apply to heavy cargo. "
-                "Please request an ad-hoc spot rate from the airline cargo sales desk."
+                f"Chargeable weight is {cw:.1f} kg, which exceeds the maximum allowed limit of "
+                f"{settings.MAX_CHARGEABLE_WEIGHT_KG:.0f} kg for this desk. "
+                "Please contact the air cargo pricing desk for shipments above 500 kg."
             ),
             rates=[]
         )

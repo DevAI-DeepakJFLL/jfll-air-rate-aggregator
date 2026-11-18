@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    # Air Cargo Smalls Ceiling
+    # Air Cargo Operational Weight Ceiling (Smalls Desk)
     MAX_CHARGEABLE_WEIGHT_KG: float = 500.0
 
     # Ingestion Security Limits

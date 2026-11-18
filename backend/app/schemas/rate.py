@@ -40,11 +40,11 @@ class RateSearchRequest(BaseModel):
         pattern=r"^[A-Za-z]{3}$",
         description="Destination 3-letter IATA code, e.g., DXB, ORD"
     )
-    actual_weight_kg: float = Field(
-        ...,
+    actual_weight_kg: Optional[float] = Field(
+        default=None,
         gt=0,
-        le=5000.0,
-        description="Actual scale gross weight in kg (max 5,000 kg)"
+        le=500.0,
+        description="Actual scale gross weight in kg (max 500 kg, optional if dimensions are provided)"
     )
     dimensions: Optional[List[CargoDimension]] = Field(
         default=None,
@@ -72,6 +72,16 @@ class RateSearchRequest(BaseModel):
         dest = (self.destination or "").strip().upper()
         if orig and dest and orig == dest:
             raise ValueError("Origin and destination airport codes cannot be identical.")
+
+        has_weight = self.actual_weight_kg is not None and self.actual_weight_kg > 0
+        has_dims = bool(
+            self.dimensions
+            and len(self.dimensions) > 0
+            and any(d.volumetric_weight_kg > 0 for d in self.dimensions)
+        )
+
+        if not has_weight and not has_dims:
+            raise ValueError("Either actual scale weight (actual_weight_kg) or package dimensions must be provided.")
         return self
 
 

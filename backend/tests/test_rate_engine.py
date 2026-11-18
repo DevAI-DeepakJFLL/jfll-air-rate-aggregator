@@ -42,18 +42,46 @@ def test_volumetric_weight_calculation():
     assert cw == 50.0
 
 
-def test_hard_constraint_rejects_heavy_cargo_above_500kg(sample_tariffs):
-    # Weight >= 500 kg must halt automated calculation
+def test_500kg_calculates_rates_seamlessly(sample_tariffs):
+    # Weight up to 500 kg ceiling calculates quotes seamlessly using published slabs (+500kg or active slabs)
     req = RateSearchRequest(
         origin="BOM",
         destination="DXB",
-        actual_weight_kg=520.0,
+        actual_weight_kg=500.0,
+        commodity="General Cargo"
+    )
+    res = process_rate_search(req, sample_tariffs)
+    assert res.is_heavy_cargo is False
+    assert res.chargeable_weight == 500.0
+    assert len(res.rates) > 0
+
+
+def test_hard_constraint_rejects_above_500kg_ceiling(sample_tariffs):
+    # Chargeable weight exceeding MAX_CHARGEABLE_WEIGHT_KG (500 kg) via volumetric dimensions halts calculation
+    dims = [CargoDimension(length_cm=100, width_cm=100, height_cm=100, pieces=4)]
+    req = RateSearchRequest(
+        origin="BOM",
+        destination="DXB",
+        actual_weight_kg=100.0,
+        dimensions=dims,
         commodity="General Cargo"
     )
     res = process_rate_search(req, sample_tariffs)
     assert res.is_heavy_cargo is True
     assert len(res.rates) == 0
-    assert "≥ 500 kg threshold" in res.message
+    assert "exceeds the maximum allowed limit of 500 kg" in res.message
+
+
+def test_request_schema_rejects_actual_weight_above_500kg():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        RateSearchRequest(
+            origin="BOM",
+            destination="DXB",
+            actual_weight_kg=501.0,
+            commodity="General Cargo"
+        )
 
 
 def test_break_even_pivot_optimization():

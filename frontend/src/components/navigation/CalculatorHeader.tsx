@@ -26,9 +26,6 @@ export function CalculatorHeader() {
                 Rate Aggregator
               </span>
             </div>
-            <p className="hidden sm:block text-xs font-medium text-slate-500">
-              Air Cargo Spot &amp; Published Tariffs &bull; BOM Mumbai Hub (&lt; 500kg)
-            </p>
           </div>
         </Link>
 

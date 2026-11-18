@@ -130,3 +130,39 @@ def test_finding_9_usd_currency_no_false_warning():
         currency="USD",
     )
     assert not any("foreign currency" in w for w in warnings_usd)
+
+
+def test_flexible_weight_entry_dimensions_only():
+    """Verify quoting with only dimensions when actual_weight_kg is omitted."""
+    from app.schemas.rate import CargoDimension
+    from app.services.rate_engine import calculate_chargeable_weight, process_rate_search
+    from app.data.tariffs import AIRLINE_TARIFFS
+
+    # 1. Schema allows actual_weight_kg to be omitted if dimensions are provided
+    dims = [CargoDimension(length_cm=60, width_cm=50, height_cm=40, pieces=2)]
+    req = RateSearchRequest(
+        origin="BOM",
+        destination="DXB",
+        dimensions=dims,
+    )
+    assert req.actual_weight_kg is None
+    assert len(req.dimensions) == 1
+
+    # 2. Chargeable weight correctly derived from dimensions (60x50x40x2 / 6000 = 40 kg)
+    cw = calculate_chargeable_weight(req.actual_weight_kg, req.dimensions)
+    assert cw == 40.0
+
+    # 3. Rate search succeeds with dimensions only
+    res = process_rate_search(req, AIRLINE_TARIFFS)
+    assert res.chargeable_weight == 40.0
+    assert len(res.rates) > 0
+
+
+def test_flexible_weight_entry_validation_rejection():
+    """Verify validation fails if neither actual_weight_kg nor dimensions are provided."""
+    with pytest.raises(ValueError, match="Either actual scale weight"):
+        RateSearchRequest(
+            origin="BOM",
+            destination="DXB",
+        )
+

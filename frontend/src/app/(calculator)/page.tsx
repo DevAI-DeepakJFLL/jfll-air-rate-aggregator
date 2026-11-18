@@ -3,10 +3,8 @@
 import React, { useState } from "react";
 import { RateSearchForm } from "@/components/rates/RateSearchForm";
 import { RatesTable } from "@/components/rates/RatesGrid";
-import { HeavyCargoBanner } from "@/components/rates/HeavyCargoBanner";
 import { AirlineCardSkeleton } from "@/components/rates/AirlineCardSkeleton";
 import { EmptyRateState } from "@/components/rates/EmptyRateState";
-import { RateDiscoveryHeroDemo } from "@/components/rates/RateDiscoveryHeroDemo";
 import { RateSearchRequest, RateSearchResponse } from "@/types/rate";
 import { fetchLiveRates } from "@/lib/api-client";
 
@@ -55,25 +53,20 @@ export default function RateDiscoveryPage() {
       {/* Loading Skeleton (Zero CLS) */}
       {loading && <AirlineCardSkeleton />}
 
-      {/* Interactive Stageshow Hero Walkthrough */}
-      {!loading && !response && (
-        <RateDiscoveryHeroDemo
-          onRunSample={() =>
-            handleSearch({
-              origin: "BOM",
-              destination: "DXB",
-              actual_weight_kg: 250,
-            })
-          }
-        />
-      )}
-
-      {/* Heavy Cargo Banner (>= 500 kg) */}
+      {/* Operational Weight Limit Warning (> 500 kg desk ceiling) */}
       {!loading && response?.is_heavy_cargo && (
-        <HeavyCargoBanner
-          chargeableWeight={response.chargeable_weight}
-          message={response.message}
-        />
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm font-semibold text-amber-900 shadow-2xs"
+        >
+          <div className="font-extrabold text-base mb-1 text-amber-950">
+            Cargo Exceeds 500 kg Desk Limit ({response.chargeable_weight.toFixed(1)} kg)
+          </div>
+          <p className="text-amber-800 text-xs font-normal leading-relaxed">
+            {response.message}
+          </p>
+        </div>
       )}
 
       {/* Empty Rate State */}
@@ -84,7 +77,7 @@ export default function RateDiscoveryPage() {
         />
       )}
 
-      {/* High-Density Tariff Comparison Table (< 500 kg) */}
+      {/* High-Density Tariff Comparison Table */}
       {!loading && response && !response.is_heavy_cargo && response.rates.length > 0 && (
         <RatesTable rates={response.rates} />
       )}

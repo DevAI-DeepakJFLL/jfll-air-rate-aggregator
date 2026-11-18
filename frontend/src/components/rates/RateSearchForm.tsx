@@ -170,6 +170,20 @@ export function RateSearchForm({
     return deriveChargeableWeight(wtNum, volWeight);
   }, [wtNum, volWeight]);
 
+  const weightValidation = useMemo(() => {
+    const isExceeded = derivation.chargeableWeight > 500 || wtNum > 500;
+    const effectiveWeight = Math.max(derivation.chargeableWeight, wtNum);
+    return { isExceeded, effectiveWeight };
+  }, [derivation.chargeableWeight, wtNum]);
+
+  const hasDimensions = useDims && volWeight > 0;
+  const hasWeight = wtNum > 0;
+  const canSubmit =
+    !loading &&
+    !!destination.trim() &&
+    (hasWeight || hasDimensions) &&
+    !weightValidation.isExceeded;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     let dims: CargoDimension[] = [];
@@ -208,7 +222,7 @@ export function RateSearchForm({
     onSearch({
       origin: "BOM",
       destination: destination.toUpperCase().trim(),
-      actual_weight_kg: wtNum,
+      actual_weight_kg: wtNum > 0 ? wtNum : undefined,
       dimensions: dims.length > 0 ? dims : undefined,
       commodity,
       packaging_type: packagingType,
@@ -231,9 +245,6 @@ export function RateSearchForm({
             <h2 className="text-base font-extrabold text-obsidian-900 tracking-tight">
               Air Cargo Tariff Search
             </h2>
-            <p className="text-xs font-medium text-slate-500">
-              Live spot tariffs &bull; BOM Mumbai Hub (&lt; 500kg Smalls)
-            </p>
           </div>
         </div>
       </div>
@@ -282,7 +293,10 @@ export function RateSearchForm({
             htmlFor="weight-input"
             className="block text-[11px] font-extrabold text-slate-600 uppercase mb-1"
           >
-            Gross Scale Weight (kg)
+            Gross Scale Weight (kg){" "}
+            {hasDimensions && (
+              <span className="text-slate-400 font-normal lowercase">(optional)</span>
+            )}
           </label>
           <input
             id="weight-input"
@@ -294,12 +308,14 @@ export function RateSearchForm({
             value={actualWeight}
             onChange={(e) => setActualWeight(e.target.value)}
             className="w-full h-11 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold focus-ring font-mono tabular-nums"
-            placeholder="e.g. 120"
+            placeholder={hasDimensions ? "Optional (e.g. 120)" : "e.g. 120"}
             aria-describedby="weight-help"
-            required
+            required={!hasDimensions}
           />
           <div id="weight-help" className="text-[10px] font-medium text-slate-600 mt-1">
-            Physical scale weight measured at warehouse
+            {hasDimensions
+              ? "Physical scale reading (optional: volumetric weight used if blank)"
+              : "Physical scale weight measured at warehouse"}
           </div>
         </div>
 
@@ -521,9 +537,8 @@ export function RateSearchForm({
                 min="1"
                 value={pieces}
                 onChange={(e) => setPieces(e.target.value)}
-                placeholder="Pcs (e.g. 1)"
+                placeholder="1"
                 className="w-full h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus-ring font-mono tabular-nums"
-                required
               />
             </div>
           </div>
@@ -567,7 +582,10 @@ export function RateSearchForm({
                 <span>IATA TACT 1.3.2</span>
               </div>
               <div>
-                Scale: <strong className="font-mono text-slate-800">{wtNum.toFixed(1)} kg</strong>
+                Scale:{" "}
+                <strong className="font-mono text-slate-800">
+                  {wtNum > 0 ? `${wtNum.toFixed(1)} kg` : "Not provided"}
+                </strong>
               </div>
               <span className="text-slate-300">&bull;</span>
               <div>
@@ -581,7 +599,11 @@ export function RateSearchForm({
 
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-slate-500 font-medium">
-                {derivation.isVolumetricBilled ? "Billed on Volume:" : "Billed on Scale Wt:"}
+                {wtNum <= 0
+                  ? "Billed on Volume (Scale Wt omitted):"
+                  : derivation.isVolumetricBilled
+                  ? "Billed on Volume:"
+                  : "Billed on Scale Wt:"}
               </span>
               <span className="font-mono font-black text-sm text-obsidian-900 bg-amber-300/30 border border-amber-300/60 px-2 py-0.5 rounded-lg">
                 {derivation.chargeableWeight.toFixed(1)} kg CW
@@ -591,13 +613,12 @@ export function RateSearchForm({
         )}
       </div>
 
-      {/* Heavy Cargo Alert (> 500 kg) */}
-      {derivation.chargeableWeight >= 500 && (
+      {/* Maximum Weight Alert (> 500 kg desk ceiling) */}
+      {weightValidation.isExceeded && (
         <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-900">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" />
           <span>
-            Chargeable weight exceeds 500 kg smalls desk limit. Automated published tariffs will
-            prompt referral to the heavy cargo desk.
+            Chargeable weight exceeds the 500 kg maximum limit for this desk (currently {weightValidation.effectiveWeight.toFixed(1)} kg). Please adjust weight or package dimensions.
           </span>
         </div>
       )}
@@ -606,7 +627,7 @@ export function RateSearchForm({
       <div className="mt-5 flex justify-end">
         <button
           type="submit"
-          disabled={loading || !destination || wtNum <= 0}
+          disabled={!canSubmit}
           className="inline-flex items-center gap-2 rounded-xl bg-obsidian-900 px-6 py-2.5 text-sm font-bold text-amber-300 hover:bg-aero-navy focus-ring transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (

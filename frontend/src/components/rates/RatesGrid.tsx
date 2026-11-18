@@ -7,7 +7,9 @@ import { CostBreakdownModal, MarginInfo } from "./CostBreakdownModal";
 import { CarrierBadge } from "./CarrierBadge";
 import { AirlineLogo } from "./AirlineLogo";
 import { MarginControllerBar, MarginMode } from "./MarginControllerBar";
-import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
+import { StandardSelectOption } from "../common/StandardSelect";
+import { RatesTableRowDetail, CardMarginOverride } from "./RatesTableRowDetail";
+import { formatCustomerQuoteText, formatInternalAuditText } from "../../lib/quote-export";
 import {
   Clock,
   TrendingDown,
@@ -15,7 +17,6 @@ import {
   Copy,
   Check,
   Sparkles,
-  SlidersHorizontal,
   FileText,
   ChevronDown,
   ChevronUp,
@@ -31,11 +32,6 @@ interface RatesGridProps {
 type FilterOption = "all" | "cheapest" | "fastest" | "direct";
 type SortField = "price" | "carrier" | "transit" | "cutoff";
 type SortDirection = "asc" | "desc";
-
-interface CardMarginOverride {
-  mode: MarginMode;
-  value: number;
-}
 
 const MARGIN_MODE_OPTIONS: StandardSelectOption<MarginMode>[] = [
   { value: "per_kg", label: "₹ / kg", description: "Per chargeable kilogram" },
@@ -171,42 +167,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
   const handleCopyQuote = (quote: RateQuoteItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const margin = getQuoteMargin(quote);
-    let text = "";
-
-    if (margin && margin.totalMargin > 0) {
-      text = [
-        `✈ AIR FREIGHT QUOTATION | JET FREIGHT LOGISTICS`,
-        `Route: ${quote.origin} → ${quote.destination} (${quote.flight_number})`,
-        `Carrier: ${quote.carrier_name} (${quote.carrier_code})`,
-        `Routing: ${quote.routing_type} • Transit: ${quote.transit_time}`,
-        `Chargeable Weight: ${quote.chargeable_weight} kg (${quote.weight_tier_applied})`,
-        `Commodity: ${quote.cargo_category}`,
-        `-----------------------------------------`,
-        `ALL-IN CLIENT SELLING RATE: ₹${margin.sellPerKg.toFixed(2)} / kg`,
-        `TOTAL ESTIMATED FREIGHT: ${formatINR(margin.sellTotal)}`,
-        `Includes: Base Air Freight, Fuel (FSC), Security (SSC), Origin MIAL Terminal Charges & 5% GST`,
-        `-----------------------------------------`,
-        `Departure: ${quote.departure_time} | Arrival: ${quote.arrival_time}`,
-        `Cargo Acceptance Cutoff: ${quote.cargo_cutoff}`,
-        `Terms: Subject to space confirmation and airline booking acceptance at Mumbai Hub (BOM).`,
-      ].join("\n");
-    } else {
-      text = [
-        `✈ AIR CARGO BUYING TARIFF | JET FREIGHT LOGISTICS`,
-        `Route: ${quote.origin} → ${quote.destination} (${quote.flight_number})`,
-        `Carrier: ${quote.carrier_name} (${quote.carrier_code})`,
-        `Routing: ${quote.routing_type} • Transit: ${quote.transit_time}`,
-        `Chargeable Weight: ${quote.chargeable_weight} kg (${quote.weight_tier_applied})`,
-        `Base Freight: ₹${quote.breakdown.base_rate_per_kg}/kg (Total: ${formatINR(quote.breakdown.base_freight_total)})`,
-        `Fuel (FSC): ${formatINR(quote.breakdown.fsc_total)} | Security (SSC): ${formatINR(quote.breakdown.ssc_total)}`,
-        `Origin THC & Screening: ${formatINR(quote.breakdown.origin_thc_total)} | e-AWB: ${formatINR(quote.breakdown.awb_fee)}`,
-        `-----------------------------------------`,
-        `TOTAL LANDED BUY COST: ${formatINR(quote.breakdown.total_landed_buy)} (Zero Margin)`,
-        `EFFECTIVE RATE / KG: ₹${quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg`,
-        `Cutoff: ${quote.cargo_cutoff}`,
-      ].join("\n");
-    }
-
+    const text = formatCustomerQuoteText(quote, margin);
     navigator.clipboard.writeText(text);
     setCopiedId(quote.id);
     setTimeout(() => setCopiedId(null), 2200);
@@ -216,23 +177,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
   const handleCopyInternalAudit = (quote: RateQuoteItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const margin = getQuoteMargin(quote);
-    const text = [
-      `✈ INTERNAL PRICING AUDIT SHEET | JET FREIGHT LOGISTICS (BOM)`,
-      `Route: ${quote.origin} → ${quote.destination} (${quote.flight_number})`,
-      `Carrier: ${quote.carrier_name} (${quote.carrier_code})`,
-      `Chargeable Weight: ${quote.chargeable_weight} kg (${quote.weight_tier_applied})`,
-      `Commodity: ${quote.cargo_category}`,
-      `-----------------------------------------`,
-      `NET AIRLINE BUY COST: ${formatINR(quote.breakdown.total_landed_buy)} (₹${quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg)`,
-      `COORDINATOR MARGIN: +${formatINR(margin ? margin.totalMargin : 0)} (+₹${margin ? margin.marginPerKg.toFixed(2) : "0.00"} / kg)`,
-      `FINAL CLIENT SELL PRICE: ${formatINR(margin ? margin.sellTotal : quote.breakdown.total_landed_buy)} (₹${margin ? margin.sellPerKg.toFixed(2) : quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg)`,
-      `Gross Profit Margin: ${margin ? ((margin.totalMargin / quote.breakdown.total_landed_buy) * 100).toFixed(1) : "0.0"}% on buy cost`,
-      `-----------------------------------------`,
-      `Base Freight: ₹${quote.breakdown.base_rate_per_kg}/kg | FSC: ${formatINR(quote.breakdown.fsc_total)} | SSC: ${formatINR(quote.breakdown.ssc_total)}`,
-      `MIAL Terminal THC: ${formatINR(quote.breakdown.origin_thc_total)} | e-AWB: ${formatINR(quote.breakdown.awb_fee)} | GST (5%): ${formatINR(quote.breakdown.gst_tax)}`,
-      `Cutoff: ${quote.cargo_cutoff}`,
-    ].join("\n");
-
+    const text = formatInternalAuditText(quote, margin);
     navigator.clipboard.writeText(text);
     setCopiedAuditId(quote.id);
     setTimeout(() => setCopiedAuditId(null), 2200);
@@ -464,15 +409,15 @@ export function RatesGrid({ rates }: RatesGridProps) {
                   Rating Tier
                 </th>
 
-                {/* Net Landed Buy Rate (Internal Baseline) */}
+                {/* Net Landed Buy Price (Internal Baseline) */}
                 <th
                   scope="col"
                   aria-sort={sortField === "price" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
-                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors text-right w-[13%]"
+                  className="py-3 px-3.5 font-extrabold cursor-pointer hover:text-obsidian-900 transition-colors text-right w-[14%]"
                   onClick={() => handleSort("price")}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>Net Buy Rate</span>
+                    <span>Net Buy Price</span>
                     {sortField === "price" && !isGlobalMarginActive ? (
                       sortDirection === "asc" ? (
                         <ArrowUp className="h-3 w-3 text-obsidian-900" />
@@ -556,7 +501,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
                             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 font-mono mt-0.5">
                               <span className="font-bold text-slate-700">{quote.flight_number}</span>
                               <span className="text-slate-300">&bull;</span>
-                              <span>AWB {quote.airline_prefix}</span>
+                              <span className="text-slate-400 font-sans">{quote.routing_type}</span>
                             </div>
 
                             {/* Tariff Equipment / Packaging Restriction Badge */}
@@ -582,8 +527,6 @@ export function RatesGrid({ rates }: RatesGridProps) {
                           <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 mt-0.5">
                             <Clock className="h-3 w-3 text-aero-teal shrink-0" />
                             <span>{quote.transit_time}</span>
-                            <span className="text-slate-300">&bull;</span>
-                            <span className="font-bold text-aero-teal">{quote.routing_type}</span>
                           </div>
                         </div>
                       </td>
@@ -593,41 +536,38 @@ export function RatesGrid({ rates }: RatesGridProps) {
                         <div className="font-mono text-xs font-bold text-amber-950">
                           {quote.cargo_cutoff}
                         </div>
-                        <div className="text-[10px] font-medium text-slate-600">
-                          BOM Hub Acceptance
+                        <div className="text-[10px] font-semibold text-slate-400">
+                          Cargo Cutoff
                         </div>
                       </td>
 
                       {/* Column 4: Weight Slab & Pivot */}
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-slate-800">
-                            {quote.weight_tier_applied}
-                          </span>
-                          <span className="text-[10px] font-semibold text-slate-500">
-                            ({quote.chargeable_weight} kg)
-                          </span>
+                        <div className="font-mono text-xs font-extrabold text-slate-800">
+                          {quote.weight_tier_applied}
                         </div>
-                        {quote.is_pivoted && (
-                          <div className="inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-900 mt-0.5">
+                        {quote.is_pivoted ? (
+                          <div className="inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-900 mt-0.5">
                             <TrendingDown className="h-2.5 w-2.5 text-amber-700" />
                             <span>Pivot Savings</span>
                           </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 font-medium">Standard Slab</div>
                         )}
                       </td>
 
-                      {/* Column 5: Net Buy Baseline Rate */}
+                      {/* Column 5: Net Buy Total Price (Primary) & Rate/kg (Secondary) */}
                       <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                        <div className="font-mono tabular-nums text-xs font-extrabold text-slate-800">
-                          ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)}{" "}
-                          <span className="text-[10px] font-semibold text-slate-500">/ kg</span>
+                        <div className="font-mono tabular-nums text-sm font-extrabold text-obsidian-900 tracking-tight">
+                          {formatINR(quote.breakdown.total_landed_buy)}
                         </div>
-                        <div className="font-mono tabular-nums text-[11px] font-bold text-slate-500 mt-0.5">
-                          Total {formatINR(quote.breakdown.total_landed_buy)}
+                        <div className="font-mono tabular-nums text-[11px] font-semibold text-slate-500 mt-0.5">
+                          ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)}{" "}
+                          <span className="text-[10px] text-slate-400 font-normal">/ kg</span>
                         </div>
                       </td>
 
-                      {/* Column 6: Client Selling Price / Margin Hero */}
+                      {/* Column 6: Client Selling Price (Primary Total, Secondary Rate/kg) */}
                       <td className="py-3 px-4 text-right whitespace-nowrap bg-amber-50/20">
                         {hasActiveMargin ? (
                           <div>
@@ -641,28 +581,31 @@ export function RatesGrid({ rates }: RatesGridProps) {
                                 </span>
                               )}
                             </div>
-                            <div className="font-mono tabular-nums text-xs font-extrabold text-emerald-700 mt-0.5">
+                            <div className="font-mono tabular-nums text-[11px] font-extrabold text-emerald-700 mt-0.5">
                               ₹{margin.sellPerKg.toFixed(2)} / kg
-                            </div>
-                            <div className="text-[10px] font-extrabold text-slate-500 font-mono">
-                              Profit: +{formatINR(margin.totalMargin)}
+                              <span className="text-slate-500 font-normal ml-1 font-sans text-[10px]">
+                                (+{formatINR(margin.totalMargin)})
+                              </span>
                             </div>
                           </div>
                         ) : (
                           <div>
-                            <div className="font-mono tabular-nums text-xs font-bold text-slate-600">
-                              Zero Margin
+                            <div className="font-mono tabular-nums text-sm font-bold text-slate-400 tracking-tight">
+                              {formatINR(quote.breakdown.total_landed_buy)}
                             </div>
-                            <div className="font-mono tabular-nums text-[11px] font-medium text-slate-600 mt-0.5">
-                              {formatINR(quote.breakdown.total_landed_buy)} (Buy)
+                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              <span className="font-mono tabular-nums text-[11px] text-slate-400">
+                                ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)} / kg
+                              </span>
+                              <span className="text-slate-300">&bull;</span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenOverride(quote, e)}
+                                className="text-[10px] font-bold text-aero-teal hover:underline cursor-pointer"
+                              >
+                                + Margin
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleOpenOverride(quote, e)}
-                              className="text-[10px] font-bold text-aero-teal hover:underline mt-0.5"
-                            >
-                              + Add Margin
-                            </button>
                           </div>
                         )}
                       </td>
@@ -742,190 +685,21 @@ export function RatesGrid({ rates }: RatesGridProps) {
 
                     {/* Expandable Sub-Row (Drill-Down Drawer) */}
                     {isExpanded && (
-                      <tr className="bg-slate-50/90 border-b border-slate-200">
-                        <td colSpan={7} className="p-4 sm:p-5">
-                          <div className="space-y-4">
-                            {/* Sub-row Header & API Status */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-obsidian-900 text-xs">
-                                  {quote.carrier_name} ({quote.carrier_code}) &bull; Flight {quote.flight_number}
-                                </span>
-                                <span className="text-slate-300 text-xs">&bull;</span>
-                                <span className="text-xs font-medium text-slate-500">
-                                  AWB {quote.airline_prefix} &bull; {quote.rate_basis}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleOpenOverride(quote, e)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
-                                >
-                                  <SlidersHorizontal className="h-3 w-3 text-slate-500" />
-                                  <span>
-                                    {hasCardOverride
-                                      ? `Override: ${cardOverrides[quote.id].mode === "per_kg" ? "₹" + cardOverrides[quote.id].value + "/kg" : cardOverrides[quote.id].mode === "percent" ? cardOverrides[quote.id].value + "%" : "₹" + cardOverrides[quote.id].value}`
-                                      : "Custom Airline Margin"}
-                                  </span>
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Inline Carrier Override Editor (If Open) */}
-                            {isOverrideActive && (
-                              <div className="p-3.5 rounded-xl bg-white border border-slate-300 shadow-sm space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-extrabold text-obsidian-900 text-xs">
-                                    Set Custom Margin for {quote.carrier_name}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveOverrideRowId(null)}
-                                    className="text-slate-600 hover:text-slate-800 text-xs font-bold"
-                                  >
-                                    Close
-                                  </button>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2.5">
-                                  <div className="w-32">
-                                    <StandardSelect
-                                      size="sm"
-                                      value={overrideMode}
-                                      onChange={(val) => setOverrideMode(val as MarginMode)}
-                                      options={MARGIN_MODE_OPTIONS}
-                                      ariaLabel="Margin calculation mode"
-                                    />
-                                  </div>
-                                  <input
-                                    type="number"
-                                    value={overrideInputStr}
-                                    onChange={(e) => setOverrideInputStr(e.target.value)}
-                                    placeholder="e.g. 20"
-                                    className="h-8 w-24 rounded-lg border border-slate-300 bg-white px-2.5 font-mono text-xs font-bold text-slate-900"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApplyOverride(quote.id)}
-                                    className="rounded-lg bg-obsidian-900 px-3 py-1.5 font-bold text-white text-xs hover:bg-slate-800 cursor-pointer"
-                                  >
-                                    Save Override
-                                  </button>
-                                  {hasCardOverride && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRevertOverride(quote.id)}
-                                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-600 text-xs hover:bg-slate-100 cursor-pointer"
-                                    >
-                                      Revert to Global
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Itemized Surcharges Grid */}
-                            <div>
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">
-                                Landed Buying Cost Line Items (BOM Terminal)
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">Base Freight</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.base_freight_total)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
-                                    ₹{quote.breakdown.base_rate_per_kg}/kg
-                                  </div>
-                                </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">Fuel (FSC)</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.fsc_total)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
-                                    ₹{quote.breakdown.fsc_rate_per_kg}/kg
-                                  </div>
-                                </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">Security (SSC)</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.ssc_total)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">
-                                    ₹{quote.breakdown.ssc_rate_per_kg}/kg
-                                  </div>
-                                </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">MIAL THC</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.origin_thc_total)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">Terminal</div>
-                                </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">X-Ray & Handling</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.xray_total + quote.breakdown.misc_handling_total)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">Screening</div>
-                                </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                                  <div className="text-[10px] font-semibold text-slate-500">e-AWB & Tax</div>
-                                  <div className="font-mono font-bold text-xs text-slate-800 mt-0.5">
-                                    {formatINR(quote.breakdown.awb_fee + quote.breakdown.gst_tax)}
-                                  </div>
-                                  <div className="text-[9px] text-slate-600 font-medium font-mono">AWB + 5% GST</div>
-                                </div>
-                                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-2 text-center">
-                                  <div className="text-[10px] font-bold text-emerald-800">Net Buy Total</div>
-                                  <div className="font-mono font-black text-xs text-emerald-900 mt-0.5">
-                                    {formatINR(quote.breakdown.total_landed_buy)}
-                                  </div>
-                                  <div className="text-[9px] font-extrabold text-emerald-700 font-mono">
-                                    ₹{quote.breakdown.effective_buy_per_kg.toFixed(2)}/kg
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Break-even Pivot Math (If applicable) */}
-                            {quote.is_pivoted && (
-                              <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-950">
-                                <div className="flex items-center gap-2 font-bold mb-1">
-                                  <TrendingDown className="h-4 w-4 text-amber-700" />
-                                  <span>IATA TACT Break-Even Pivot Rule Applied</span>
-                                </div>
-                                <p className="leading-relaxed">
-                                  {quote.pivot_savings}. Declaring the shipment at the higher weight minimum discounted slab yields a lower total landed invoice than multiplying by the natural tier.
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Operational & Regulatory Directives from Audit Report */}
-                            {quote.regulatory_notes && quote.regulatory_notes.length > 0 && (
-                              <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs space-y-1.5">
-                                <div className="flex items-center gap-2 font-extrabold text-obsidian-900">
-                                  <Info className="h-4 w-4 text-jfll-blue shrink-0" />
-                                  <span>Operational Directives &amp; Regulatory Compliance (ex-BOM)</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                  {quote.regulatory_notes.map((note, nIdx) => (
-                                    <span
-                                      key={nIdx}
-                                      className="inline-flex items-center gap-1 rounded-lg bg-white border border-blue-200/80 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-2xs"
-                                    >
-                                      &bull; {note}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                      <RatesTableRowDetail
+                        quote={quote}
+                        hasCardOverride={hasCardOverride}
+                        cardOverride={cardOverrides[quote.id]}
+                        isOverrideActive={isOverrideActive}
+                        overrideMode={overrideMode}
+                        overrideInputStr={overrideInputStr}
+                        marginOptions={MARGIN_MODE_OPTIONS}
+                        onOpenOverride={(e) => handleOpenOverride(quote, e)}
+                        onCloseOverride={() => setActiveOverrideRowId(null)}
+                        onSetOverrideMode={(mode) => setOverrideMode(mode)}
+                        onSetOverrideInput={(val) => setOverrideInputStr(val)}
+                        onApplyOverride={() => handleApplyOverride(quote.id)}
+                        onRevertOverride={() => handleRevertOverride(quote.id)}
+                      />
                     )}
                   </React.Fragment>
                 );
@@ -941,7 +715,7 @@ export function RatesGrid({ rates }: RatesGridProps) {
               Showing <strong>{displayedRates.length}</strong> of <strong>{rates.length}</strong> airline tariffs
             </span>
             <span className="text-slate-300">&bull;</span>
-            <span>BOM Hub (Under 500kg Smalls Desk)</span>
+            <span>BOM Origin Hub</span>
           </div>
 
           <div className="flex items-center gap-3">

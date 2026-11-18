@@ -8,7 +8,7 @@ export interface CargoDimension {
 export interface RateSearchRequest {
   origin: string;
   destination: string;
-  actual_weight_kg: number;
+  actual_weight_kg?: number;
   dimensions?: CargoDimension[];
   commodity?: string;
   packaging_type?: string;

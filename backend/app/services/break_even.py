@@ -14,10 +14,10 @@ def optimize_break_even_pivot(
                      where T is the number of active slabs (T <= 6). Overall: O(1) in practice.
     Space Complexity: O(1) auxiliary space (zero dynamic allocation).
 
-    Constraint: Only evaluates slabs up to +300 kg (Strictly <500kg Smalls).
+    Constraint: Evaluates all published active weight tiers (e.g. Normal, +45, +100, +250, +300, +500 kg).
 
     Args:
-        chargeable_weight: Current calculated CW in kg (must be < 500.0).
+        chargeable_weight: Current calculated CW in kg.
         tiers: List of sorted active slabs by min_weight in ascending order,
                e.g. [{"min_weight": 0, "rate": 250, "label": "Normal"}, ...]
         min_charge: Absolute minimum charge floor for this carrier/commodity.
@@ -47,14 +47,10 @@ def optimize_break_even_pivot(
     is_pivoted = False
     savings = 0.0
 
-    # Evaluate higher weight slabs (capped at +300 kg for <500kg Smalls scope)
+    # Evaluate higher weight slabs
     # Finding the optimal higher weight break that minimizes total invoice
     for j in range(natural_idx + 1, len(sorted_tiers)):
         higher_tier = sorted_tiers[j]
-        # Hard constraint: Do not pivot to 500kg or above
-        if higher_tier["min_weight"] >= 500.0:
-            continue
-
         higher_freight = round(higher_tier["min_weight"] * higher_tier["rate"])
         if higher_freight < effective_freight:
             effective_freight = higher_freight

@@ -461,7 +461,7 @@ class TariffRegistryService:
                     pdf_saved = True
                     if s3_storage_service.is_enabled and self.pdf_dir == DEFAULT_PDF_DIR:
                         s3_storage_service.upload_file(pdf_target, f"uploads/{saved_pdf_name}")
-                except Exception as pdf_err:
+                except (IOError, OSError) as pdf_err:
                     logger.warning(f"Could not persist PDF bytes for {code}: {pdf_err}")
 
             self._registry[code]["has_active_circular"] = True

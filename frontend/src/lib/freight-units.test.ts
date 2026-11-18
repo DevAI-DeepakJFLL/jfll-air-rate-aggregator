@@ -46,5 +46,10 @@ describe("freight-units utility functions", () => {
     const res2 = deriveChargeableWeight(10.0, 15.1);
     expect(res2.chargeableWeight).toBe(15.5);
     expect(res2.isVolumetricBilled).toBe(true);
+
+    // Actual omitted (0.0 kg) vs Vol 25.0 kg -> derives from volumetric weight
+    const res3 = deriveChargeableWeight(0.0, 25.0);
+    expect(res3.chargeableWeight).toBe(25.0);
+    expect(res3.isVolumetricBilled).toBe(true);
   });
 });
