@@ -340,7 +340,7 @@ class ChargesService:
         with self._lock:
             if not self.config_path.exists():
                 seed_data = None
-                if s3_storage_service.is_enabled:
+                if s3_storage_service.is_enabled and self.config_path == DEFAULT_CONFIG_PATH:
                     seed_data = s3_storage_service.download_json("data/charges_config.json")
                     if seed_data:
                         logger.info("Restored charges_config.json from S3 into local cache.")
@@ -410,7 +410,7 @@ class ChargesService:
                 self._last_mtime = 0.0
             self._notify_mutation()
 
-            if s3_storage_service.is_enabled:
+            if s3_storage_service.is_enabled and self.config_path == DEFAULT_CONFIG_PATH:
                 s3_storage_service.upload_json("data/charges_config.json", serialized)
 
     def get_all_charges(self) -> List[ChargeRule]:

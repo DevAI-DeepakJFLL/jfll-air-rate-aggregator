@@ -202,7 +202,7 @@ class TariffRegistryService:
         """Loads previously uploaded circular rates and registry state from S3 or atomic disk storage."""
         # 1. On AWS Lambda (or when uploads_path is missing), attempt restore from S3 or bundled seed
         if not self.uploads_path.exists():
-            if s3_storage_service.is_enabled:
+            if s3_storage_service.is_enabled and self.uploads_path == DEFAULT_UPLOADS_PATH:
                 s3_data = s3_storage_service.download_json("data/tariff_uploads.json")
                 if s3_data:
                     try:
@@ -262,7 +262,7 @@ class TariffRegistryService:
                 pass
 
             # Sync to AWS S3 if configured
-            if s3_storage_service.is_enabled:
+            if s3_storage_service.is_enabled and self.uploads_path == DEFAULT_UPLOADS_PATH:
                 s3_storage_service.upload_json("data/tariff_uploads.json", payload)
         except Exception as e:
             logger.error(f"Failed to persist tariff uploads: {e}")
@@ -459,7 +459,7 @@ class TariffRegistryService:
                     with open(pdf_target, "wb") as f_pdf:
                         f_pdf.write(pdf_bytes)
                     pdf_saved = True
-                    if s3_storage_service.is_enabled:
+                    if s3_storage_service.is_enabled and self.pdf_dir == DEFAULT_PDF_DIR:
                         s3_storage_service.upload_file(pdf_target, f"uploads/{saved_pdf_name}")
                 except Exception as pdf_err:
                     logger.warning(f"Could not persist PDF bytes for {code}: {pdf_err}")
