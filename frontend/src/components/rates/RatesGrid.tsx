@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { RateQuoteItem } from "../../types/rate";
+import {
+  RateQuoteItem,
+  MarginInfo,
+  MarginMode,
+  CardMarginOverride,
+} from "../../types/rate";
 import { formatINR } from "../../lib/utils";
-import { MarginInfo } from "./CostBreakdownModal";
 import { CarrierBadge } from "./CarrierBadge";
 import { AirlineLogo } from "./AirlineLogo";
-import { MarginMode } from "./MarginControllerBar";
 import { StandardSelectOption } from "../common/StandardSelect";
-import { RatesTableRowDetail, CardMarginOverride } from "./RatesTableRowDetail";
+import { RatesTableRowDetail } from "./RatesTableRowDetail";
 import {
   Clock,
   TrendingDown,

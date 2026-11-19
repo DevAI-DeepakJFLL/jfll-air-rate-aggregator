@@ -1,14 +1,8 @@
 import React from "react";
-import { RateQuoteItem } from "../../types/rate";
+import { RateQuoteItem, MarginMode, CardMarginOverride } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
-import { MarginMode } from "./MarginControllerBar";
 import { StandardSelect, StandardSelectOption } from "../common/StandardSelect";
 import { SlidersHorizontal, TrendingDown, Info } from "lucide-react";
-
-export interface CardMarginOverride {
-  mode: MarginMode;
-  value: number;
-}
 
 interface RatesTableRowDetailProps {
   quote: RateQuoteItem;

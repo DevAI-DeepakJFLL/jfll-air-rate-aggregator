@@ -15,7 +15,6 @@ from app.schemas.charge import (
     ChargeCategory,
     ChargeRuleCreate,
     ChargeRuleUpdate,
-    CorridorScope,
 )
 
 

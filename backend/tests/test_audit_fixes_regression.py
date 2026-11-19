@@ -1,5 +1,5 @@
 import pytest
-from app.schemas.rate import RateSearchRequest, CargoDimension
+from app.schemas.rate import RateSearchRequest
 from app.services.rate_engine import (
     process_rate_search,
     evaluate_regulatory_and_operational_directives,

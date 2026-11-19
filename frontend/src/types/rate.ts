@@ -87,3 +87,20 @@ export interface RateSearchResponse {
   message?: string;
   rates: RateQuoteItem[];
 }
+
+export type MarginMode = "per_kg" | "percent" | "flat";
+
+export interface MarginInfo {
+  mode: MarginMode;
+  value: number;
+  totalMargin: number;
+  sellTotal: number;
+  sellPerKg: number;
+  marginPerKg: number;
+}
+
+export interface CardMarginOverride {
+  mode: MarginMode;
+  value: number;
+}
+

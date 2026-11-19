@@ -2,7 +2,7 @@ import math
 import hashlib
 import heapq
 import re
-from typing import List, Dict, Any, Optional, Tuple, Set
+from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict, OrderedDict
 from app.schemas.rate import RateSearchRequest, RateSearchResponse, RateQuoteItem, CostBreakdown, PackagingType
 from app.schemas.charge import (
@@ -22,10 +22,8 @@ from app.services.break_even import optimize_break_even_pivot
 from app.core.config import settings
 from app.data.airports import (
     AIRPORT_TO_COUNTRY,
-    COUNTRY_ALIASES,
     COUNTRY_AND_ALIASES,
     AIRLINE_SCHEDULES,
-    get_country_for_airport,
 )
 
 

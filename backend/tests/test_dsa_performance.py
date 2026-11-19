@@ -1,5 +1,4 @@
 import time
-import pytest
 from app.services.rate_engine import (
     CorridorRateIndex,
     parse_transit_minutes,
