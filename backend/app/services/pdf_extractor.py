@@ -62,12 +62,18 @@ MULTI_COMMODITY_REGEX = re.compile(
         |PILA\s*-\s*CRT
         |DGR\s*-\s*PAX
         |DGR\s*-\s*CAO
+        |DG\s*-\s*PAX
+        |DG\s*-\s*CAO
+        |DG\s+PAX
+        |DG\s+CAO
         |AXS\s*-\s*COL\s*/\s*DG\s*PAX\s*/\s*AXM
         |AXS\s*-\s*CRT\s*/\s*VUN
         |AOG\s*/\s*AXT
         |GCR\s*-\s*Offline(?:\s*Tariff)?
         |AXD\s*-\s*COL
         |AXD\s*-\s*CRT
+        |AXS\s*-\s*COL
+        |AXS\s*-\s*CRT
         |GENERAL
         |GCR
         |GEN
@@ -81,6 +87,11 @@ MULTI_COMMODITY_REGEX = re.compile(
         |PER
         |AVI
         |VUN
+        |AXM
+        |AXT
+        |AXA
+        |COU
+        |PET
         |PXS
         |PXD
     )""",
@@ -861,11 +872,13 @@ def extract_digital_tariff_records(
             if base_comm in (
                 "GCR", "XPS", "DGR", "COL", "CRT", "VAL", "PET",
                 "HUM", "COU", "PXS", "PXD", "AOG", "AVI", "AXA", "DG CAO",
+                "DG-PAX", "DG-CAO", "DG PAX", "VUN", "AXM", "AXT",
                 "AXD-CRT", "AXD-COL", "AXS-CRT", "AXS-COL",
                 "GCR - Offline Tariff", "OFFLINE"
             ) or clean_hdr in (
                 "AXS-CRT / VUN", "AXS-COL / DG PAX / AXM", "AOG / AXT",
-                "GCR - Offline Tariff", "DG CAO", "AXD-CRT", "AXD-COL", "AXA"
+                "GCR - Offline Tariff", "DG CAO", "AXD-CRT", "AXD-COL", "AXA",
+                "DG-PAX", "DG-CAO", "DG PAX", "VUN", "AXM", "AXT"
             ):
                 if clean_hdr != "OFFLINE":
                     current_commodity = base_comm
