@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # AWS S3 Storage
     AWS_REGION: str = "ap-southeast-2"
     AWS_S3_STORAGE_BUCKET: str = ""
-    AWS_S3_BUCKET_NAME: str = "jfll-rate-frontend"
+    AWS_S3_BUCKET_NAME: str = ""
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
 

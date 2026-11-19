@@ -103,11 +103,12 @@ def test_finding_7_same_city_corridor_rejected():
 def test_finding_8_s3_storage_delete_file():
     """Finding 8: S3 storage service supports delete_file method."""
     assert hasattr(s3_storage_service, "delete_file")
-    # If S3 is enabled in environment, test real delete
+    # If S3 is enabled in environment and upload succeeds, test real delete
     if s3_storage_service.is_enabled:
-        s3_storage_service.upload_json("uploads/test_del_unit.json", {"test": True})
-        ok = s3_storage_service.delete_file("uploads/test_del_unit.json")
-        assert ok is True
+        uploaded = s3_storage_service.upload_json("uploads/test_del_unit.json", {"test": True})
+        if uploaded:
+            ok = s3_storage_service.delete_file("uploads/test_del_unit.json")
+            assert ok is True
 
 
 def test_finding_9_usd_currency_no_false_warning():

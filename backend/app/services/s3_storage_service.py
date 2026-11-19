@@ -72,7 +72,12 @@ class S3StorageService:
                     aws_secret_access_key=sec_key,
                 )
             else:
-                self._client = boto3.client("s3", region_name=region)
+                session = boto3.Session(region_name=region)
+                if session.get_credentials() is None:
+                    logger.debug("No AWS credentials found in session or environment. Operating in local filesystem mode.")
+                    self._client = None
+                    return
+                self._client = session.client("s3")
 
             logger.info(f"S3StorageService initialized successfully for bucket '{self._bucket_name}' in region '{region}'.")
         except Exception as e:
