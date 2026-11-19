@@ -15,6 +15,9 @@ Thumbs.db
 *.xlsx
 *.xls
 *.csv
+*.docx
+AWS_DEPLOYMENT_GUIDE.md
+BUY_RATE_CALCULATION_SPECIFICATION.*
 
 # Internal Agent Files, Plan/Design MDs & AI Artifacts (NEVER COMMIT)
 AIR_CARGO_RATE_AGGREGATOR_PLAN.md
