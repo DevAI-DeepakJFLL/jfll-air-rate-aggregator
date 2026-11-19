@@ -87,8 +87,8 @@ Before launching any resources, set up a zero-spend budget so AWS notifies you i
 ### 2.1 Create the S3 Bucket
 1. Search for **S3** in the AWS console and open it.
 2. Click **Create bucket**.
-3. **Bucket name**: Choose a unique name, e.g., `jfll-rate-frontend-YOURNAME` (lowercase letters, numbers, hyphens only).
-4. **AWS Region**: Select `ap-south-1` (Mumbai).
+3. **Bucket name**: `jfll-rate-frontend` (or your company prefix if taken, e.g. `jfll-rate-frontend-prod`).
+4. **AWS Region**: Select `ap-southeast-2` (or your preferred region, e.g., `ap-south-1`).
 5. **Block Public Access**: 
    - Uncheck **Block all public access**.
    - Check the acknowledgement box *"I understand that the bucket will be public"*.
@@ -106,7 +106,7 @@ Before launching any resources, set up a zero-spend budget so AWS notifies you i
 ### 2.3 Set S3 Bucket Policy
 1. Go to the **Permissions** tab of your bucket.
 2. Under **Bucket policy**, click **Edit**.
-3. Paste the following JSON policy (replace `YOUR-BUCKET-NAME` with your actual bucket name):
+3. Paste the following JSON policy (replace with your actual frontend bucket name if custom):
 
 ```json
 {
@@ -117,7 +117,7 @@ Before launching any resources, set up a zero-spend budget so AWS notifies you i
       "Effect": "Allow",
       "Principal": "*",
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+      "Resource": "arn:aws:s3:::jfll-rate-frontend/*"
     }
   ]
 }
@@ -176,6 +176,15 @@ function handler(event) {
    - **Event type**: `Viewer request`.
    - **Cache behavior**: `Default (*)`.
    - Click **Add association**.
+
+### 2.6 Create the Dedicated Private S3 Storage Bucket (Persistent PDFs & Tariffs)
+To prevent uploaded airline PDF rate circulars and tariff data from ever being wiped when frontend code is deployed, create a separate private S3 storage bucket:
+1. In the AWS S3 console, click **Create bucket**.
+2. **Bucket name**: `jfll-rate-storage` (or your company prefix if taken, e.g. `jfll-rate-storage-prod`).
+3. **AWS Region**: Select `ap-southeast-2` (matching your Lambda region).
+4. **Block Public Access**: Keep **Block all public access** CHECKED.
+   *(This guarantees confidential carrier buy rates and uploaded PDF circulars remain strictly private and accessible only through authorized backend API calls).*
+5. Click **Create bucket**.
 
 ---
 
@@ -268,7 +277,7 @@ Create a dedicated IAM user specifically for this project:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "S3FrontendDeploy",
+      "Sid": "S3FrontendAndStorageAccess",
       "Effect": "Allow",
       "Action": [
         "s3:PutObject",
@@ -277,8 +286,10 @@ Create a dedicated IAM user specifically for this project:
         "s3:DeleteObject"
       ],
       "Resource": [
-        "arn:aws:s3:::YOUR-BUCKET-NAME",
-        "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+        "arn:aws:s3:::jfll-rate-frontend",
+        "arn:aws:s3:::jfll-rate-frontend/*",
+        "arn:aws:s3:::jfll-rate-storage",
+        "arn:aws:s3:::jfll-rate-storage/*"
       ]
     },
     {
@@ -303,7 +314,7 @@ Create a dedicated IAM user specifically for this project:
 }
 ```
 
-*(Replace `YOUR-BUCKET-NAME` with your actual S3 bucket name)*
+*(Note: If your bucket names differ, update `jfll-rate-frontend` and `jfll-rate-storage` to match your exact bucket names)*
 
 6. Name the policy `JFLLRateAggregatorDeployPolicy` and click **Create policy**.
 7. Return to the user creation tab, attach `JFLLRateAggregatorDeployPolicy`, and finish creating the user.
@@ -322,13 +333,15 @@ Create a dedicated IAM user specifically for this project:
 
 | Name | Example Value | Description |
 |---|---|---|
-| `AWS_ACCESS_KEY_ID` | `AKIAIOSFODNN7EXAMPLE` | Access Key ID from Step 4 |
+| `AWS_ACCESS_KEY_ID` | `AKIAVRDT7C7Q47OWNKND` | Access Key ID from Step 4 |
 | `AWS_SECRET_ACCESS_KEY` | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` | Secret Access Key from Step 4 |
-| `AWS_REGION` | `ap-south-1` | AWS Region (Mumbai) |
-| `AWS_S3_BUCKET_NAME` | `jfll-rate-frontend-YOURNAME` | Your S3 bucket name |
+| `AWS_REGION` | `ap-southeast-2` | AWS Region (matching your Lambda) |
+| `AWS_S3_FRONTEND_BUCKET` | `jfll-rate-frontend` | Public frontend S3 bucket for website hosting |
+| `AWS_S3_STORAGE_BUCKET` | `jfll-rate-storage` | Private S3 storage bucket for uploaded PDFs & tariff JSON |
+| `AWS_S3_BUCKET_NAME` | `jfll-rate-frontend` | Backwards compatibility fallback if using single bucket |
 | `AWS_CLOUDFRONT_DISTRIBUTION_ID` | `E1A2B3C4D5E6F7` | CloudFront Distribution ID |
 | `AWS_LAMBDA_FUNCTION_NAME` | `jfll-rate-api` | Your Lambda Function Name |
-| `NEXT_PUBLIC_API_URL` | `https://xxxx.lambda-url.ap-south-1.on.aws` | Your Lambda Function URL |
+| `NEXT_PUBLIC_API_URL` | `https://xxxx.lambda-url.ap-southeast-2.on.aws` | Your Lambda Function URL |
 
 ### 5.2 The CI/CD Pipeline Workflow
 The repository includes [.github/workflows/deploy-aws.yml](file:///Users/deepak/Development/Jet%20Freight%20Logistics/Rate%20Aggregator%20Tool/.github/workflows/deploy-aws.yml).

@@ -34,9 +34,10 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB max file upload
     MAX_PDF_PAGES: int = 50                         # Mitigate decompression bombs
 
-    # AWS Free Tier S3 Storage
-    AWS_REGION: str = "ap-south-1"
-    AWS_S3_BUCKET_NAME: str = "jfll-rate-sheets"
+    # AWS S3 Storage
+    AWS_REGION: str = "ap-southeast-2"
+    AWS_S3_STORAGE_BUCKET: str = ""
+    AWS_S3_BUCKET_NAME: str = "jfll-rate-frontend"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
 

@@ -39,14 +39,17 @@ class S3StorageService:
             logger.debug("boto3 is not installed. S3 persistence will operate in local fallback mode.")
             return
 
-        # Determine target bucket from settings or environment
+        # Determine target bucket from environment or application settings
         bucket = (
-            os.environ.get("AWS_S3_BUCKET_NAME")
-            or getattr(settings, "AWS_S3_BUCKET_NAME", "")
+            os.environ.get("AWS_S3_STORAGE_BUCKET")
+            or os.environ.get("AWS_S3_BUCKET_NAME")
+            or os.environ.get("S3_STORAGE_BUCKET")
             or os.environ.get("S3_BUCKET_NAME")
+            or getattr(settings, "AWS_S3_STORAGE_BUCKET", "")
+            or getattr(settings, "AWS_S3_BUCKET_NAME", "")
         )
         if not bucket or not bucket.strip():
-            logger.debug("AWS_S3_BUCKET_NAME is not configured. Operating in local filesystem mode.")
+            logger.debug("AWS_S3_STORAGE_BUCKET / AWS_S3_BUCKET_NAME is not configured. Operating in local filesystem mode.")
             return
 
         self._bucket_name = bucket.strip()

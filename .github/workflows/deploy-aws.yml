@@ -91,7 +91,7 @@ jobs:
           SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          BUCKET_NAME="${{ vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || '' }}"
+          STORAGE_BUCKET="${{ vars.AWS_S3_STORAGE_BUCKET || secrets.AWS_S3_STORAGE_BUCKET || vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_STORAGE_BUCKET || secrets.S3_STORAGE_BUCKET || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || '' }}"
           GEMINI_KEY="${{ vars.GEMINI_API_KEY || secrets.GEMINI_API_KEY || '' }}"
           KEY_ID="${SECRET_KEY_ID:-${{ vars.AWS_ACCESS_KEY_ID }}}"
           SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
@@ -100,8 +100,8 @@ jobs:
           echo "Optimizing Lambda configuration (runtime=python3.11, timeout=60s, memory=512MB, handler=lambda_handler.handler)..."
 
           ENV_PAIRS="ENVIRONMENT=production,AWS_REGION=$REGION,ADMIN_API_KEY=$ADMIN_KEY"
-          if [ -n "$BUCKET_NAME" ]; then
-            ENV_PAIRS="$ENV_PAIRS,AWS_S3_BUCKET_NAME=$BUCKET_NAME"
+          if [ -n "$STORAGE_BUCKET" ]; then
+            ENV_PAIRS="$ENV_PAIRS,AWS_S3_STORAGE_BUCKET=$STORAGE_BUCKET,AWS_S3_BUCKET_NAME=$STORAGE_BUCKET"
           fi
           if [ -n "$GEMINI_KEY" ]; then
             ENV_PAIRS="$ENV_PAIRS,GEMINI_API_KEY=$GEMINI_KEY"
@@ -237,16 +237,16 @@ jobs:
 
       - name: Sync Static Assets to S3
         run: |
-          BUCKET_NAME="${{ vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME }}"
-          if [ -z "$BUCKET_NAME" ]; then
-            echo "::error::S3 Bucket Name is not configured. Please add AWS_S3_BUCKET_NAME (or S3_BUCKET_NAME) in GitHub Secrets."
+          FRONTEND_BUCKET="${{ vars.AWS_S3_FRONTEND_BUCKET || secrets.AWS_S3_FRONTEND_BUCKET || vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_FRONTEND_BUCKET || secrets.S3_FRONTEND_BUCKET || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME }}"
+          if [ -z "$FRONTEND_BUCKET" ]; then
+            echo "::error::Frontend S3 Bucket Name is not configured. Please add AWS_S3_FRONTEND_BUCKET (or AWS_S3_BUCKET_NAME) in GitHub Secrets."
             exit 1
           fi
-          echo "Target S3 Bucket: $BUCKET_NAME in region ${AWS_REGION:-ap-south-1}"
-          # Sync immutable hashed JS/CSS assets
-          aws s3 sync frontend/out "s3://$BUCKET_NAME" --delete --exclude "*.html" --cache-control "public, max-age=31536000, immutable" --region "${AWS_REGION:-ap-south-1}"
-          # Sync HTML and root documents with no-cache so updates are immediately visible
-          aws s3 sync frontend/out "s3://$BUCKET_NAME" --delete --include "*.html" --cache-control "no-cache, no-store, must-revalidate" --region "${AWS_REGION:-ap-south-1}"
+          echo "Target Frontend S3 Bucket: $FRONTEND_BUCKET in region ${AWS_REGION:-ap-south-1}"
+          # Sync immutable hashed JS/CSS assets without wiping backend persistent data
+          aws s3 sync frontend/out "s3://$FRONTEND_BUCKET" --delete --exclude "uploads/*" --exclude "data/*" --exclude "*.html" --cache-control "public, max-age=31536000, immutable" --region "${AWS_REGION:-ap-south-1}"
+          # Sync HTML and root documents with no-cache so updates are immediately visible without wiping backend persistent data
+          aws s3 sync frontend/out "s3://$FRONTEND_BUCKET" --delete --exclude "uploads/*" --exclude "data/*" --include "*.html" --cache-control "no-cache, no-store, must-revalidate" --region "${AWS_REGION:-ap-south-1}"
 
       - name: Invalidate CloudFront CDN Cache
         run: |

@@ -3,21 +3,16 @@
 import React, { useState, useMemo } from "react";
 import { RateQuoteItem } from "../../types/rate";
 import { formatINR } from "../../lib/utils";
-import { CostBreakdownModal, MarginInfo } from "./CostBreakdownModal";
+import { MarginInfo } from "./CostBreakdownModal";
 import { CarrierBadge } from "./CarrierBadge";
 import { AirlineLogo } from "./AirlineLogo";
-import { MarginControllerBar, MarginMode } from "./MarginControllerBar";
+import { MarginMode } from "./MarginControllerBar";
 import { StandardSelectOption } from "../common/StandardSelect";
 import { RatesTableRowDetail, CardMarginOverride } from "./RatesTableRowDetail";
-import { formatCustomerQuoteText, formatInternalAuditText } from "../../lib/quote-export";
 import {
   Clock,
   TrendingDown,
-  Info,
-  Copy,
-  Check,
   Sparkles,
-  FileText,
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
@@ -40,13 +35,10 @@ const MARGIN_MODE_OPTIONS: StandardSelectOption<MarginMode>[] = [
 ];
 
 export function RatesGrid({ rates }: RatesGridProps) {
-  const [selectedQuote, setSelectedQuote] = useState<RateQuoteItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterOption>("all");
   const [sortField, setSortField] = useState<SortField>("price");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
 
   // Pricing Coordinator Margin State
   const [marginMode, setMarginMode] = useState<MarginMode>("per_kg");
@@ -105,12 +97,6 @@ export function RatesGrid({ rates }: RatesGridProps) {
     return marginMap.get(quote.id) ?? null;
   };
 
-  const handleResetMargins = () => {
-    setMarginInputStr("");
-    setCardOverrides({});
-    setActiveOverrideRowId(null);
-  };
-
   const handleOpenOverride = (quote: RateQuoteItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (activeOverrideRowId === quote.id) {
@@ -161,26 +147,6 @@ export function RatesGrid({ rates }: RatesGridProps) {
       setSortField(field);
       setSortDirection("asc");
     }
-  };
-
-  // Copy customer-facing quotation
-  const handleCopyQuote = (quote: RateQuoteItem, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const margin = getQuoteMargin(quote);
-    const text = formatCustomerQuoteText(quote, margin);
-    navigator.clipboard.writeText(text);
-    setCopiedId(quote.id);
-    setTimeout(() => setCopiedId(null), 2200);
-  };
-
-  // Copy internal pricing audit sheet
-  const handleCopyInternalAudit = (quote: RateQuoteItem, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const margin = getQuoteMargin(quote);
-    const text = formatInternalAuditText(quote, margin);
-    navigator.clipboard.writeText(text);
-    setCopiedAuditId(quote.id);
-    setTimeout(() => setCopiedAuditId(null), 2200);
   };
 
   // Helper to get effective price for sorting
@@ -269,29 +235,18 @@ export function RatesGrid({ rates }: RatesGridProps) {
     return null;
   }
 
-  const selectedMarginInfo = selectedQuote ? getQuoteMargin(selectedQuote) : null;
   const isGlobalMarginActive = globalMarginNum > 0 || Object.keys(cardOverrides).length > 0;
 
   return (
     <div className="space-y-4 font-sans">
-      {/* 1. Pricing Coordinator Margin Controller Bar (Trading Cockpit) */}
-      <MarginControllerBar
-        marginMode={marginMode}
-        onMarginModeChange={setMarginMode}
-        marginInputStr={marginInputStr}
-        onMarginInputChange={setMarginInputStr}
-        hasActiveOverrides={Object.keys(cardOverrides).length > 0}
-        onResetMargins={handleResetMargins}
-      />
-
-      {/* 2. Header: Table Filter Controls & Quick Stats Banner */}
+      {/* Header: Table Filter Controls & Quick Stats Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 pt-1">
         <div>
           <h3 className="text-base font-extrabold text-obsidian-900 tracking-tight">
             Airline Comparison Table
           </h3>
           <p className="text-xs font-semibold text-slate-500 mt-0.5">
-            Compare pure net buy vs client sell price side-by-side across all active BOM circulars
+            Compare pure net buy rates side-by-side across all active BOM circulars
           </p>
         </div>
 
@@ -451,9 +406,9 @@ export function RatesGrid({ rates }: RatesGridProps) {
                   </div>
                 </th>
 
-                {/* Actions */}
-                <th scope="col" className="py-3 px-4 text-center font-extrabold whitespace-nowrap w-[11%]">
-                  Actions
+                {/* Breakdown Details */}
+                <th scope="col" className="py-3 px-3 text-center font-extrabold whitespace-nowrap w-[70px]">
+                  Breakdown
                 </th>
               </tr>
             </thead>
@@ -610,73 +565,23 @@ export function RatesGrid({ rates }: RatesGridProps) {
                         )}
                       </td>
 
-                      {/* Column 7: Fast Actions */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Copy Customer Quote */}
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyQuote(quote, e)}
-                            title={hasActiveMargin ? "Copy client quote with selling price" : "Copy buy rate quotation"}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 focus-ring transition-colors shadow-2xs cursor-pointer"
-                          >
-                            {copiedId === quote.id ? (
-                              <>
-                                <Check className="h-3 w-3 text-emerald-600" />
-                                <span className="text-[11px] text-emerald-700 font-extrabold">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3 w-3 text-slate-500" />
-                                <span className="text-[11px]">{hasActiveMargin ? "Quote" : "Copy"}</span>
-                              </>
-                            )}
-                          </button>
-
-                          {/* Copy Internal Audit Sheet (when margin applied) */}
-                          {hasActiveMargin && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopyInternalAudit(quote, e)}
-                              title="Copy internal audit sheet (Buy Cost + Margin = Sell Price)"
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-ring transition-colors shadow-2xs cursor-pointer"
-                            >
-                              {copiedAuditId === quote.id ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <FileText className="h-3 w-3 text-slate-500" />
-                              )}
-                              <span className="text-[11px]">Audit</span>
-                            </button>
-                          )}
-
-                          {/* Cost Breakdown Modal Trigger */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedQuote(quote);
-                            }}
-                            title="Open detailed line-item cost breakdown"
-                            className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-obsidian-900 text-amber-400 hover:bg-aero-navy transition-colors focus-ring shadow-2xs cursor-pointer"
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* Row Details Expansion Toggle */}
+                      {/* Column 7: Breakdown Details Toggle */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleRowExpansion(quote.id);
                             }}
-                            title={isExpanded ? "Collapse row details" : "Expand row details"}
-                            className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors focus-ring shadow-2xs cursor-pointer"
+                            title={isExpanded ? "Collapse price breakdown" : "Expand price breakdown"}
+                            aria-label={isExpanded ? "Collapse price breakdown" : "Expand price breakdown"}
+                            className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-obsidian-900 transition-colors focus-ring shadow-2xs cursor-pointer"
                           >
                             {isExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
+                              <ChevronUp className="h-4 w-4" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-4 w-4" />
                             )}
                           </button>
                         </div>
@@ -733,13 +638,6 @@ export function RatesGrid({ rates }: RatesGridProps) {
           </div>
         </div>
       </div>
-
-      {/* 4. Cost Breakdown Modal */}
-      <CostBreakdownModal
-        quote={selectedQuote}
-        marginInfo={selectedMarginInfo}
-        onClose={() => setSelectedQuote(null)}
-      />
     </div>
   );
 }
