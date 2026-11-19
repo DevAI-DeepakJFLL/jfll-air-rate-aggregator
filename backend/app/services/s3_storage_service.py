@@ -48,21 +48,36 @@ class S3StorageService:
             or getattr(settings, "AWS_S3_STORAGE_BUCKET", "")
             or getattr(settings, "AWS_S3_BUCKET_NAME", "")
         )
+        if (not bucket or not bucket.strip()) and os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            bucket = "jfll-rate-storage"
+
         if not bucket or not bucket.strip():
             logger.debug("AWS_S3_STORAGE_BUCKET / AWS_S3_BUCKET_NAME is not configured. Operating in local filesystem mode.")
             return
 
         self._bucket_name = bucket.strip()
         region = (
-            os.environ.get("AWS_REGION")
+            os.environ.get("APP_AWS_REGION")
+            or os.environ.get("AWS_REGION")
             or os.environ.get("AWS_DEFAULT_REGION")
             or self._region
+            or "ap-southeast-2"
         )
 
         try:
-            # Check for explicit credentials if provided, otherwise let boto3 use Lambda execution role
-            key_id = os.environ.get("AWS_ACCESS_KEY_ID") or getattr(settings, "AWS_ACCESS_KEY_ID", "")
-            sec_key = os.environ.get("AWS_SECRET_ACCESS_KEY") or getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+            # Check for explicit credentials if provided (supporting non-reserved APP_AWS_* / S3_* keys)
+            key_id = (
+                os.environ.get("APP_AWS_ACCESS_KEY_ID")
+                or os.environ.get("S3_ACCESS_KEY_ID")
+                or os.environ.get("AWS_ACCESS_KEY_ID")
+                or getattr(settings, "AWS_ACCESS_KEY_ID", "")
+            )
+            sec_key = (
+                os.environ.get("APP_AWS_SECRET_ACCESS_KEY")
+                or os.environ.get("S3_SECRET_ACCESS_KEY")
+                or os.environ.get("AWS_SECRET_ACCESS_KEY")
+                or getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+            )
 
             if key_id and sec_key:
                 self._client = boto3.client(
@@ -86,6 +101,8 @@ class S3StorageService:
 
     @property
     def is_enabled(self) -> bool:
+        if self._client is None or not self._bucket_name:
+            self._init_client()
         return self._client is not None and bool(self._bucket_name)
 
     @property

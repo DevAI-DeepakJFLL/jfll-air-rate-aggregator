@@ -91,7 +91,7 @@ jobs:
           SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           FUNCTION_NAME="${{ vars.AWS_LAMBDA_FUNCTION_NAME || secrets.AWS_LAMBDA_FUNCTION_NAME || 'jfll-rate-api' }}"
-          STORAGE_BUCKET="${{ vars.AWS_S3_STORAGE_BUCKET || secrets.AWS_S3_STORAGE_BUCKET || vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_STORAGE_BUCKET || secrets.S3_STORAGE_BUCKET || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || '' }}"
+          STORAGE_BUCKET="${{ vars.AWS_S3_STORAGE_BUCKET || secrets.AWS_S3_STORAGE_BUCKET || vars.AWS_S3_BUCKET_NAME || secrets.AWS_S3_BUCKET_NAME || vars.S3_STORAGE_BUCKET || secrets.S3_STORAGE_BUCKET || vars.S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || 'jfll-rate-storage' }}"
           GEMINI_KEY="${{ vars.GEMINI_API_KEY || secrets.GEMINI_API_KEY || '' }}"
           KEY_ID="${SECRET_KEY_ID:-${{ vars.AWS_ACCESS_KEY_ID }}}"
           SEC_KEY="${SECRET_KEY:-${{ vars.AWS_SECRET_ACCESS_KEY }}}"
@@ -99,15 +99,12 @@ jobs:
 
           echo "Optimizing Lambda configuration (runtime=python3.11, timeout=60s, memory=512MB, handler=lambda_handler.handler)..."
 
-          ENV_PAIRS="ENVIRONMENT=production,AWS_REGION=$REGION,ADMIN_API_KEY=$ADMIN_KEY"
-          if [ -n "$STORAGE_BUCKET" ]; then
-            ENV_PAIRS="$ENV_PAIRS,AWS_S3_STORAGE_BUCKET=$STORAGE_BUCKET,AWS_S3_BUCKET_NAME=$STORAGE_BUCKET"
-          fi
+          ENV_PAIRS="ENVIRONMENT=production,ADMIN_API_KEY=$ADMIN_KEY,AWS_S3_STORAGE_BUCKET=$STORAGE_BUCKET,AWS_S3_BUCKET_NAME=$STORAGE_BUCKET"
           if [ -n "$GEMINI_KEY" ]; then
             ENV_PAIRS="$ENV_PAIRS,GEMINI_API_KEY=$GEMINI_KEY"
           fi
           if [ -n "$KEY_ID" ] && [ -n "$SEC_KEY" ]; then
-            ENV_PAIRS="$ENV_PAIRS,AWS_ACCESS_KEY_ID=$KEY_ID,AWS_SECRET_ACCESS_KEY=$SEC_KEY"
+            ENV_PAIRS="$ENV_PAIRS,APP_AWS_ACCESS_KEY_ID=$KEY_ID,APP_AWS_SECRET_ACCESS_KEY=$SEC_KEY"
           fi
 
           aws lambda update-function-configuration \

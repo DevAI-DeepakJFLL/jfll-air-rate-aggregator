@@ -92,7 +92,6 @@ coverage/
 *.sqlite3
 *.db
 backend/data/*.db
-backend/data/tariff_uploads.json
 
 # IDE configuration
 .idea/

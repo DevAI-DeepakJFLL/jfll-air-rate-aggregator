@@ -188,8 +188,9 @@ class TariffRegistryService:
         self._load_persisted_uploads()
 
     def _sync_from_disk_if_modified(self) -> None:
-        """Reloads persisted state if another worker process modified uploads_path."""
+        """Reloads persisted state if uploads_path is missing or modified by another worker."""
         if not self.uploads_path.exists():
+            self._load_persisted_uploads()
             return
         try:
             current_mtime = self.uploads_path.stat().st_mtime

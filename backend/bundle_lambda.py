@@ -45,20 +45,30 @@ packages = [
     "python-dotenv",
 ]
 
-subprocess.run(
-    [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "--upgrade",
-        "--target",
-        PKG_DIR,
-        "--no-compile",
-        *packages,
-    ],
-    check=True,
-)
+pip_cmd = [
+    sys.executable,
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "--target",
+    PKG_DIR,
+    "--no-compile",
+    *packages,
+]
+try:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "--version"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+except Exception:
+    uv_bin = shutil.which("uv") or os.path.expanduser("~/.local/bin/uv")
+    if os.path.exists(uv_bin) if not shutil.which("uv") else True:
+        pip_cmd = [uv_bin, "pip", "install", "--target", PKG_DIR, *packages]
+
+subprocess.run(pip_cmd, check=True)
 
 print("\n=== Step 3: Embed Universal Multi-ABI pydantic-core binaries ===")
 # Determine installed pydantic-core version
@@ -158,9 +168,9 @@ with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as z:
     for folder in ["app", "data"]:
         f_dir = os.path.join(BACKEND_DIR, folder)
         for root, dirs, files in os.walk(f_dir):
-            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            dirs[:] = [d for d in dirs if d not in ("__pycache__", "uploads")]
             for f in files:
-                if f.endswith(".pyc"):
+                if f.endswith(".pyc") or f.endswith(".pdf"):
                     continue
                 abs_p = os.path.join(root, f)
                 rel_p = os.path.relpath(abs_p, BACKEND_DIR)

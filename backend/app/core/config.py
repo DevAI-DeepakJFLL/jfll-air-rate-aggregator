@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET_NAME: str = ""
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
+    APP_AWS_ACCESS_KEY_ID: str = ""
+    APP_AWS_SECRET_ACCESS_KEY: str = ""
 
     # AI Multimodal Parsing
     GEMINI_API_KEY: str = ""
